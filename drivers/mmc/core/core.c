@@ -1169,10 +1169,10 @@ void mmc_rescan(struct work_struct *work)
 	mmc_power_off(host);
 
 out:
-        if (extend_wakelock)
-                wake_lock_timeout(&mmc_delayed_work_wake_lock, HZ / 2);
-        else
-                wake_unlock(&mmc_delayed_work_wake_lock);
+	if (extend_wakelock)
+		wake_lock_timeout(&mmc_delayed_work_wake_lock, HZ / 2);
+	else
+		wake_unlock(&mmc_delayed_work_wake_lock);
 
 	if (host->caps & MMC_CAP_NEEDS_POLL)
 		mmc_schedule_delayed_work(&host->detect, HZ);
@@ -1473,7 +1473,7 @@ static int __init mmc_init(void)
 {
 	int ret;
 
-        wake_lock_init(&mmc_delayed_work_wake_lock, WAKE_LOCK_SUSPEND, "mmc_delayed_work");
+	wake_lock_init(&mmc_delayed_work_wake_lock, WAKE_LOCK_SUSPEND, "mmc_delayed_work");
 
 	workqueue = create_singlethread_workqueue("kmmcd");
 	if (!workqueue)
