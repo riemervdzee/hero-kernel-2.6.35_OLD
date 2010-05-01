@@ -1262,7 +1262,8 @@ int __init sapphire_init_panel(void)
 			resources_msm_fb[0].end = resources_msm_fb[0].start + 0x9b000 - 1;
 			break;
 		default:
-                        mddi_pdata.fb_resource = resources_msm_fb_smi32;
+			resources_msm_fb[0].start = SMI32_MSM_FB_BASE;
+			resources_msm_fb[0].end = SMI32_MSM_FB_BASE + SMI32_MSM_FB_SIZE - 1;
 			break;
 		}
 	}

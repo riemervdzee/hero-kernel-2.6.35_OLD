@@ -211,6 +211,7 @@ int __init parse_tag_monodie(const struct tag *tags)
        printk(KERN_DEBUG "parse_tag_monodie: die size = 0x%x\n", monodie);
        return monodie;
 }
+__tagtable(ATAG_MONODIE, parse_tag_monodie);
 
 #define ATAG_MFG_GPIO_TABLE 0x59504551
 int __init parse_tag_mfg_gpio_table(const struct tag *tags)
