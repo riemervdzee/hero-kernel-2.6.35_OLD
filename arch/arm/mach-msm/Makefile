@@ -69,6 +69,15 @@ obj-$(CONFIG_MACH_MSM7X30_SURF) += board-surf7x30.o
 obj-$(CONFIG_ARCH_MSM7X30) += board-msm7x30.o devices-msm7x30.o
 obj-$(CONFIG_ARCH_QSD8X50) += board-qsd8x50.o devices-qsd8x50.o
 
+obj-$(CONFIG_MACH_BRAVO) += board-bravo.o board-bravo-panel.o
+obj-$(CONFIG_MACH_BRAVO) += board-bravo-keypad.o board-bravo-mmc.o
+obj-$(CONFIG_MACH_BRAVO) += board-bravo-rfkill.o htc_wifi_nvs.o
+obj-$(CONFIG_MACH_BRAVO) += board-bravo-wifi.o board-bravo-audio.o
+obj-$(CONFIG_MACH_BRAVO) += msm_vibrator.o
+obj-$(CONFIG_MACH_BRAVO) += board-bravo-microp.o
+obj-$(CONFIG_MACH_BRAVO) += htc_acoustic_qsd.o
+obj-$(CONFIG_MACH_BRAVO) += board-bravo-flashlight.o
+
 obj-$(CONFIG_HTC_PWRSINK) += htc_pwrsink.o
 obj-$(CONFIG_HTC_PWRSPLY) += htc_power_supply.o
 obj-$(CONFIG_HTC_HEADSET) += htc_headset.o
