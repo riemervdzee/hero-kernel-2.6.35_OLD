@@ -1337,85 +1337,31 @@ static void __init sapphire_fixup(struct machine_desc *desc, struct tag *tags,
 	die_sz = parse_tag_monodie((const struct tag *)tags);
 	printk("sapphire_fixup:diesize=0x%x\n", die_sz);
 
-	mi->nr_banks = 1;
-	mi->bank[0].start = PHYS_OFFSET;
-	mi->bank[0].node = PHYS_TO_NID(PHYS_OFFSET);
-#if     defined(CONFIG_MSM_AMSS_SUPPORT_256MB_EBI1)
-        if (smi_sz == 32) {
-                switch (sapphire_get_die_size()) {
-                case EBI1_DUAL_128MB_128MB:
-                        mi->nr_banks = 2;
-#ifdef CONFIG_HOLES_IN_ZONE
-                        mi->bank[0].size = 0x6d00000;
-#else
-                        mi->bank[0].size = 0x6c00000;
-#endif
-                        mi->bank[1].start = 0x20000000;
-                        mi->bank[1].size = 0x5800000;
-                        mi->bank[1].node = PHYS_TO_NID(0x20000000);
-                        break;
-                case EBI1_MONO_256MB:
-                        mi->nr_banks = 2;
-#ifdef CONFIG_HOLES_IN_ZONE
-                        mi->bank[0].size = 0x6d00000;
-#else
-                        mi->bank[0].size = 0x6c00000;
-#endif
-                        mi->bank[1].start = 0x18000000;
-                        mi->bank[1].size = 0x5800000;
-                        mi->bank[1].node = PHYS_TO_NID(0x18000000);
-                        break;
-                default:
-                        mi->bank[0].size = MSM_EBI_SMI32_256MB_SIZE;
-                        break;
-                }
-        } else if (smi_sz == 64) {
-                mi->bank[0].size = MSM_EBI_SMI64_128MB_SIZE;
-        } else {
-                printk(KERN_ERR "can not get smi size\n");
-
-                /*Give a default value when not get smi size*/
-                smi_sz = 64;
-                mi->bank[0].size = MSM_EBI_SMI64_128MB_SIZE;
-                printk(KERN_ERR "use default  :  smisize=%d\n", smi_sz);
-        }
-#else
 	if (smi_sz == 32) {
-		switch (sapphire_get_die_size()) {
-		case EBI1_DUAL_128MB_128MB:
-			mi->nr_banks = 2;
-#ifdef CONFIG_HOLES_IN_ZONE
-			mi->bank[0].size = 0x6d00000;
-#else
-			mi->bank[0].size = 0x6c00000;
-#endif
-			mi->bank[1].start = 0x20000000;
-			mi->bank[1].size = 0x5800000;
-			mi->bank[1].node = PHYS_TO_NID(0x20000000);
-			break;
-		case EBI1_MONO_256MB:
-			mi->nr_banks = 2;
-#ifdef CONFIG_HOLES_IN_ZONE
-			mi->bank[0].size = 0x6d00000;
-#else
-			mi->bank[0].size = 0x6c00000;
-#endif
-			mi->bank[1].start = 0x18000000;
-			mi->bank[1].size = 0x5800000;
-			mi->bank[1].node = PHYS_TO_NID(0x18000000);
-			break;
-		default:
-			mi->bank[0].size = (84*1024*1024);
-			break;
-		}
+		mi->nr_banks = 1;
+		mi->bank[0].start = PHYS_OFFSET;
+		mi->bank[0].node = PHYS_TO_NID(PHYS_OFFSET);
+		mi->bank[0].size = (84*1024*1024);
 	} else if (smi_sz == 64) {
-		mi->bank[0].size = (104*1024*1024);
+		mi->nr_banks = 2;
+		mi->bank[0].start = SMI64_MSM_LINUX_BASE_1;
+		mi->bank[0].node = PHYS_TO_NID(SMI64_MSM_LINUX_BASE_1);
+		mi->bank[0].size = (32*1024*1024);
+		mi->bank[1].start = SMI64_MSM_LINUX_BASE_2;
+		mi->bank[1].node = PHYS_TO_NID(SMI64_MSM_LINUX_BASE_2);
+		mi->bank[1].size = (84*1024*1024);
 	} else {
 		printk(KERN_ERR "can not get smi size\n");
 
 		/*Give a default value when not get smi size*/
 		smi_sz = 64;
-		mi->bank[0].size = (104*1024*1024);
+		mi->nr_banks = 2;
+		mi->bank[0].start = SMI64_MSM_LINUX_BASE_1;
+		mi->bank[0].node = PHYS_TO_NID(SMI64_MSM_LINUX_BASE_1);
+		mi->bank[0].size = (32*1024*1024);
+		mi->bank[1].start = SMI64_MSM_LINUX_BASE_2;
+		mi->bank[1].node = PHYS_TO_NID(SMI64_MSM_LINUX_BASE_2);
+		mi->bank[1].size = (84*1024*1024);
 		printk(KERN_ERR "use default  :  smisize=%d\n", smi_sz);
 	}
 #endif
@@ -1435,15 +1381,7 @@ MACHINE_START(SAPPHIRE, "sapphire")
 	.phys_io        = MSM_DEBUG_UART_PHYS,
 	.io_pg_offst    = ((MSM_DEBUG_UART_BASE) >> 18) & 0xfffc,
 #endif
-#if defined(CONFIG_MSM_AMSS_SUPPORT_256MB_EBI1)
-        .boot_params    = 0x19200100,
-#else
-#if defined(CONFIG_MSM_AMSS_RADIO2708_MEMMAP) 
-  .boot_params    = 0x02000100, 
-#else 
-	.boot_params    = 0x10000100,
-#endif
-#endif
+	.boot_params    = 0x02000100,
 	.fixup          = sapphire_fixup,
 	.map_io         = sapphire_map_io,
 	.init_irq       = sapphire_init_irq,
