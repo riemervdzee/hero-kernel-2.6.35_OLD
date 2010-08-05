@@ -71,7 +71,7 @@ obj-$(CONFIG_ARCH_QSD8X50) += board-qsd8x50.o devices-qsd8x50.o
 
 obj-$(CONFIG_MACH_BRAVO) += board-bravo.o board-bravo-panel.o
 obj-$(CONFIG_MACH_BRAVO) += board-bravo-keypad.o board-bravo-mmc.o
-obj-$(CONFIG_MACH_BRAVO) += board-bravo-rfkill.o htc_wifi_nvs.o
+obj-$(CONFIG_MACH_BRAVO) += board-bravo-rfkill.o htc_wifi_nvs.o htc_awb_cal.o
 obj-$(CONFIG_MACH_BRAVO) += board-bravo-wifi.o board-bravo-audio.o
 obj-$(CONFIG_MACH_BRAVO) += msm_vibrator.o
 obj-$(CONFIG_MACH_BRAVO) += board-bravo-microp.o
