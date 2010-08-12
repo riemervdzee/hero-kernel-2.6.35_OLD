@@ -17,6 +17,8 @@
 #ifndef _ARCH_ARM_MACH_MSM_AUDMGR_NEW_H
 #define _ARCH_ARM_MACH_MSM_AUDMGR_NEW_H
 
+#include <mach/msm_rpc_version.h>
+
 enum rpc_aud_def_sample_rate_type {
 	RPC_AUD_DEF_SAMPLE_RATE_NONE,
 	RPC_AUD_DEF_SAMPLE_RATE_8000,

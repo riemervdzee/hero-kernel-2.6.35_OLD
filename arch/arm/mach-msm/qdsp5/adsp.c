@@ -35,6 +35,7 @@
 #include <linux/wait.h>
 #include <linux/wakelock.h>
 #include "adsp.h"
+#include "mach/msm_adsp.h"
 
 static struct wake_lock adsp_wake_lock;
 static inline void prevent_suspend(void)
@@ -50,7 +51,7 @@ static inline void allow_suspend(void)
 #include <mach/msm_iomap.h>
 #include "adsp.h"
 
-#define INT_ADSP INT_ADSP_A9_A11
+//#define INT_ADSP INT_ADSP_A9_A11
 
 static struct adsp_info adsp_info;
 static struct msm_rpc_endpoint *rpc_cb_server_client;
@@ -1176,7 +1177,7 @@ fail_request_irq:
 static struct platform_driver msm_adsp_driver = {
 	.probe = msm_adsp_probe,
 	.driver = {
-		.name = MSM_ADSP_DRIVER_NAME,
+		.name = ADSP_DRIVER_NAME,
 		.owner = THIS_MODULE,
 	},
 };

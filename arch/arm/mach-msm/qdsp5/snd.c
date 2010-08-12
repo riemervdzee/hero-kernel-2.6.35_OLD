@@ -27,6 +27,7 @@
 #include <asm/ioctls.h>
 #include <mach/board.h>
 #include <mach/msm_rpcrouter.h>
+#include <mach/msm_rpc_version.h>
 
 struct snd_ctxt {
 	struct mutex lock;

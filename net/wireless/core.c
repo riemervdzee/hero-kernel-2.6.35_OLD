@@ -525,7 +525,7 @@ void wiphy_rfkill_start_polling(struct wiphy *wiphy)
 	if (!rdev->ops->rfkill_poll)
 		return;
 	rdev->rfkill_ops.poll = cfg80211_rfkill_poll;
-	rfkill_resume_polling(rdev->rfkill);
+//	rfkill_resume_polling(rdev->rfkill);
 }
 EXPORT_SYMBOL(wiphy_rfkill_start_polling);
 

@@ -61,7 +61,7 @@ struct smem_shared {
 #define SMSM_V1_SIZE		(sizeof(unsigned) * 8)
 #define SMSM_V2_SIZE		(sizeof(unsigned) * 4)
 
-#ifdef CONFIG_MSM_SMD_PKG3
+#ifdef CONFIG_MSM_AMSS_VERSION < 6350
 struct smsm_interrupt_info {
 	uint32_t interrupt_mask;
 	uint32_t pending_interrupts;
