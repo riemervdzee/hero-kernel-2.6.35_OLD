@@ -265,8 +265,16 @@ int hero_get_smi_size(void);
 unsigned int hero_get_hwid(void);
 unsigned int hero_get_skuid(void);
 unsigned int hero_get_die_size(void);
+unsigned int hero_engineerid(void);
 unsigned int is_12pin_camera(void);
 int hero_is_5M_camera(void);
 int hero_gpio_write(struct gpio_chip *chip, unsigned n, unsigned on);
-
 #endif /* GUARD */
+
+
+/* JogBall, exist in XC */
+#define HERO_GPIO_JOGBALL_EN            (98)
+#define HERO_GPIO_JOGBALL_UP_0          (94)
+#define HERO_GPIO_JOGBALL_LEFT_0        (39)
+#define HERO_GPIO_JOGBALL_DOWN_0        (83)
+#define HERO_GPIO_JOGBALL_RIGHT_0       (37)
