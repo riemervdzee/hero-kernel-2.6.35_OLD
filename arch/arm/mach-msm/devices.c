@@ -13,6 +13,17 @@
  *
  */
 
+//Added for Hero
+#include <asm/setup.h>
+
+#include <mach/msm_hsusb.h>
+#include <linux/usb/mass_storage_function.h>
+#include <mach/msm_rpcrouter.h>
+#include <linux/delay.h>
+#include <linux/gpio.h>
+//End
+
+
 #include <linux/kernel.h>
 #include <linux/platform_device.h>
 #include <linux/dma-mapping.h>
@@ -662,3 +673,16 @@ struct clk msm_clocks[] = {
 #endif
 	CLOCK(NULL, 0, NULL, 0, 0),
 };
+
+#define ATAG_HERO_PANEL_TYPE 0x4d534D74
+int panel_type;
+int __init tag_panel_parsing(const struct tag *tags)
+{
+        panel_type = tags->u.revision.rev;
+
+        printk(KERN_DEBUG "%s: panel type = %d\n", __func__,
+                panel_type);
+
+        return panel_type;
+}
+__tagtable(ATAG_HERO_PANEL_TYPE, tag_panel_parsing);
