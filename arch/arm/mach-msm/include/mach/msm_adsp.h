@@ -26,9 +26,6 @@ struct msm_adsp_ops {
 	 */
 	void (*event)(void *driver_data, unsigned id, size_t len,
 		      void (*getevent)(void *ptr, size_t len));
-//ADDED
-	void (*modem_event) (void *driver_data, uint32_t image);
-//END
 };
 
 /* Get, Put, Enable, and Disable are synchronous and must only
@@ -42,7 +39,6 @@ void msm_adsp_put(struct msm_adsp_module *module);
 int msm_adsp_enable(struct msm_adsp_module *module);
 int msm_adsp_disable(struct msm_adsp_module *module);
 int adsp_set_clkrate(struct msm_adsp_module *module, unsigned long clk_rate);
-int msm_adsp_disable_event_rsp(struct msm_adsp_module *module);
 
 /* Write is safe to call from interrupt context.
  */
@@ -80,7 +76,6 @@ int msm_adsp_write(struct msm_adsp_module *module,
 #define QDSP_vfeCommandQueue              25
 #define QDSP_vfeCommandScaleQueue         26
 #define QDSP_vfeCommandTableQueue         27
-//#define QDSP_MAX_NUM_QUEUES               28
 #define QDSP_QUEUE_MAX                    28
 #else
 /* Command Queue Indexes */
@@ -112,9 +107,6 @@ int msm_adsp_write(struct msm_adsp_module *module,
 #define QDSP_vfeCommandScaleQueue         25
 #define QDSP_vfeCommandTableQueue         26
 #define QDSP_QUEUE_MAX                    26
-//ADDED
-//#define QDSP_MAX_NUM_QUEUES               28
-//ADDED
 #endif
 
 #endif

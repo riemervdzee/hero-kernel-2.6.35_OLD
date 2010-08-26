@@ -12,17 +12,9 @@
  * GNU General Public License for more details.
  *
  */
-
 //Added for Hero
 #include <asm/setup.h>
-
-#include <mach/msm_hsusb.h>
-#include <linux/usb/mass_storage_function.h>
-#include <mach/msm_rpcrouter.h>
-#include <linux/delay.h>
-#include <linux/gpio.h>
 //End
-
 
 #include <linux/kernel.h>
 #include <linux/platform_device.h>

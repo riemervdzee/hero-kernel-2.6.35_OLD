@@ -25,6 +25,7 @@
 #include <linux/io.h>
 #include <linux/wakelock.h>
 #include <mach/system.h>
+#include <linux/i2c-msm.h>
 
 #define DEBUG 0
 

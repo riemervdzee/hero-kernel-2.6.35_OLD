@@ -47,13 +47,23 @@ config MSM_AMSS_VERSION
 	default 6210 if MSM_AMSS_VERSION_6210
 	default 6220 if MSM_AMSS_VERSION_6220
 	default 6225 if MSM_AMSS_VERSION_6225
+	default 6335 if MSM_AMSS_VERSION_6335
+	default 6340 if MSM_AMSS_VERSION_6340
 	default 6350 if MSM_AMSS_VERSION_6350
 	default 6355 if MSM_AMSS_VERSION_6355
+	default 4001 if MSM_AMSS_VERSION_4001
+	default 1320 if MSM_AMSS_VERSION_1320
+	default 1330 if MSM_AMSS_VERSION_1330
+	default 1340 if MSM_AMSS_VERSION_1340
+	default 1355 if MSM_AMSS_VERSION_1355
+	default 4110 if MSM_AMSS_VERSION_4110
+	default 4320 if MSM_AMSS_VERSION_4320
+	default 4410 if MSM_AMSS_VERSION_4410
+	default 4275 if MSM_AMSS_VERSION_4725
+	default 4735 if MSM_AMSS_VERSION_4735
 
 choice
 	prompt "AMSS modem firmware version"
-
-	default MSM_AMSS_VERSION_6225
 
 	config MSM_AMSS_VERSION_6210
 		bool "6.2.10"
@@ -64,6 +74,12 @@ choice
 	config MSM_AMSS_VERSION_6225
 		bool "6.2.20 + New ADSP"
 
+	config MSM_AMSS_VERSION_6335
+		bool "6.3.35"
+
+	config MSM_AMSS_VERSION_6340
+		bool "6.3.40"
+
 	config MSM_AMSS_VERSION_6350
 		bool "6.3.50"
 		select MSM_ADSP_PKG2
@@ -71,6 +87,37 @@ choice
 	config MSM_AMSS_VERSION_6355
 		bool "6.3.55"
 		select MSM_ADSP_PKG2
+
+	config MSM_AMSS_VERSION_4001
+		bool "6.2.20 + Low Power ADSP"
+
+	config MSM_AMSS_VERSION_1320
+		bool "1.3.20"
+
+	config MSM_AMSS_VERSION_1330
+		bool "1.3.30"
+
+	config MSM_AMSS_VERSION_1340
+		bool "1.3.40"
+
+	config MSM_AMSS_VERSION_1355
+		bool "1.3.55"
+
+	config MSM_AMSS_VERSION_4110
+		bool "4.1.10"
+
+	config MSM_AMSS_VERSION_4410
+		bool "4.3.20"
+
+	config MSM_AMSS_VERSION_4410
+		bool "4.4.10"
+
+	config MSM_AMSS_VERSION_4725
+		bool "4.7.25"
+
+	config MSM_AMSS_VERSION_4735
+		bool "4.7.25 + SBA 3001"
+
 endchoice
 
 config MSM_AMSS_SUPPORT_256MB_EBI1
@@ -180,6 +227,33 @@ config HTC_35MM_JACK
 	default n
 	help
 	 Provides support for 3.5mm headset jack devices, like wired headsets.
+
+
+config HTC_HEADSET_V1
+        tristate "HTC 2 Wire detection driver"
+#//        depends on MICROP_I2C
+        default n
+        help
+          Provides support for detecting HTC 2 wire devices, such as wired
+          headset, on the trout platform. Can be used with the msm serial
+          debugger, but not with serial console.
+
+config HTC_35MM_REMOTE_V1
+        tristate "HTC 2 Wire detection driver"
+#//        depends on MICROP_I2C
+        default n
+        help
+          Provides support for detecting HTC 2 wire devices, such as wired
+          headset, on the trout platform. Can be used with the msm serial
+          debugger, but not with serial console.
+
+config HTC_AUDIOJACK_V1
+        tristate "Audio Jack detection driver"
+        depends on HTC_HEADSET_V1 || HTC_35MM_REMOTE_V1
+        default n
+        help
+          Provides support for detecting audio jack, such as 3.5mm
+          earphone, on the android platform.
 
 config TROUT_BATTCHG
 	depends on MACH_TROUT && POWER_SUPPLY
@@ -433,6 +507,9 @@ config MSM_HW3D
 	  Provides access to registers needed by the userspace OpenGL|ES
 	  library.
 
+config MSM_ADSP_PKG2
+	bool
+
 config MSM_ADSP
 	depends on ARCH_MSM7X00A
 	tristate "MSM ADSP driver"
@@ -455,6 +532,14 @@ config MSM_QDSP6
 	help
 	  Enable support for qdsp6. This provides audio and video functionality.
 
+
+config HTC_ACOUSTIC
+        tristate "HTC acoustic driver"
+        default y
+        help
+          The driver provide user space use shared memory allocate by using
+          RPC code.
+
 config MSM_CLOCK_CTRL_DEBUG
 	bool "Enable debugfs interface for clock control"
 	default n
@@ -473,13 +558,6 @@ config WIFI_MEM_PREALLOC
 	bool "Preallocate memory for WiFi buffers"
 	help
 	  Preallocates memory buffers for WiFi driver
-
-config ARCH_MSM_FLASHLIGHT
-        bool "Flashlight Driver for MSM series"
-        depends on ARCH_MSM
-        default n
-        help
-          The flashlight driver is for MSM series.
 
 config VIRTUAL_KPANIC_PARTITION
 	bool "Create virtual kpanic partition"

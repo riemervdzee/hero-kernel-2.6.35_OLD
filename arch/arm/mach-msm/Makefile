@@ -10,7 +10,6 @@ obj-$(CONFIG_ARCH_MSM_SCORPION) += arch-init-scorpion.o
 obj-y += clock.o
 obj-y += gpio.o generic_gpio.o
 obj-y += nand_partitions.o
-obj-y += drv_callback.o
 
 obj-$(CONFIG_MSM_FIQ_SUPPORT) += fiq_glue.o
 obj-$(CONFIG_MACH_TROUT) += board-trout-rfkill.o
@@ -23,11 +22,11 @@ obj-$(CONFIG_MSM_ONCRPCROUTER) += smd_rpcrouter_servers.o
 obj-$(CONFIG_MSM_RPCSERVERS) += rpc_server_dog_keepalive.o
 obj-$(CONFIG_MSM_RPCSERVERS) += rpc_server_time_remote.o
 obj-$(CONFIG_MSM_ADSP) += qdsp5/
-obj-$(CONFIG_MSM_ADSP_COMP) += qdsp5_comp/
 obj-$(CONFIG_MSM_QDSP6) += qdsp6/
 obj-$(CONFIG_MSM_HW3D) += hw3d.o
 obj-$(CONFIG_PM) += pm.o
 obj-$(CONFIG_CPU_FREQ) += cpufreq.o
+obj-$(CONFIG_HTC_ACOUSTIC) += htc_acoustic.o
 
 obj-$(CONFIG_MACH_HALIBUT) += board-halibut.o board-halibut-panel.o
 obj-$(CONFIG_MACH_HALIBUT) += board-halibut-keypad.o fish_battery.o
@@ -49,23 +48,30 @@ obj-$(CONFIG_MACH_HERO) += board-hero.o board-hero-gpio.o
 obj-$(CONFIG_MACH_HERO) += board-hero-keypad.o board-hero-panel.o
 obj-$(CONFIG_MACH_HERO) += board-hero-mmc.o board-hero-wifi.o
 obj-$(CONFIG_MACH_HERO) += board-hero-rfkill.o msm_vibrator.o
+obj-$(CONFIG_MACH_HERO) += htc_wifi_nvs.o
+## htc_awb_cal.o
 obj-$(CONFIG_MACH_HERO) += devices_htc.o
 obj-$(CONFIG_MACH_MAHIMAHI) += board-mahimahi.o board-mahimahi-panel.o
 obj-$(CONFIG_MACH_MAHIMAHI) += board-mahimahi-keypad.o board-mahimahi-mmc.o
-obj-$(CONFIG_MACH_MAHIMAHI) += board-mahimahi-rfkill.o htc_wifi_nvs.o htc_awb_cal.o
+obj-$(CONFIG_MACH_MAHIMAHI) += board-mahimahi-rfkill.o htc_wifi_nvs.o
 obj-$(CONFIG_MACH_MAHIMAHI) += board-mahimahi-wifi.o board-mahimahi-audio.o
 obj-$(CONFIG_MACH_MAHIMAHI) += msm_vibrator.o
 obj-$(CONFIG_MACH_MAHIMAHI) += board-mahimahi-microp.o
 obj-$(CONFIG_MACH_MAHIMAHI) += htc_acoustic_qsd.o
+obj-$(CONFIG_MACH_MAHIMAHI) += board-mahimahi-flashlight.o
 
+obj-$(CONFIG_HTC_BATTCHG) += htc_battery.o
 obj-$(CONFIG_TROUT_BATTCHG) += htc_battery.o
 obj-$(CONFIG_HTC_PWRSPLY) += htc_power_supply.o
 
+obj-$(CONFIG_HTC_HEADSET_V1) += htc_headset_v1.o
+obj-$(CONFIG_HTC_35MM_REMOTE_V1) += htc_35mm_remote_v1.o
+obj-$(CONFIG_HTC_AUDIOJACK_V1) += h
+
 obj-$(CONFIG_HTC_PWRSINK) += htc_pwrsink.o
-obj-$(CONFIG_HTC_HEADSET) += htc_headset.o
-obj-$(CONFIG_HTC_AUDIO_JACK) += htc_audio_jack.o
-obj-$(CONFIG_HTC_35MM_JACK) += htc_35mm_jack.o
-obj-$(CONFIG_ARCH_MSM_FLASHLIGHT) += msm_flashlight.o
+##obj-$(CONFIG_HTC_HEADSET) += htc_headset.o
+##obj-$(CONFIG_HTC_AUDIO_JACK) += htc_audio_jack.o
+##obj-$(CONFIG_HTC_35MM_JACK) += htc_35mm_jack.o
 
 obj-$(CONFIG_MACH_MAHIMAHI) += board-mahimahi-tpa2018d1.o
 obj-$(CONFIG_MACH_MAHIMAHI) += board-mahimahi-smb329.o

@@ -88,6 +88,9 @@ struct gpio_event_matrix_info {
 	ktime_t debounce_delay;
 	ktime_t poll_time;
 	unsigned flags;
+	void (*setup_ninputs_gpio)(void);
+	/* disable some gpio as wakeup source */
+	unsigned int notintr_gpios;
 };
 
 /* Directly connected inputs and outputs */
@@ -118,6 +121,7 @@ struct gpio_event_input_info {
 	uint16_t type;
 	const struct gpio_event_direct_entry *keymap;
 	size_t keymap_size;
+	void (*setup_input_gpio)(void);
 };
 
 /* outputs */
@@ -158,6 +162,11 @@ struct gpio_event_axis_info {
 	uint16_t (*map)(struct gpio_event_axis_info *info, uint16_t in);
 	uint32_t *gpio;
 	uint32_t flags;
+#ifdef CONFIG_MACH_HERO
+	uint32_t enable_emc_protect_delay;
+	uint16_t emc_gpio_state;
+	atomic_t emc_disable_irqnum;
+#endif
 };
 #define gpio_axis_2bit_gray_map gpio_axis_4bit_gray_map
 #define gpio_axis_3bit_gray_map gpio_axis_4bit_gray_map
@@ -165,5 +174,8 @@ uint16_t gpio_axis_4bit_gray_map(
 			struct gpio_event_axis_info *info, uint16_t in);
 uint16_t gpio_axis_5bit_singletrack_map(
 			struct gpio_event_axis_info *info, uint16_t in);
-
+#ifdef CONFIG_MACH_HEROC
+uint8_t button_filter(struct input_dev *dev,
+		 unsigned int type, unsigned int code, int value, unsigned long *key_pressed);
+#endif
 #endif

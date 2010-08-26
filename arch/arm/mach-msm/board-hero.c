@@ -19,16 +19,16 @@
 #include <linux/interrupt.h>
 #include <linux/i2c.h>
 #include <linux/irq.h>
-#include <linux/keyreset.h>
 #include <linux/leds.h>
 #include <linux/switch.h>
 #include <linux/synaptics_i2c_rmi.h>
-#include <linux/elan_i2c.h>
-#include <linux/akm8976.h>
+#include <mach/cy8c_i2c.h>
+#include <linux/akm8973.h>
 #include <mach/htc_headset.h>
 #include <mach/audio_jack.h>
 #include <linux/sysdev.h>
 #include <linux/android_pmem.h>
+#include <linux/bma150.h>
 
 #include <linux/delay.h>
 
@@ -63,6 +63,9 @@
 #include <mach/msm_serial_hs.h>
 #include <mach/htc_pwrsink.h>
 
+//#include <mach/h2w_v1.h>
+#include <mach/microp_i2c.h>
+
 #ifdef CONFIG_WIFI_CONTROL_FUNC
 #ifdef CONFIG_WIFI_MEM_PREALLOC
 extern int hero_init_wifi_mem(void);
@@ -95,7 +98,7 @@ static int smi_sz = 64;
 #endif
 static unsigned int hwid = 0;
 static unsigned int skuid = 0;
-static unsigned engineerid = 0;
+static unsigned engineerid = (0x01 << 1);	/* default is 3M sensor */
 static unsigned int die_sz = 1;
 
 uint16_t hero_axis_map(struct gpio_event_axis_info *info, uint16_t in)
@@ -126,86 +129,6 @@ ignore:
 
 	return ai->temp_state;
 }
-
-int hero_nav_power(const struct gpio_event_platform_data *pdata, bool on)
-{
-	gpio_set_value(HERO_GPIO_JOG_EN, on);
-	if (on) {
-		nav_just_on = 1;
-		nav_on_jiffies = jiffies;
-	}
-	return 0;
-}
-
-static uint32_t hero_x_axis_gpios[] = {
-	HERO_BALL_LEFT_0, HERO_BALL_RIGHT_0
-};
-
-static struct hero_axis_info hero_x_axis = {
-	.threshold = 2,
-	.info = {
-		.info.func = gpio_event_axis_func,
-		.count = ARRAY_SIZE(hero_x_axis_gpios),
-		.type = EV_REL,
-		.code = REL_X,
-		.decoded_size = 1U << ARRAY_SIZE(hero_x_axis_gpios),
-		.map = hero_axis_map,
-		.gpio = hero_x_axis_gpios,
-		.flags = GPIOEAF_PRINT_UNKNOWN_DIRECTION /*| GPIOEAF_PRINT_RAW | GPIOEAF_PRINT_EVENT */
-	}
-};
-
-static uint32_t hero_y_axis_gpios[] = {
-	HERO_BALL_UP_0, HERO_BALL_DOWN_0
-};
-
-static struct hero_axis_info hero_y_axis = {
-	.threshold = 2,
-	.info = {
-		.info.func = gpio_event_axis_func,
-		.count = ARRAY_SIZE(hero_y_axis_gpios),
-		.type = EV_REL,
-		.code = REL_Y,
-		.decoded_size = 1U << ARRAY_SIZE(hero_y_axis_gpios),
-		.map = hero_axis_map,
-		.gpio = hero_y_axis_gpios,
-		.flags = GPIOEAF_PRINT_UNKNOWN_DIRECTION /*| GPIOEAF_PRINT_RAW | GPIOEAF_PRINT_EVENT  */
-	}
-};
-
-static struct gpio_event_direct_entry hero_nav_buttons[] = {
-	{ HERO_GPIO_NAVI_ACT_N, BTN_MOUSE },
-};
-
-static struct gpio_event_input_info hero_nav_button_info = {
-	.info.func = gpio_event_input_func,
-	.flags = GPIOEDF_PRINT_KEYS | GPIOEDF_PRINT_KEY_DEBOUNCE,
-	.poll_time.tv.nsec = 40 * NSEC_PER_MSEC,
-	.type = EV_KEY,
-	.keymap = hero_nav_buttons,
-	.keymap_size = ARRAY_SIZE(hero_nav_buttons)
-};
-
-static struct gpio_event_info *hero_nav_info[] = {
-	&hero_x_axis.info.info,
-	&hero_y_axis.info.info,
-	&hero_nav_button_info.info
-};
-
-static struct gpio_event_platform_data hero_nav_data = {
-	.name = "hero-nav",
-	.info = hero_nav_info,
-	.info_count = ARRAY_SIZE(hero_nav_info),
-	.power = hero_nav_power,
-};
-
-static struct platform_device hero_nav_device = {
-	.name = GPIO_EVENT_DEV_NAME,
-	.id = 2,
-	.dev = {
-		.platform_data = &hero_nav_data,
-	},
-};
 
 /* a new search button to be a wake-up source */
 static struct gpio_event_direct_entry hero_search_button_v1[] = {
@@ -244,132 +167,122 @@ static struct platform_device hero_search_button_device = {
 	},
 };
 
-static int hero_reset_keys_up[] = {
-	BTN_MOUSE,
-	0
-};
-
-static struct keyreset_platform_data hero_reset_keys_pdata = {
-	.keys_up = hero_reset_keys_up,
-	.keys_down = {
-		KEY_SEND,
-		KEY_MENU,
-		KEY_END,
-		0
-	},
-};
-
-struct platform_device hero_reset_keys_device = {
-	.name = KEYRESET_NAME,
-	.dev.platform_data = &hero_reset_keys_pdata,
-};
-
 static int gpio_tp_ls_en = HERO_TP_LS_EN;
 
 static int hero_ts_power(int on)
 {
-	if (on) {
-		hero_gpio_write(NULL, HERO_GPIO_TP_EN, 1);
-		/* touchscreen must be powered before we enable i2c pullup */
-		msleep(2);
-		/* enable touch panel level shift */
-		gpio_direction_output(gpio_tp_ls_en, 1);
-		msleep(2);
-	} else {
-		gpio_direction_output(gpio_tp_ls_en, 0);
-		udelay(50);
-		hero_gpio_write(NULL, HERO_GPIO_TP_EN, 0);
-	}
-
-	return 0;
+        printk(KERN_INFO "hero_ts_power:%d\n", on);
+        if (on) {
+                gpio_set_value(HERO_GPIO_TP_EN, 1);
+                msleep(250);
+                /* enable touch panel level shift */
+                gpio_set_value(HERO_TP_LS_EN, 1);
+                msleep(2);
+        } else {
+                gpio_set_value(HERO_TP_LS_EN, 0);
+                udelay(50);
+                gpio_set_value(HERO_GPIO_TP_EN, 0);
+        }
+        return 0;
 }
 
+//static int hero_ts_power(int on)
+//{
+//	if (on) {
+//		hero_gpio_write(NULL, HERO_GPIO_TP_EN, 1);
+//		/* touchscreen must be powered before we enable i2c pullup */
+//		msleep(2);
+//		/* enable touch panel level shift */
+//		gpio_direction_output(gpio_tp_ls_en, 1);
+//		msleep(2);
+//	} else {
+//		gpio_direction_output(gpio_tp_ls_en, 0);
+//		udelay(50);
+//		hero_gpio_write(NULL, HERO_GPIO_TP_EN, 0);
+//	}
+//	return 0;
+//}
+
+static struct cy8c_i2c_platform_data hero_cypress_ts_data = {
+        .version = 0x0001,
+        .abs_x_min = 0,
+        .abs_x_max = 319,
+        .abs_y_min = 0,
+        .abs_y_max = 479,
+        .abs_pressure_min = 0,
+        .abs_pressure_max = 255,
+        .abs_width_min = 0,
+        .abs_width_max = 15,
+        .power = hero_ts_power,
+};
+
 static struct synaptics_i2c_rmi_platform_data hero_ts_data[] = {
-{
-		.version = 0x0101,
-		.power = hero_ts_power,
-		.flags = SYNAPTICS_FLIP_Y | SYNAPTICS_SNAP_TO_INACTIVE_EDGE,
-		.inactive_left = -50 * 0x10000 / 4334,
-		.inactive_right = -50 * 0x10000 / 4334,
-		.inactive_top = -40 * 0x10000 / 6696,
-		.inactive_bottom = -40 * 0x10000 / 6696,
-		.snap_left_on = 50 * 0x10000 / 4334,
-		.snap_left_off = 60 * 0x10000 / 4334,
-		.snap_right_on = 50 * 0x10000 / 4334,
-		.snap_right_off = 60 * 0x10000 / 4334,
-		.snap_top_on = 100 * 0x10000 / 6696,
-		.snap_top_off = 110 * 0x10000 / 6696,
-		.snap_bottom_on = 100 * 0x10000 / 6696,
-		.snap_bottom_off = 110 * 0x10000 / 6696,
-	},
-	{
-		.flags = SYNAPTICS_FLIP_Y | SYNAPTICS_SNAP_TO_INACTIVE_EDGE,
-		.inactive_left = ((4674 - 4334) / 2 + 200) * 0x10000 / 4334,
-		.inactive_right = ((4674 - 4334) / 2 + 200) * 0x10000 / 4334,
-		.inactive_top = ((6946 - 6696) / 2) * 0x10000 / 6696,
-		.inactive_bottom = ((6946 - 6696) / 2) * 0x10000 / 6696,
-	}
+        {
+                .version = 0x0101,
+                .power = hero_ts_power,
+                .sensitivity_adjust = 7,
+                .flags = SYNAPTICS_FLIP_Y | SYNAPTICS_SNAP_TO_INACTIVE_EDGE,
+                .inactive_left = -50 * 0x10000 / 4334,
+                .inactive_right = -50 * 0x10000 / 4334,
+                .inactive_top = -40 * 0x10000 / 6696,
+                .inactive_bottom = -40 * 0x10000 / 6696,
+                .snap_left_on = 50 * 0x10000 / 4334,
+                .snap_left_off = 60 * 0x10000 / 4334,
+                .snap_right_on = 50 * 0x10000 / 4334,
+                .snap_right_off = 60 * 0x10000 / 4334,
+                .snap_top_on = 100 * 0x10000 / 6696,
+                .snap_top_off = 110 * 0x10000 / 6696,
+                .snap_bottom_on = 100 * 0x10000 / 6696,
+                .snap_bottom_off = 110 * 0x10000 / 6696,
+                .display_width = 320,
+                .display_height = 480,
+                .dup_threshold = 10,
+        },
+        {
+                .flags = SYNAPTICS_FLIP_Y | SYNAPTICS_SNAP_TO_INACTIVE_EDGE,
+                .inactive_left = ((4674 - 4334) / 2 + 200) * 0x10000 / 4334,
+                .inactive_right = ((4674 - 4334) / 2 + 200) * 0x10000 / 4334,
+                .inactive_top = ((6946 - 6696) / 2) * 0x10000 / 6696,
+                .inactive_bottom = ((6946 - 6696) / 2) * 0x10000 / 6696,
+                .display_width = 320,
+                .display_height = 480,
+        }
 };
 
-static struct akm8976_platform_data compass_platform_data = {
-	.reset = HERO_GPIO_COMPASS_RST_N,
-	.clk_on = HERO_GPIO_COMPASS_32K_EN,
-	.intr = HERO_GPIO_COMPASS_IRQ,
+static struct akm8973_platform_data compass_platform_data = {
+        .layouts = HERO_LAYOUTS,
+        .project_name = HERO_PROJECT_NAME,
+        .reset = HERO_GPIO_COMPASS_RST_N,
+        .intr = HERO_GPIO_COMPASS_INT_N,
 };
 
-static struct elan_i2c_platform_data elan_i2c_data[] = {
-	{
-		.version = 0x104,
-		.abs_x_min = 0,
-		.abs_y_min = 0,
-		.intr_gpio = HERO_GPIO_TP_ATT_N,
-		.power = hero_ts_power,
-	},
-	{
-		.version = 0x103,
-		.abs_x_min = 0,
-		.abs_x_max = 512 * 2,
-		.abs_y_min = 0,
-		.abs_y_max = 896 * 2,
-		.intr_gpio = HERO_GPIO_TP_ATT_N,
-		.power = hero_ts_power,
-	},
-	{
-		.version = 0x102,
-		.abs_x_min = 0,
-		.abs_x_max = 384,
-		.abs_y_min = 0,
-		.abs_y_max = 576,
-		.intr_gpio = HERO_GPIO_TP_ATT_N,
-		.power = hero_ts_power,
-	},
-	{
-		.version = 0x101,
-		.abs_x_min = 32 + 1,
-		.abs_x_max = 352 - 1,
-		.abs_y_min = 32 + 1,
-		.abs_y_max = 544 - 1,
-		.intr_gpio = HERO_GPIO_TP_ATT_N,
-		.power = hero_ts_power,
-	}
+static struct bma150_platform_data gsensor_platform_data = {
+        .intr = HERO_GPIO_GSENSOR_INT_N,
 };
+
+static struct i2c_board_info i2c_bma150 = {
+        I2C_BOARD_INFO(BMA150_I2C_NAME, 0x38),
+        .platform_data = &gsensor_platform_data,
+        .irq = HERO_GPIO_TO_INT(HERO_GPIO_GSENSOR_INT_N),
+	};
 
 static struct i2c_board_info i2c_devices[] = {
-	{
-		I2C_BOARD_INFO(SYNAPTICS_I2C_RMI_NAME, 0x20),
-		.platform_data = hero_ts_data,
-		.irq = HERO_GPIO_TO_INT(HERO_GPIO_TP_ATT_N)
-	},
-	{
-		I2C_BOARD_INFO(ELAN_8232_I2C_NAME, 0x10),
-		.platform_data = &elan_i2c_data,
-		.irq = HERO_GPIO_TO_INT(HERO_GPIO_TP_ATT_N),
-	},
-	{
-		I2C_BOARD_INFO("akm8976", 0x1C),
-		.platform_data = &compass_platform_data,
-		.irq = HERO_GPIO_TO_INT(HERO_GPIO_COMPASS_IRQ),
-	},
+        {
+                I2C_BOARD_INFO(SYNAPTICS_I2C_RMI_NAME, 0x20),
+                .platform_data = &hero_ts_data,
+                .irq = HERO_GPIO_TO_INT(HERO_GPIO_TP_ATT_N)
+        },
+        {
+                I2C_BOARD_INFO(CY8C_I2C_NAME, 0x13),
+                .platform_data = &hero_cypress_ts_data,
+                .irq = HERO_GPIO_TO_INT(HERO_GPIO_TP_ATT_N)
+        },
+        {
+                I2C_BOARD_INFO(AKM8973_I2C_NAME, 0x1C),
+                .platform_data = &compass_platform_data,
+                .irq = HERO_GPIO_TO_INT(HERO_GPIO_COMPASS_INT_N),
+        },
+
 #ifdef CONFIG_MSM_CAMERA
 #ifdef CONFIG_MT9P012
 	{
@@ -966,9 +879,9 @@ static struct platform_device *devices[] __initdata = {
 #ifdef CONFIG_SERIAL_MSM_HS
 	&msm_device_uart_dm1,
 #endif
-	&hero_nav_device,
+//	&hero_nav_device,
 	&hero_search_button_device,
-	&hero_reset_keys_device,
+//	&hero_reset_keys_device,
 	&android_leds,
 #ifdef CONFIG_LEDS_CPLD
 	&android_CPLD_leds,
@@ -1255,6 +1168,8 @@ static void __init hero_init(void)
 
 	i2c_register_board_info(0, i2c_devices, ARRAY_SIZE(i2c_devices));
 	platform_add_devices(devices, ARRAY_SIZE(devices));
+	
+	i2c_register_board_info(0, &i2c_bma150, 1);
 
 #ifdef CONFIG_HTC_AUDIO_JACK
 	if (hero_get_skuid() == 0x22800) {
@@ -1296,11 +1211,11 @@ unsigned int hero_get_die_size(void)
 int hero_is_5M_camera(void)
 {
 	int ret = 0;
-//	if (hero_get_skuid() == 0x1FF00 && !(hero_engineerid() & 0x02))
-//		ret = 1;
-//	else if (hero_get_skuid() == 0x20100 && !(hero_engineerid() & 0x02))
-//		ret = 1;
-//	else if (hero_get_skuid() == 0x22880 && !(hero_engineerid() & 0x02))
+	if (hero_get_skuid() == 0x1FF00 && !(hero_engineerid() & 0x02))
+		ret = 1;
+	else if (hero_get_skuid() == 0x20100 && !(hero_engineerid() & 0x02))
+		ret = 1;
+	else if (hero_get_skuid() == 0x22880 && !(hero_engineerid() & 0x02))
 		ret = 1;
 	return ret;
 }
@@ -1310,10 +1225,10 @@ unsigned int is_12pin_camera(void)
 {
 	unsigned int ret = 0;
 
-//	if (hero_get_skuid() == 0x1FF00 || hero_get_skuid() == 0x20100 || hero_get_skuid() == 0x22800)
+	if (hero_get_skuid() == 0x1FF00 || hero_get_skuid() == 0x20100 || hero_get_skuid() == 0x22800)
 		ret = 1;
-//	else
-//		ret = 0;
+	else
+		ret = 0;
 	return ret;
 }
 

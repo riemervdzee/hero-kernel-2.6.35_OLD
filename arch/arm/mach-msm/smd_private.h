@@ -61,11 +61,19 @@ struct smem_shared {
 #define SMSM_V1_SIZE		(sizeof(unsigned) * 8)
 #define SMSM_V2_SIZE		(sizeof(unsigned) * 4)
 
-#ifdef CONFIG_MSM_AMSS_VERSION < 6350
+#ifdef CONFIG_MSM_SMD_PKG3
 struct smsm_interrupt_info {
 	uint32_t interrupt_mask;
 	uint32_t pending_interrupts;
 	uint32_t wakeup_reason;
+	#if CONFIG_MSM_AMSS_VERSION == 6355
+	#define SMSM_MAX_PORT_NAME_LEN 20
+	        uint32_t aArm_rpc_prog;
+	        uint32_t aArm_rpc_proc;
+	        char aArm_smd_port_name[SMSM_MAX_PORT_NAME_LEN];
+	        /* If the wakeup reason is GPIO then send the gpio info */
+	        uint32_t aArm_gpio_info;
+	#endif 
 };
 #else
 #define DEM_MAX_PORT_NAME_LEN (20)

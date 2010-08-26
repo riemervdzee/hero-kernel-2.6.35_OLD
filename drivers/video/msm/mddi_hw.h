@@ -53,6 +53,8 @@
 #define MDDI_MF_CNT             0x0084
 #define MDDI_CURR_REV_PTR       0x0088
 #define MDDI_CORE_VER           0x008c
+#define MDDI_PAD_IO_CTL		0x00a0
+#define MDDI_PAD_CAL		0x00a4
 
 #define MDDI_INT_PRI_PTR_READ       0x0001
 #define MDDI_INT_SEC_PTR_READ       0x0002
@@ -113,8 +115,6 @@
 #define MDDI_CMD_PERIODIC_REV_ENCAP  0x0A00
 #define MDDI_CMD_FORCE_NEW_REV_PTR   0x0C00
 
-
-
 #define MDDI_VIDEO_REV_PKT_SIZE              0x40
 #define MDDI_CLIENT_CAPABILITY_REV_PKT_SIZE  0x60
 #define MDDI_MAX_REV_PKT_SIZE                0x60
@@ -125,9 +125,17 @@
 /* MDP sends 256 pixel packets, so lower value hibernates more without
  * significantly increasing latency of waiting for next subframe */
 #define MDDI_HOST_BYTES_PER_SUBFRAME  0x3C00
+#ifndef CONFIG_ARCH_QSD8X50
 #define MDDI_HOST_TA2_LEN       0x000c
-#define MDDI_HOST_REV_RATE_DIV  0x0002
+#else
+#define MDDI_HOST_TA2_LEN       0x001a
+#endif
 
+#ifndef CONFIG_ARCH_QSD8X50
+#define MDDI_HOST_REV_RATE_DIV  0x0002
+#else
+#define MDDI_HOST_REV_RATE_DIV  0x0004
+#endif
 
 struct __attribute__((packed)) mddi_rev_packet {
 	uint16_t length;
@@ -199,39 +207,39 @@ struct __attribute__((packed)) mddi_video_stream {
 	uint16_t client_id; /* 0 */
 
 	uint16_t video_data_format_descriptor;
-/* format of each pixel in the Pixel Data in the present stream in the
- * present packet.
- * If bits [15:13] = 000 monochrome
- * If bits [15:13] = 001 color pixels (palette).
- * If bits [15:13] = 010 color pixels in raw RGB
- * If bits [15:13] = 011 data in 4:2:2 Y Cb Cr format
- * If bits [15:13] = 100 Bayer pixels
- */
+	/* format of each pixel in the Pixel Data in the present stream in the
+	 * present packet.
+	 * If bits [15:13] = 000 monochrome
+	 * If bits [15:13] = 001 color pixels (palette).
+	 * If bits [15:13] = 010 color pixels in raw RGB
+	 * If bits [15:13] = 011 data in 4:2:2 Y Cb Cr format
+	 * If bits [15:13] = 100 Bayer pixels
+	 */
 
 	uint16_t pixel_data_attributes;
-/* interpreted as follows:
- * Bits [1:0] = 11  pixel data is displayed to both eyes
- * Bits [1:0] = 10  pixel data is routed to the left eye only.
- * Bits [1:0] = 01  pixel data is routed to the right eye only.
- * Bits [1:0] = 00  pixel data is routed to the alternate display.
- * Bit 2 is 0  Pixel Data is in the standard progressive format.
- * Bit 2 is 1  Pixel Data is in interlace format.
- * Bit 3 is 0  Pixel Data is in the standard progressive format.
- * Bit 3 is 1  Pixel Data is in alternate pixel format.
- * Bit 4 is 0  Pixel Data is to or from the display frame buffer.
- * Bit 4 is 1  Pixel Data is to or from the camera.
- * Bit 5 is 0  pixel data contains the next consecutive row of pixels.
- * Bit 5 is 1  X Left Edge, Y Top Edge, X Right Edge, Y Bottom Edge,
- *             X Start, and Y Start parameters are not defined and
- *             shall be ignored by the client.
- * Bits [7:6] = 01  Pixel data is written to the offline image buffer.
- * Bits [7:6] = 00  Pixel data is written to the buffer to refresh display.
- * Bits [7:6] = 11  Pixel data is written to all image buffers.
- * Bits [7:6] = 10  Invalid. Reserved for future use.
- * Bits 8 through 11 alternate display number.
- * Bits 12 through 14 are reserved for future use and shall be set to zero.
- * Bit 15 is 1 the row of pixels is the last row of pixels in a frame.
- */
+	/* interpreted as follows:
+	 * Bits [1:0] = 11  pixel data is displayed to both eyes
+	 * Bits [1:0] = 10  pixel data is routed to the left eye only.
+	 * Bits [1:0] = 01  pixel data is routed to the right eye only.
+	 * Bits [1:0] = 00  pixel data is routed to the alternate display.
+	 * Bit 2 is 0  Pixel Data is in the standard progressive format.
+	 * Bit 2 is 1  Pixel Data is in interlace format.
+	 * Bit 3 is 0  Pixel Data is in the standard progressive format.
+	 * Bit 3 is 1  Pixel Data is in alternate pixel format.
+	 * Bit 4 is 0  Pixel Data is to or from the display frame buffer.
+	 * Bit 4 is 1  Pixel Data is to or from the camera.
+	 * Bit 5 is 0  pixel data contains the next consecutive row of pixels.
+	 * Bit 5 is 1  X Left Edge, Y Top Edge, X Right Edge, Y Bottom Edge,
+	 *             X Start, and Y Start parameters are not defined and
+	 *             shall be ignored by the client.
+	 * Bits [7:6] = 01  Pixel data is written to the offline image buffer.
+	 * Bits [7:6] = 00  Pixel data is written to the buffer to refresh display.
+	 * Bits [7:6] = 11  Pixel data is written to all image buffers.
+	 * Bits [7:6] = 10  Invalid. Reserved for future use.
+	 * Bits 8 through 11 alternate display number.
+	 * Bits 12 through 14 are reserved for future use and shall be set to zero.
+	 * Bit 15 is 1 the row of pixels is the last row of pixels in a frame.
+	 */
 
 	uint16_t x_left_edge;
 	uint16_t y_top_edge;
@@ -239,19 +247,17 @@ struct __attribute__((packed)) mddi_video_stream {
 
 	uint16_t x_right_edge;
 	uint16_t y_bottom_edge;
-	/* X,Y coordinate of the bottom right edge of the window being
-	 * updated. */
+	/*  X,Y coordinate of the bottom right edge of the window being updated. */
 
 	uint16_t x_start;
 	uint16_t y_start;
-	/* (X Start, Y Start) is the first pixel in the Pixel Data field
-	 * below. */
+	/*  (X Start, Y Start) is the first pixel in the Pixel Data field below. */
 
 	uint16_t pixel_count;
-	/* number of pixels in the Pixel Data field below. */
+	/*  number of pixels in the Pixel Data field below. */
 
 	uint16_t parameter_CRC;
-	/* 16-bit CRC of all bytes from the Packet Length to the Pixel Count. */
+	/*  16-bit CRC of all bytes from the Packet Length to the Pixel Count. */
 
 	uint16_t reserved;
 	/* 16-bit variable to make structure align on 4 byte boundary */
@@ -284,8 +290,12 @@ struct __attribute__((packed)) mddi_register_access {
 
 	uint16_t crc16;
 
-	uint32_t register_data_list;
-	/* list of 4-byte register data values for/from client registers */
+	union {
+		uint32_t reg_data;
+		uint32_t *reg_data_list;
+	} u;
+
+	uint16_t crc_data;
 };
 
 struct __attribute__((packed)) mddi_llentry {

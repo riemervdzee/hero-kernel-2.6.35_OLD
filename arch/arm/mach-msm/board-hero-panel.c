@@ -1,6 +1,6 @@
-/* linux/arch/arm/mach-msm/board-hero-panel.c
- * Copyright (C) 2007-2009 HTC Corporation.
- * Author: Thomas Tsai <thomas_tsai@htc.com>
+/* linux/arch/arm/mach-msm7201a/board-hero-panel.c
+ *
+ * Copyright (C) 2008 HTC Corporation.
  *
  * This software is licensed under the terms of the GNU General Public
  * License version 2, as published by the Free Software Foundation, and
@@ -12,6 +12,7 @@
  * GNU General Public License for more details.
 */
 
+
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/platform_device.h>
@@ -19,100 +20,41 @@
 #include <linux/leds.h>
 #include <linux/clk.h>
 #include <linux/err.h>
+#include <linux/leds.h>
 
-#include <linux/io.h>
-#include <linux/gpio.h>
+#include <asm/io.h>
+#include <asm/gpio.h>
 #include <asm/mach-types.h>
 
 #include <mach/msm_fb.h>
 #include <mach/vreg.h>
-#include <mach/htc_pwrsink.h>
+#include <mach/board.h>
+#include <mach/board_htc.h>
+#include <mach/pmic.h>
 
-#include "gpio_chip.h"
-#include "board-hero.h"
 #include "proc_comm.h"
+#include "board-hero.h"
 #include "devices.h"
 
-#define DEBUG_HERO_PANEL 0
-#define userid 0xD10
-
-#define VSYNC_GPIO 97
-
-enum hero_panel_type {
-	HERO_PANEL_SHARP = 0,
-	HERO_PANEL_TOPPOLY,
-	NUM_OF_HERO_PANELS,
-};
-static int g_panel_id = -1 ;
-static int g_panel_inited = 0 ;
-
-#define HERO_DEFAULT_BACKLIGHT_BRIGHTNESS	132
-#define GOOGLE_DEFAULT_BACKLIGHT_BRIGHTNESS 	102
-#define SDBB 					HERO_DEFAULT_BACKLIGHT_BRIGHTNESS
-#define GDBB 					GOOGLE_DEFAULT_BACKLIGHT_BRIGHTNESS
-
-static int hero_backlight_off;
-static int hero_backlight_brightness =
-					HERO_DEFAULT_BACKLIGHT_BRIGHTNESS;
-
-static uint8_t hero_backlight_last_level = 33;
-static DEFINE_MUTEX(hero_backlight_lock);
-
-/* Divide dimming level into 12 sections, and restrict maximum level to 27 */
-#define DIMMING_STEPS       12
-static unsigned dimming_levels[NUM_OF_HERO_PANELS][DIMMING_STEPS] = {
-	{0, 1, 2, 3, 6, 9, 11, 13, 16, 19, 22, 25},         /* Sharp */
-	{0, 1, 2, 4, 7, 10, 13, 15, 18, 21, 24, 27},        /* Toppolly */
-};
-static unsigned pwrsink_percents[] = {0, 6, 8, 15, 26, 34, 46, 54, 65, 77, 87,
-				      100};
-
-static void hero_set_backlight_level(uint8_t level)
-{
-	unsigned dimming_factor = 255/DIMMING_STEPS + 1;
-	int index, new_level ;
-	unsigned percent;
-	unsigned long flags;
-	int i = 0;
-
-	/* Non-linear transform for the difference between two
-         * kind of default backlight settings.
-	 */
-	new_level = level<=GDBB ?
-		level*SDBB/GDBB : (SDBB + (level-GDBB)*(255-SDBB) / (255-GDBB)) ;
-	index = new_level/dimming_factor ;
-
-#if DEBUG_HERO_PANEL
-	printk(KERN_INFO "level=%d, new level=%d, dimming_levels[%d]=%d\n",
-		level, new_level, index, dimming_levels[g_panel_id][index]);
+#if 0
+#define B(s...) printk(s)
+#else
+#define B(s...) do {} while(0)
 #endif
-	percent = pwrsink_percents[index];
-	level = dimming_levels[g_panel_id][index];
 
-	if (hero_backlight_last_level == level)
-		return;
+#define SHARP_POWER 1
 
-	if (level == 0) {
-		gpio_set_value(27, 0);
-		msleep(2);
-	} else {
-		local_irq_save(flags);
-		if (hero_backlight_last_level == 0) {
-			gpio_set_value(27, 1);
-			udelay(40);
-			hero_backlight_last_level = 33;
-		}
-		i = (hero_backlight_last_level - level + 33) % 33;
-		while (i-- > 0) {
-			gpio_set_value(27, 0);
-			udelay(1);
-			gpio_set_value(27, 1);
-			udelay(1);
-		}
-		local_irq_restore(flags);
-	}
-	hero_backlight_last_level = level;
-	htc_pwrsink_set(PWRSINK_BACKLIGHT, percent);
+static struct led_trigger *hero_lcd_backlight;
+static void hero_set_backlight(int on)
+{
+	B(KERN_DEBUG "%s: enter.\n", __func__);
+	
+	if (on) {
+		/* vsync back porch is about 17 ms */
+		msleep(40);
+		led_trigger_event(hero_lcd_backlight, LED_FULL);
+	} else
+		led_trigger_event(hero_lcd_backlight, LED_OFF);
 }
 
 #define MDDI_CLIENT_CORE_BASE  0x108000
@@ -124,14 +66,9 @@ static void hero_set_backlight_level(uint8_t level)
 #define SYSTEM_BLOCK1_BASE     0x160000
 #define SYSTEM_BLOCK2_BASE     0x170000
 
-
 #define	DPSUS       (MDDI_CLIENT_CORE_BASE|0x24)
 #define	SYSCLKENA   (MDDI_CLIENT_CORE_BASE|0x2C)
-#define	PWM0OFF	      (PWM_BLOCK_BASE|0x1C)
-
-#define V_VDDE2E_VDD2_GPIO 0
-#define V_VDDE2E_VDD2_GPIO_5M 89
-#define MDDI_RST_N 82
+#define	PWM0OFF	    (PWM_BLOCK_BASE|0x1C)
 
 #define	MDDICAP0    (MDDI_CLIENT_CORE_BASE|0x00)
 #define	MDDICAP1    (MDDI_CLIENT_CORE_BASE|0x04)
@@ -240,9 +177,9 @@ static struct mddi_table mddi_toshiba_init_table[] = {
 	{ DPRUN,        0x00000001 },
 	{ 1,            14         }, /* msleep 14 */
 	{ SYSCKENA,     0x00000001 },
-	/*{ CLKENB,       0x000000EF } */
+	//{ CLKENB,       0x000000EF },
 	{ CLKENB,       0x0000A1EF },  /*    # SYS.CLKENB  # Enable clocks for each module (without DCLK , i2cCLK) */
-	/*{ CLKENB,       0x000025CB },  Clock enable register */
+	//{ CLKENB,       0x000025CB }, /* Clock enable register */
 
 	{ GPIODATA,     0x02000200 },  /*   # GPI .GPIODATA  # GPIO2(RESET_LCD_N) set to 0 , GPIO3(eDRAM_Power) set to 0 */
 	{ GPIODIR,      0x000030D  },  /* 24D   # GPI .GPIODIR  # Select direction of GPIO port (0,2,3,6,9 output) */
@@ -265,7 +202,7 @@ static struct mddi_table mddi_toshiba_panel_init_table[] = {
 	{ SRST,         0x00000003 }, /* FIFO/LCDC not reset */
 	{ PORT_ENB,     0x00000001 }, /* Enable sync. Port */
 	{ START,        0x00000000 }, /* To stop operation */
-	/*{ START,        0x00000001 }, To start operation */
+	//{ START,        0x00000001 }, /* To start operation */
 	{ PORT,         0x00000004 }, /* Polarity of VS/HS/DE. */
 	{ CMN,          0x00000000 },
 	{ GAMMA,        0x00000000 }, /* No Gamma correction */
@@ -275,7 +212,7 @@ static struct mddi_table mddi_toshiba_panel_init_table[] = {
 	{ HDE_LEFT,     0x00000000 }, /* The value of HDE_LEFT. */
 	{ VDE_TOP,      0x00000000 }, /* The value of VDE_TPO. */
 	{ PXL,          0x00000001 }, /* 1. RGB666 */
-				      /* 2. Data is valid from 1st frame of beginning. */
+	                              /* 2. Data is valid from 1st frame of beginning. */
 	{ HDE_START,    0x00000006 }, /* HDE_START= 14 PCLK */
 	{ HDE_SIZE,     0x0000009F }, /* HDE_SIZE=320 PCLK */
 	{ HSW,          0x00000004 }, /* HSW= 10 PCLK */
@@ -386,13 +323,11 @@ static struct mddi_table mddi_tpo_deinit_table[] = {
 #define GPIOSEL_VWAKEINT (1U << 0)
 #define INTMASK_VWAKEOUT (1U << 0)
 
-static void hero_process_mddi_table(
-				     struct msm_mddi_client_data *client_data,
-				     const struct mddi_table *table,
-				     size_t count)
+static void hero_process_mddi_table(struct msm_mddi_client_data *client_data,
+				     struct mddi_table *table, size_t count)
 {
 	int i;
-	for (i = 0; i < count; i++) {
+	for(i = 0; i < count; i++) {
 		uint32_t reg = table[i].reg;
 		uint32_t value = table[i].value;
 
@@ -405,810 +340,313 @@ static void hero_process_mddi_table(
 	}
 }
 
+static struct vreg *vreg_lcm_2v6;
 static struct vreg *vreg_lcm_2v85;
 
-static void hero_mddi_power_client(struct msm_mddi_client_data *client_data,
-				    int on)
+#define GP_NS_REG (0x005c)
+#define LCD_RSTz_ID1 58
+
+static void 
+hero_mddi_eid_power(struct msm_mddi_client_data *client_data, int on)
 {
-	unsigned id, on_off;
-#if DEBUG_HERO_PANEL
-	printk(KERN_INFO "hero_mddi_client_power:%d\r\n", on);
-#endif
+	unsigned id, on_off = 1;
+
+	B(KERN_DEBUG "%s: power %s.\n", __func__, on ? "on" : "off");
 	if (on) {
 		on_off = 0;
-		id = PM_VREG_PDOWN_MDDI_ID;
-		msm_proc_comm(PCOM_VREG_PULLDOWN, &on_off, &id);
-
-		gpio_set_value(HERO_MDDI_1V5_EN, 1);
-		mdelay(5); /* delay time >5ms and <10ms */
-
-		if  (is_12pin_camera())
-			gpio_set_value(V_VDDE2E_VDD2_GPIO_5M, 1);
-		else
-			gpio_set_value(V_VDDE2E_VDD2_GPIO, 1);
-
-		gpio_set_value(HERO_GPIO_MDDI_32K_EN, 1);
-		msleep(3);
+		/* 2V6(pmic gp4) */
 		id = PM_VREG_PDOWN_AUX_ID;
+		msm_proc_comm(PCOM_VREG_PULLDOWN, &on_off, &id);
+		vreg_enable(vreg_lcm_2v6);
+		mdelay(1);
+
+		/* 2V8(pmic rfrx2) */
+		id = PM_VREG_PDOWN_RFRX2_ID;
 		msm_proc_comm(PCOM_VREG_PULLDOWN, &on_off, &id);
 		vreg_enable(vreg_lcm_2v85);
-		msleep(3);
+		mdelay(2);
+
+		gpio_set_value(LCD_RSTz_ID1, 1);
+		mdelay(15);
 	} else {
-		gpio_set_value(HERO_GPIO_MDDI_32K_EN, 0);
-		gpio_set_value(MDDI_RST_N, 0);
-		msleep(10);
-		vreg_disable(vreg_lcm_2v85);
 		on_off = 1;
+		mdelay(5);
+		gpio_set_value(LCD_RSTz_ID1, 0);
+		mdelay(3);
+
+		/* 2V8(pmic rfrx2) */
+		id = PM_VREG_PDOWN_RFRX2_ID;
+		msm_proc_comm(PCOM_VREG_PULLDOWN, &on_off, &id);
+		vreg_disable(vreg_lcm_2v85);
+		mdelay(1);
+
+		/* 2V6(pmic gp4) */
 		id = PM_VREG_PDOWN_AUX_ID;
 		msm_proc_comm(PCOM_VREG_PULLDOWN, &on_off, &id);
-		msleep(5);
-		if (is_12pin_camera())
-			gpio_set_value(V_VDDE2E_VDD2_GPIO_5M, 0);
-		else
-			gpio_set_value(V_VDDE2E_VDD2_GPIO, 0);
-
-		msleep(200);
-		gpio_set_value(HERO_MDDI_1V5_EN, 0);
-		id = PM_VREG_PDOWN_MDDI_ID;
-		msm_proc_comm(PCOM_VREG_PULLDOWN, &on_off, &id);
+		vreg_disable(vreg_lcm_2v6);
 	}
 }
 
-static int hero_mddi_toshiba_client_init(
-			struct msm_mddi_bridge_platform_data *bridge_data,
-			struct msm_mddi_client_data *client_data)
+static void 
+hero_mddi_sharp_power(struct msm_mddi_client_data *client_data, int on)
 {
-	int panel_id;
+#if SHARP_POWER 	
+	unsigned id, on_off;
 
-	/* Set the MDDI_RST_N accroding to MDDI client repectively(
-	 * been set in hero_mddi_power_client() originally)
-	 */
-	gpio_set_value(MDDI_RST_N, 1);
-	msleep(10);
+	if(on) {
+		writel(0xa06, MSM_CLK_CTL_BASE + GP_NS_REG);
+		on_off = 0;
+		/* 1V5 */
+		gpio_set_value(HERO_GPIO_MDDI_1V5_EN, 1);
+		msleep(5);
+		/* 2V6(pmic gp4), 1V8 */
+		id = PM_VREG_PDOWN_AUX_ID;
+		msm_proc_comm(PCOM_VREG_PULLDOWN, &on_off, &id);
+		vreg_enable(vreg_lcm_2v6);
+		gpio_set_value(HERO_GPIO_MDDI_1V8_EN, 1);
+		msleep(5);
+		/* 2V85(pmic rfrx2) */
+		id = PM_VREG_PDOWN_RFRX2_ID;
+		msm_proc_comm(PCOM_VREG_PULLDOWN, &on_off, &id);
+		vreg_enable(vreg_lcm_2v85);
+		msleep(1);
+		gpio_set_value(HERO_GPIO_MDDI_RST_N, 1);
+		msleep(10);
+	} else {
+		writel(0x006, MSM_CLK_CTL_BASE + GP_NS_REG);
+		on_off = 1;
+		gpio_set_value(HERO_GPIO_MDDI_RST_N, 0);
+		msleep(10);
+		/* 2V85(pmic rfrx2) */
+		id = PM_VREG_PDOWN_RFRX2_ID;
+		msm_proc_comm(PCOM_VREG_PULLDOWN, &on_off, &id);
+		vreg_enable(vreg_lcm_2v85);
+		msleep(5);
+		/* 2V6(pmic gp4), 1V8 */
+		id = PM_VREG_PDOWN_AUX_ID;
+		msm_proc_comm(PCOM_VREG_PULLDOWN, &on_off, &id);
+		vreg_enable(vreg_lcm_2v6);
+		gpio_set_value(HERO_GPIO_MDDI_1V8_EN, 0);
+		msleep(200);
+		gpio_set_value(HERO_GPIO_MDDI_1V5_EN, 0);
+	}
+#endif	
+}
+
+enum {
+	PANEL_SHARP,
+	PANEL_SAMSUNG,
+	PANEL_EID_40pin,
+	PANEL_EID_24pin,
+	PANEL_HEROC_EID_BOTTOM,
+	PANEL_TPO,
+	PANEL_HEROC_TPO,
+	PANEL_ESPRESSO_TPO,
+	PANEL_ESPRESSO_SHARP,
+	PANEL_LIBERTY_TPO,
+	PANEL_LIBERTY_EID_24pin,
+	PANEL_EIDII,
+	PANEL_UNKNOWN,
+};
+
+static int hero_panel_detect(void)
+{
+	return panel_type;
+}
+
+static int mddi_toshiba_client_init(
+		struct msm_mddi_bridge_platform_data *bridge_data,
+		struct msm_mddi_client_data *client_data)
+{
+#if SHARP_POWER	
+	int panel_id;
 
 	client_data->auto_hibernate(client_data, 0);
 	hero_process_mddi_table(client_data, mddi_toshiba_init_table,
 				 ARRAY_SIZE(mddi_toshiba_init_table));
 	client_data->auto_hibernate(client_data, 1);
-	g_panel_id = panel_id =
-		(client_data->remote_read(client_data, GPIODATA) >> 4) & 3;
+	panel_id = (client_data->remote_read(client_data, GPIODATA) >> 4) & 3;
 	if (panel_id > 1) {
-#if DEBUG_HERO_PANEL
-		printk(KERN_ERR "unknown panel id at mddi_enable\n");
-#endif
+		printk("unknown panel id at mddi_enable\n");
 		return -1;
 	}
+#endif	
 	return 0;
 }
 
-static int hero_mddi_toshiba_client_uninit(
-			struct msm_mddi_bridge_platform_data *bridge_data,
-			struct msm_mddi_client_data *client_data)
+static int 
+mddi_toshiba_client_uninit(struct msm_mddi_bridge_platform_data *bridge_data,
+			struct msm_mddi_client_data *cdata)
 {
-	gpio_set_value(MDDI_RST_N, 0);
-	msleep(10);
-
 	return 0;
 }
 
-static int hero_mddi_panel_unblank(
-			struct msm_mddi_bridge_platform_data *bridge_data,
-			struct msm_mddi_client_data *client_data)
+static int 
+hero_panel_unblank(struct msm_mddi_bridge_platform_data *bridge_data,
+		struct msm_mddi_client_data *client_data)
 {
+	B(KERN_DEBUG "%s: enter.\n", __func__);
+	hero_set_backlight(1);
+	return 0;
+}
+
+static int 
+hero_panel_blank(struct msm_mddi_bridge_platform_data *bridge_data,
+		struct msm_mddi_client_data *client_data)
+{
+	B(KERN_DEBUG "%s: enter.\n", __func__);
+	hero_set_backlight(0);
+	return 0;
+}
+
+static int 
+panel_sharp_unblank(struct msm_mddi_bridge_platform_data *bridge_data,
+		struct msm_mddi_client_data *client_data)
+{
+#if SHARP_POWER       
 	int panel_id, ret = 0;
 
-	hero_set_backlight_level(0);
+	hero_set_backlight(0);
 	client_data->auto_hibernate(client_data, 0);
 	hero_process_mddi_table(client_data, mddi_toshiba_panel_init_table,
 		ARRAY_SIZE(mddi_toshiba_panel_init_table));
 	panel_id = (client_data->remote_read(client_data, GPIODATA) >> 4) & 3;
-	switch (panel_id) {
-	case 0:
-#if DEBUG_HERO_PANEL
-		printk(KERN_DEBUG "init sharp panel\n");
-#endif
+	switch(panel_id) {
+	 case 0:
+		B("init sharp panel\n");
 		hero_process_mddi_table(client_data,
 					 mddi_sharp_init_table,
 					 ARRAY_SIZE(mddi_sharp_init_table));
 		break;
 	case 1:
-#if DEBUG_HERO_PANEL
-		printk(KERN_DEBUG "init tpo panel\n");
-#endif
+		B("init tpo panel\n");
 		hero_process_mddi_table(client_data,
 					 mddi_tpo_init_table,
 					 ARRAY_SIZE(mddi_tpo_init_table));
 		break;
 	default:
-
-		printk(KERN_DEBUG "unknown panel_id: %d\n", panel_id);
+		B("unknown panel_id: %d\n", panel_id);
 		ret = -1;
 	};
-	mutex_lock(&hero_backlight_lock);
-	hero_set_backlight_level(hero_backlight_brightness);
-	hero_backlight_off = 0;
-	mutex_unlock(&hero_backlight_lock);
+	hero_set_backlight(1);
 	client_data->auto_hibernate(client_data, 1);
-	/* reenable vsync */
+	// reenable vsync
 	client_data->remote_write(client_data, GPIOSEL_VWAKEINT,
 				  GPIOSEL);
 	client_data->remote_write(client_data, INTMASK_VWAKEOUT,
 				  INTMASK);
 	return ret;
-
+#else
+	return 0;
+#endif
 }
 
-static int hero_mddi_panel_blank(
-			struct msm_mddi_bridge_platform_data *bridge_data,
-			struct msm_mddi_client_data *client_data)
+static int 
+panel_sharp_blank(struct msm_mddi_bridge_platform_data *bridge,
+		struct msm_mddi_client_data *client_data)
 {
+#if SHARP_POWER	
 	int panel_id, ret = 0;
 
 	panel_id = (client_data->remote_read(client_data, GPIODATA) >> 4) & 3;
 	client_data->auto_hibernate(client_data, 0);
-	switch (panel_id) {
+	switch(panel_id) {
 	case 0:
-		printk(KERN_DEBUG "deinit sharp panel\n");
+		B("deinit sharp panel\n");
 		hero_process_mddi_table(client_data,
 					 mddi_sharp_deinit_table,
 					 ARRAY_SIZE(mddi_sharp_deinit_table));
 		break;
 	case 1:
-		printk(KERN_DEBUG "deinit tpo panel\n");
+		B("deinit tpo panel\n");
 		hero_process_mddi_table(client_data,
 					 mddi_tpo_deinit_table,
 					 ARRAY_SIZE(mddi_tpo_deinit_table));
 		break;
 	default:
-		printk(KERN_DEBUG "unknown panel_id: %d\n", panel_id);
+		B("unknown panel_id: %d\n", panel_id);
 		ret = -1;
 	};
-	client_data->auto_hibernate(client_data, 1);
-	mutex_lock(&hero_backlight_lock);
-	hero_set_backlight_level(0);
-	hero_backlight_off = 1;
-	mutex_unlock(&hero_backlight_lock);
+	client_data->auto_hibernate(client_data,1);
+	hero_set_backlight(0);
 	client_data->remote_write(client_data, 0, SYSCLKENA);
 	client_data->remote_write(client_data, 1, DPSUS);
 
 	return ret;
-}
-
-
-/* Initial sequence of sharp panel with Novatek NT35399 MDDI client */
-static const struct mddi_table sharp2_init_table[] = {
-	{ 0x02A0, 0x00 },
-	{ 0x02A1, 0x00 },
-	{ 0x02A2, 0x3F },
-	{ 0x02A3, 0x01 },
-	{ 0x02B0, 0x00 },
-	{ 0x02B1, 0x00 },
-	{ 0x02B2, 0xDF },
-	{ 0x02B3, 0x01 },
-	{ 0x02D0, 0x00 },
-	{ 0x02D1, 0x00 },
-	{ 0x02D2, 0x00 },
-	{ 0x02D3, 0x00 },
-	{ 0x0350, 0x80 },	/* Set frame tearing effect(FTE) position */
-	{ 0x0351, 0x00 },
-	{ 0x0360, 0x30 },
-	{ 0x0361, 0xC1 },
-	{ 0x0362, 0x00 },
-	{ 0x0370, 0x00 },
-	{ 0x0371, 0xEF },
-	{ 0x0372, 0x01 },
-
-	{ 0x0B00, 0x10 },
-
-	{ 0x0B10, 0x00 },
-	{ 0x0B20, 0x22 },
-	{ 0x0B30, 0x46 },
-	{ 0x0B40, 0x07 },
-	{ 0x0B41, 0x1C },
-	{ 0x0B50, 0x0F },
-	{ 0x0B51, 0x7A },
-	{ 0x0B60, 0x16 },
-	{ 0x0B70, 0x0D },
-	{ 0x0B80, 0x04 },
-	{ 0x0B90, 0x07 },
-	{ 0x0BA0, 0x04 },
-	{ 0x0BA1, 0x86 },
-	{ 0x0BB0, 0xFF },
-	{ 0x0BB1, 0x01 },
-	{ 0x0BB2, 0xF7 },
-	{ 0x0BB3, 0x01 },
-	{ 0x0BC0, 0x00 },
-	{ 0x0BC1, 0x00 },
-	{ 0x0BC2, 0x00 },
-	{ 0x0BC3, 0x00 },
-	{ 0x0BE0, 0x01 },
-	{ 0x0BE1, 0x3F },
-
-	{ 0x0BF0, 0x03 },
-
-	{ 0x0C10, 0x02 },
-
-	{ 0x0C30, 0x22 },
-	{ 0x0C31, 0x20 },
-	{ 0x0C40, 0x48 },
-	{ 0x0C41, 0x06 },
-
-	{ 0xE00, 0x0028},
-	{ 0xE01, 0x002F},
-	{ 0xE02, 0x0032},
-	{ 0xE03, 0x000A},
-	{ 0xE04, 0x0023},
-	{ 0xE05, 0x0024},
-	{ 0xE06, 0x0022},
-	{ 0xE07, 0x0012},
-	{ 0xE08, 0x000D},
-	{ 0xE09, 0x0035},
-	{ 0xE0A, 0x000E},
-	{ 0xE0B, 0x001A},
-	{ 0xE0C, 0x003C},
-	{ 0xE0D, 0x003A},
-	{ 0xE0E, 0x0050},
-	{ 0xE0F, 0x0069},
-	{ 0xE10, 0x0006},
-	{ 0xE11, 0x001F},
-	{ 0xE12, 0x0035},
-	{ 0xE13, 0x0020},
-	{ 0xE14, 0x0043},
-	{ 0xE15, 0x0030},
-	{ 0xE16, 0x003C},
-	{ 0xE17, 0x0010},
-	{ 0xE18, 0x0009},
-	{ 0xE19, 0x0051},
-	{ 0xE1A, 0x001D},
-	{ 0xE1B, 0x003C},
-	{ 0xE1C, 0x0053},
-	{ 0xE1D, 0x0041},
-	{ 0xE1E, 0x0045},
-	{ 0xE1F, 0x004B},
-	{ 0xE20, 0x000A},
-	{ 0xE21, 0x0014},
-	{ 0xE22, 0x001C},
-	{ 0xE23, 0x0013},
-	{ 0xE24, 0x002E},
-	{ 0xE25, 0x0029},
-	{ 0xE26, 0x001B},
-	{ 0xE27, 0x0014},
-	{ 0xE28, 0x000E},
-	{ 0xE29, 0x0032},
-	{ 0xE2A, 0x000D},
-	{ 0xE2B, 0x001B},
-	{ 0xE2C, 0x0033},
-	{ 0xE2D, 0x0033},
-	{ 0xE2E, 0x005B},
-	{ 0xE2F, 0x0069},
-	{ 0xE30, 0x0006},
-	{ 0xE31, 0x0014},
-	{ 0xE32, 0x003D},
-	{ 0xE33, 0x0029},
-	{ 0xE34, 0x0042},
-	{ 0xE35, 0x0032},
-	{ 0xE36, 0x003F},
-	{ 0xE37, 0x000E},
-	{ 0xE38, 0x0008},
-	{ 0xE39, 0x0059},
-	{ 0xE3A, 0x0015},
-	{ 0xE3B, 0x002E},
-	{ 0xE3C, 0x0049},
-	{ 0xE3D, 0x0058},
-	{ 0xE3E, 0x0061},
-	{ 0xE3F, 0x006B},
-	{ 0xE40, 0x000A},
-	{ 0xE41, 0x001A},
-	{ 0xE42, 0x0022},
-	{ 0xE43, 0x0014},
-	{ 0xE44, 0x002F},
-	{ 0xE45, 0x002A},
-	{ 0xE46, 0x001A},
-	{ 0xE47, 0x0014},
-	{ 0xE48, 0x000E},
-	{ 0xE49, 0x002F},
-	{ 0xE4A, 0x000F},
-	{ 0xE4B, 0x001B},
-	{ 0xE4C, 0x0030},
-	{ 0xE4D, 0x002C},
-	{ 0xE4E, 0x0051},
-	{ 0xE4F, 0x0069},
-	{ 0xE50, 0x0006},
-	{ 0xE51, 0x001E},
-	{ 0xE52, 0x0043},
-	{ 0xE53, 0x002F},
-	{ 0xE54, 0x0043},
-	{ 0xE55, 0x0032},
-	{ 0xE56, 0x0043},
-	{ 0xE57, 0x000D},
-	{ 0xE58, 0x0008},
-	{ 0xE59, 0x0059},
-	{ 0xE5A, 0x0016},
-	{ 0xE5B, 0x0030},
-	{ 0xE5C, 0x004B},
-	{ 0xE5D, 0x0051},
-	{ 0xE5E, 0x005A},
-	{ 0xE5F, 0x006B},
-
-        { 0x0290, 0x01 },
-};
-
-#undef TPO2_ONE_GAMMA
-/* Initial sequence of TPO panel with Novatek NT35399 MDDI client */
-
-static const struct mddi_table tpo2_init_table[] = {
-	/* Panel interface control */
-	{ 0xB30, 0x44 },
-	{ 0xB40, 0x00 },
-	{ 0xB41, 0x87 },
-	{ 0xB50, 0x06 },
-	{ 0xB51, 0x7B },
-	{ 0xB60, 0x0E },
-	{ 0xB70, 0x0F },
-	{ 0xB80, 0x03 },
-	{ 0xB90, 0x00 },
-	{ 0x350, 0x70 },        /* FTE is at line 0x70 */
-
-	/* Entry Mode */
-	{ 0x360, 0x30 },
-	{ 0x361, 0xC1 },
-	{ 0x362, 0x04 },
-
-/* 0x2 for gray scale gamma correction, 0x12 for RGB gamma correction  */
-#ifdef TPO2_ONE_GAMMA
-	{ 0xB00, 0x02 },
 #else
-	{ 0xB00, 0x12 },
-#endif
-	/* Driver output control */
-	{ 0x371, 0xEF },
-	{ 0x372, 0x03 },
-
-	/* DCDC on glass control */
-	{ 0xC31, 0x10 },
-	{ 0xBA0, 0x00 },
-	{ 0xBA1, 0x86 },
-
-	/* VCOMH voltage control */
-	{ 0xC50, 0x3b },
-
-	/* Special function control */
-	{ 0xC10, 0x82 },
-
-	/* Power control */
-	{ 0xC40, 0x44 },
-	{ 0xC41, 0x02 },
-
-	/* Source output control */
-	{ 0xBE0, 0x01 },
-	{ 0xBE1, 0x00 },
-
-	/* Windows address setting */
-	{ 0x2A0, 0x00 },
-	{ 0x2A1, 0x00 },
-	{ 0x2A2, 0x3F },
-	{ 0x2A3, 0x01 },
-	{ 0x2B0, 0x00 },
-	{ 0x2B1, 0x00 },
-	{ 0x2B2, 0xDF },
-	{ 0x2B3, 0x01 },
-
-	/* RAM address setting */
-	{ 0x2D0, 0x00 },
-	{ 0x2D1, 0x00 },
-	{ 0x2D2, 0x00 },
-	{ 0x2D3, 0x00 },
-
-	{ 0xF20, 0x55 },
-	{ 0xF21, 0xAA },
-	{ 0xF22, 0x66 },
-	{ 0xF57, 0x45 },
-
-/*
- * The NT35399 provides gray or RGB gamma correction table,
- * which determinated by register-0xb00, and following table
- */
-#ifdef TPO2_ONE_GAMMA
-	/* Positive Gamma setting */
-	{ 0xE00, 0x04 },
-	{ 0xE01, 0x12 },
-	{ 0xE02, 0x18 },
-	{ 0xE03, 0x10 },
-	{ 0xE04, 0x29 },
-	{ 0xE05, 0x26 },
-	{ 0xE06, 0x1f },
-	{ 0xE07, 0x11 },
-	{ 0xE08, 0x0c },
-	{ 0xE09, 0x3a },
-	{ 0xE0A, 0x0d },
-	{ 0xE0B, 0x28 },
-	{ 0xE0C, 0x40 },
-	{ 0xE0D, 0x4e },
-	{ 0xE0E, 0x6f },
-	{ 0xE0F, 0x5E },
-
-	/* Negative Gamma setting */
-	{ 0xE10, 0x0B },
-	{ 0xE11, 0x00 },
-	{ 0xE12, 0x00 },
-	{ 0xE13, 0x1F },
-	{ 0xE14, 0x4b },
-	{ 0xE15, 0x33 },
-	{ 0xE16, 0x13 },
-	{ 0xE17, 0x12 },
-	{ 0xE18, 0x0d },
-	{ 0xE19, 0x2f },
-	{ 0xE1A, 0x16 },
-	{ 0xE1B, 0x2e },
-	{ 0xE1C, 0x49 },
-	{ 0xE1D, 0x41 },
-	{ 0xE1E, 0x46 },
-	{ 0xE1F, 0x55 },
-#else
-  /* Red Positive Gamma  */
-  {0xE00, 0x001A },
-  {0xE01, 0x001F },
-  {0xE02, 0x0022 },
-  {0xE03, 0x0009 },
-  {0xE04, 0x0023 },
-  {0xE05, 0x0023 },
-  {0xE06, 0x002B },
-  {0xE07, 0x0013 },
-  {0xE08, 0x000B },
-  {0xE09, 0x0049 },
-  {0xE0A, 0x0019 },
-  {0xE0B, 0x0026 },
-  {0xE0C, 0x0059 },
-  {0xE0D, 0x003B },
-  {0xE0E, 0x0045 },
-  {0xE0F, 0x0062 },
-
-  /* Red Negative Gamma   */
-  {0xE10, 0x001D },
-  {0xE11, 0x003A },
-  {0xE12, 0x0043 },
-  {0xE13, 0x0009 },
-  {0xE14, 0x0038 },
-  {0xE15, 0x0024 },
-  {0xE16, 0x0034 },
-  {0xE17, 0x0010 },
-  {0xE18, 0x0009 },
-  {0xE19, 0x0051 },
-  {0xE1A, 0x001B },
-  {0xE1B, 0x0036 },
-  {0xE1C, 0x0054 },
-  {0xE1D, 0x0059 },
-  {0xE1E, 0x005C },
-  {0xE1F, 0x0060 },
-
-  /* Green Positive Gamma */
-  {0xE20, 0x0005 },
-  {0xE21, 0x000E },
-  {0xE22, 0x0017 },
-  {0xE23, 0x0010 },
-  {0xE24, 0x0026 },
-  {0xE25, 0x0027 },
-  {0xE26, 0x0028 },
-  {0xE27, 0x0013 },
-  {0xE28, 0x000E },
-  {0xE29, 0x0049 },
-  {0xE2A, 0x0012 },
-  {0xE2B, 0x001D },
-  {0xE2C, 0x0035 },
-  {0xE2D, 0x0047 },
-  {0xE2E, 0x004F },
-  {0xE2F, 0x0062 },
-
-  /* Green Negative Gamma */
-  {0xE30, 0x001D },
-  {0xE31, 0x0030 },
-  {0xE32, 0x0036 },
-  {0xE33, 0x0029 },
-  {0xE34, 0x0043 },
-  {0xE35, 0x002e },
-  {0xE36, 0x0035 },
-  {0xE37, 0x0011 },
-  {0xE38, 0x000B },
-  {0xE39, 0x0053 },
-  {0xE3A, 0x0016 },
-  {0xE3B, 0x0035 },
-  {0xE3C, 0x004F },
-  {0xE3D, 0x0063 },
-  {0xE3E, 0x006D },
-  {0xE3F, 0x0076 },
-
-  /* Blue Positive Gamma */
-  {0xE40, 0x0029 },
-  {0xE41, 0x002A },
-  {0xE42, 0x002C },
-  {0xE43, 0x0003 },
-  {0xE44, 0x0019 },
-  {0xE45, 0x0017 },
-  {0xE46, 0x0023 },
-  {0xE47, 0x0012 },
-  {0xE48, 0x000B },
-  {0xE49, 0x0044 },
-  {0xE4A, 0x0016 },
-  {0xE4B, 0x0027 },
-  {0xE4C, 0x0041 },
-  {0xE4D, 0x0032 },
-  {0xE4E, 0x003C },
-  {0xE4F, 0x0062 },
-
-  /* Blue Negative Gamma */
-  {0xE50, 0x0019 },
-  {0xE51, 0x0042 },
-  {0xE52, 0x004B },
-  {0xE53, 0x001C },
-  {0xE54, 0x0036 },
-  {0xE55, 0x0028 },
-  {0xE56, 0x003C },
-  {0xE57, 0x0011 },
-  {0xE58, 0x0009 },
-  {0xE59, 0x005A },
-  {0xE5A, 0x002A },
-  {0xE5B, 0x0043 },
-  {0xE5C, 0x0058 },
-  {0xE5D, 0x0052 },
-  {0xE5E, 0x0053 },
-  {0xE5F, 0x0054 },
-#endif
-	/* Sleep in mode 		*/
-	{ 0x110, 0x00 },
-	{ 0x1,   0x23 },
-	/* Display on mode 		*/
-	{ 0x290, 0x00 },
-	{ 0x1,   0x27 },
-	/* Driver output control	*/
-	{ 0x372, 0x01 },
-	{ 0x1,   0x40 },
-	/* Display on mode		*/
-	{ 0x290, 0x01 },
-};
-
-static const struct mddi_table tpo2_display_on[] = {
-	{ 0x290, 0x01 },
-};
-
-static const struct mddi_table tpo2_display_off[] = {
-	{ 0x110, 0x01 },
-	{ 0x290, 0x00 },
-	{ 0x1,   100 },
-};
-
-static const struct mddi_table tpo2_power_off[] = {
-	{ 0x0110, 0x01 },
-};
-
-static int nt35399_detect_panel(struct msm_mddi_client_data *client_data)
-{
-	int id = -1, i ;
-
-	/* If the MDDI client is failed to report the panel ID,
-	 * perform retrial 5 times.
-	 */
-	for( i=0; i < 5; i++ ) {
-		client_data->remote_write(client_data, 0, 0x110);
-		msleep(5);
-		id = client_data->remote_read(client_data, userid) ;
-		if( id == 0 || id == 1 ) {
-			if(i==0) {
-				printk(KERN_ERR "%s: got valid panel ID=%d, "
-						"without retry\n",
-						__FUNCTION__, id);
-			}
-			else {
-				printk(KERN_ERR "%s: got valid panel ID=%d, "
-						"after %d retry\n",
-						__FUNCTION__, id, i+1);
-			}
-			break ;
-		}
-		printk(KERN_ERR "%s: got invalid panel ID:%d, trial #%d\n",
-				__FUNCTION__, id, i+1);
-
-		gpio_set_value(MDDI_RST_N, 0);
-		msleep(5);
-
-		gpio_set_value(MDDI_RST_N, 1);
-		msleep(10);
-		gpio_set_value(MDDI_RST_N, 0);
-		udelay(100);
-		gpio_set_value(MDDI_RST_N, 1);
-		mdelay(10);
-	}
-	printk(KERN_INFO "%s: final panel id=%d\n", __FUNCTION__, id);
-
-	switch(id) {
-	case 0:
-		return HERO_PANEL_TOPPOLY;
-	case 1:
-		return HERO_PANEL_SHARP;
-	default :
-		printk(KERN_ERR "%s(): Invalid panel ID: %d, "
-				"treat as sharp panel.", __FUNCTION__, id);
-		return HERO_PANEL_SHARP;
-	}
-}
-
-static int nt35399_client_init(
-		struct msm_mddi_bridge_platform_data *bridge_data,
-		struct msm_mddi_client_data *client_data)
-{
-	int panel_id;
-
-	if (g_panel_inited == 0) {
-		g_panel_id = panel_id = nt35399_detect_panel(client_data);
-		g_panel_inited = 1 ;
-	} else {
-		gpio_set_value(MDDI_RST_N, 1);
-		msleep(10);
-		gpio_set_value(MDDI_RST_N, 0);
-		udelay(100);
-		gpio_set_value(MDDI_RST_N, 1);
-		mdelay(10);
-
-		g_panel_id = panel_id = nt35399_detect_panel(client_data);
-		if (panel_id == -1) {
-			printk("Invalid panel id\n");
-			return -1;
-		}
-
-		client_data->auto_hibernate(client_data, 0);
-		if (panel_id == HERO_PANEL_TOPPOLY) {
-			hero_process_mddi_table(client_data, tpo2_init_table,
-						    ARRAY_SIZE(tpo2_init_table));
-		} else if(panel_id == HERO_PANEL_SHARP) {
-			hero_process_mddi_table(client_data, sharp2_init_table,
-						    ARRAY_SIZE(sharp2_init_table));
-		}
-
-		client_data->auto_hibernate(client_data, 1);
-	}
-
 	return 0;
+#endif
 }
 
-static int nt35399_client_uninit(
-		struct msm_mddi_bridge_platform_data *bridge_data,
-		struct msm_mddi_client_data *cdata)
+
+static void panel_eid_fixup(uint16_t *mfr_name, uint16_t *product_code)
 {
-	return 0;
+	B("%s: enter.\n", __func__);
+	*mfr_name = 0x0101;
+	*product_code= 0x0;
 }
 
-static int nt35399_panel_unblank(
-		struct msm_mddi_bridge_platform_data *bridge_data,
-		struct msm_mddi_client_data *client_data)
+static int config_vsync(void)
 {
-	int ret = 0;
+	int ret;
+	uint32_t config;
 
-	mdelay(20);
-	hero_set_backlight_level(0);
-	client_data->auto_hibernate(client_data, 0);
+	ret = gpio_request(HERO_GPIO_VSYNC, "vsync");
+	if (ret)
+		return ret;
 
-	mutex_lock(&hero_backlight_lock);
-	hero_set_backlight_level(hero_backlight_brightness);
-	hero_backlight_off = 0;
-	mutex_unlock(&hero_backlight_lock);
-
-	client_data->auto_hibernate(client_data, 1);
-
+	config = PCOM_GPIO_CFG(HERO_GPIO_VSYNC, 1, GPIO_INPUT,
+			GPIO_PULL_DOWN, GPIO_2MA);
+	ret = msm_proc_comm(PCOM_RPC_GPIO_TLMM_CONFIG_EX, &config, 0);
+	if (ret)
+		gpio_free(HERO_GPIO_VSYNC);
 	return ret;
 }
 
-static int nt35399_panel_blank(
-		struct msm_mddi_bridge_platform_data *bridge_data,
-		struct msm_mddi_client_data *client_data)
-{
-	int ret = 0;
-
-	client_data->auto_hibernate(client_data, 0);
-	hero_process_mddi_table(client_data, tpo2_display_off,
-			ARRAY_SIZE(tpo2_display_off));
-	client_data->auto_hibernate(client_data, 1);
-
-	mutex_lock(&hero_backlight_lock);
-	hero_set_backlight_level(0);
-	hero_backlight_off = 1;
-	mutex_unlock(&hero_backlight_lock);
-
-	return ret;
-}
-
-static void hero_brightness_set(struct led_classdev *led_cdev, enum led_brightness value)
-{
-	mutex_lock(&hero_backlight_lock);
-	hero_backlight_brightness = value;
-	if (!hero_backlight_off)
-		hero_set_backlight_level(hero_backlight_brightness);
-	mutex_unlock(&hero_backlight_lock);
-}
-
-static struct led_classdev hero_backlight_led = {
-	.name			= "lcd-backlight",
-	.brightness = HERO_DEFAULT_BACKLIGHT_BRIGHTNESS,
-	.brightness_set = hero_brightness_set,
-};
-
-static int hero_backlight_probe(struct platform_device *pdev)
-{
-	led_classdev_register(&pdev->dev, &hero_backlight_led);
-	return 0;
-}
-
-static int hero_backlight_remove(struct platform_device *pdev)
-{
-	led_classdev_unregister(&hero_backlight_led);
-	return 0;
-}
-
-static struct platform_driver hero_backlight_driver = {
-	.probe		= hero_backlight_probe,
-	.remove		= hero_backlight_remove,
-	.driver		= {
-		.name		= "hero-backlight",
-		.owner		= THIS_MODULE,
+static struct msm_mddi_bridge_platform_data toshiba_client_data = {
+	.init = mddi_toshiba_client_init,
+	.uninit = mddi_toshiba_client_uninit,
+	.blank = panel_sharp_blank,
+	.unblank = panel_sharp_unblank,
+	.fb_data = {
+		.xres = 320,
+		.yres = 480,
+		.width = 45,
+		.height = 68,
+		.output_format = 0,
 	},
 };
 
-static struct resource resources_msm_fb_smi32[] = {
-	{
-		.start = SMI32_MSM_FB_BASE,
-		.end = SMI32_MSM_FB_BASE + SMI32_MSM_FB_SIZE - 1,
-		.flags = IORESOURCE_MEM,
+static u8 pwm_eid[] = {8, 16, 34, 61, 96, 138, 167, 195, 227, 255};
+static struct msm_mddi_bridge_platform_data eid_client_data = {
+	.blank = hero_panel_blank,
+	.unblank = hero_panel_unblank,
+	.fb_data = {
+		.xres = 320,
+		.yres = 480,
+		.width = 45,
+		.height = 68,
+		.output_format = 0,
+	},
+	.panel_conf = {
+		.panel_id = PANEL_EID_24pin,
+		.caps = 0x0,
+		.pwm = pwm_eid,
 	},
 };
 
 static struct resource resources_msm_fb[] = {
 	{
-		.start = SMI64_MSM_FB_BASE,
-		.end = SMI64_MSM_FB_BASE + SMI64_MSM_FB_SIZE - 1,
+		.start = MSM_FB_BASE,
+		.end = MSM_FB_BASE + MSM_FB_SIZE - 1,
 		.flags = IORESOURCE_MEM,
 	},
 };
 
-static struct msm_mddi_bridge_platform_data toshiba_client_data = {
-	.init = hero_mddi_toshiba_client_init,
-	.uninit = hero_mddi_toshiba_client_uninit,
-	.blank = hero_mddi_panel_blank,
-	.unblank = hero_mddi_panel_unblank,
-	.fb_data = {
-		.xres = 320,
-		.yres = 480,
-		.width = 45,
-		.height = 67,
-		.output_format = 0,
-	},
-};
-
-#define NT35399_MFR_NAME	0x0bda
-#define NT35399_PRODUCT_CODE 	0x8a47
-
-static void nt35399_fixup(uint16_t * mfr_name, uint16_t * product_code)
-{
-	printk(KERN_DEBUG "%s: enter.\n", __func__);
-	*mfr_name = NT35399_MFR_NAME ;
-	*product_code= NT35399_PRODUCT_CODE ;
-}
-
-static struct msm_mddi_bridge_platform_data nt35399_client_data = {
-
-	.init = nt35399_client_init,
-	.uninit = nt35399_client_uninit,
-	.blank = nt35399_panel_blank,
-	.unblank = nt35399_panel_unblank,
-	.fb_data = {
-		.xres = 320,
-		.yres = 480,
-		.output_format = 0,
-	},
-};
-
-static struct msm_mddi_platform_data mddi_pdata = {
+static struct msm_mddi_platform_data hero_pdata = {
 	.clk_rate = 122880000,
-	.power_client = hero_mddi_power_client,
-	.fixup = nt35399_fixup,
-	.vsync_irq = MSM_GPIO_TO_INT(VSYNC_GPIO),
+	.power_client = hero_mddi_sharp_power,
+	.fixup = panel_eid_fixup,
 	.fb_resource = resources_msm_fb,
 	.num_clients = 2,
 	.client_platform_data = {
@@ -1220,68 +658,88 @@ static struct msm_mddi_platform_data mddi_pdata = {
 			.clk_rate = 0,
 		},
 		{
-			.product_id =
-				(NT35399_MFR_NAME << 16 | NT35399_PRODUCT_CODE),
-			.name = "mddi_c_simple" ,
-			.id = 0,
-			.client_data = &nt35399_client_data,
+			.product_id = (0x0101 << 16 | 0),
+			.name = "mddi_c_0101_0000",
+			.id = 1,
+			.client_data = &eid_client_data,
 			.clk_rate = 0,
 		},
 	},
 };
 
-static struct platform_device hero_backlight = {
-	.name = "hero-backlight",
-};
-
+/*
+ * In boot loader, mddi is powered on already.
+ * So, we just detect panel here, setting different power function for each panel.
+ * Then we did not have to detect panel in each time mddi_client_power or panel_power
+ * is called.
+ *
+ * jay: Nov 20, 08'
+ */
 int __init hero_init_panel(void)
 {
-	int rc = -1;
-	uint32_t config = PCOM_GPIO_CFG(27, 0, GPIO_OUTPUT, GPIO_NO_PULL, GPIO_8MA); /* GPIO27 */
+	int panel, rc;
+	struct panel_data *panel_data = &eid_client_data.panel_conf;
 
-	if (!machine_is_hero())
-		return 0;
+	if(!machine_is_hero())
+		return -1;
+	
+	B(KERN_INFO "%s: enter.\n", __func__);
 
-	/* checking board as soon as possible */
-	printk("hero_init_panel:machine_is_hero=%d, machine_arch_type=%d, MACH_TYPE_HERO=%d\r\n", machine_is_hero(), machine_arch_type, MACH_TYPE_HERO);
-	if (!machine_is_hero())
-		return 0;
+	vreg_lcm_2v6 = vreg_get(0, "gp4");
+	if (IS_ERR(vreg_lcm_2v6))
+		return PTR_ERR(vreg_lcm_2v6);
 
-	vreg_lcm_2v85 = vreg_get(0, "gp4");
+	vreg_lcm_2v85 = vreg_get(0, "rfrx2");
 	if (IS_ERR(vreg_lcm_2v85))
 		return PTR_ERR(vreg_lcm_2v85);
 
-		msm_proc_comm(PCOM_RPC_GPIO_TLMM_CONFIG_EX, &config, 0);
+	panel = hero_panel_detect();
 
-	/* setup FB by SMI size */
-	if (hero_get_smi_size() == 32) {
-		switch (hero_get_die_size()) {
-		case EBI1_DUAL_128MB_128MB:
-		case EBI1_MONO_256MB:
-			resources_msm_fb[0].start = 0x00700000;
-			resources_msm_fb[0].end = resources_msm_fb[0].start + 0x9b000 - 1;
-			break;
-		default:
-			mddi_pdata.fb_resource = resources_msm_fb_smi32;
-			break;
-		}
+	if (panel == PANEL_SHARP) {
+		printk(KERN_INFO "%s: init sharp panel\n", __func__);
+		hero_pdata.power_client = hero_mddi_sharp_power;
+	} else if ((panel == PANEL_EID_24pin) ||
+			(panel == PANEL_EID_40pin) ||
+			(panel == PANEL_EIDII) ||
+			(panel == PANEL_SAMSUNG)) {
+		if (panel != PANEL_SAMSUNG)
+			printk(KERN_INFO "init EID panel\n");
+		else
+			printk(KERN_INFO "init Samsung panel\n");
+		hero_pdata.power_client = hero_mddi_eid_power;
+		panel_data->panel_id = panel;
+
+		/* Hero enable CABC criteria:
+		 * engineer id > 0, board > XC */
+//		if (engineer_id || system_rev > 2) {
+			panel_data->caps |= MSMFB_CAP_CABC;
+//		} else {
+//			printk(KERN_DEBUG "CABC will not work on older board, "
+//					"engineer_id = %d\n", engineer_id);
+//		}
+//	} else {
+//		printk(KERN_ERR "unknown panel type!\n");
+//		return -EIO;
 	}
 
-	rc = gpio_request(VSYNC_GPIO, "vsync");
-	if (rc)
-		return rc;
-	rc = gpio_direction_input(VSYNC_GPIO);
-	if (rc)
-		return rc;
 	rc = platform_device_register(&msm_device_mdp);
 	if (rc)
 		return rc;
-	msm_device_mddi0.dev.platform_data = &mddi_pdata;
+
+	rc = config_vsync();
+	if (rc)
+		return rc;
+
+	msm_device_mddi0.dev.platform_data = &hero_pdata;
 	rc = platform_device_register(&msm_device_mddi0);
 	if (rc)
 		return rc;
-	platform_device_register(&hero_backlight);
-	return platform_driver_register(&hero_backlight_driver);
-}
+	
+	led_trigger_register_simple("lcd-backlight-gate", &hero_lcd_backlight);
+	if (IS_ERR(hero_lcd_backlight))
+		printk(KERN_ERR "%s: backlight registration failed!\n", __func__);
 
+	return 0;
+}
 device_initcall(hero_init_panel);
+

@@ -21,20 +21,10 @@
 #include <linux/sched.h>
 
 #include <mach/msm_rpcrouter.h>
+
 #include <mach/msm_rpc_version.h>
 
 #define PM_LIBPROG	  0x30000061
-//#if (CONFIG_MSM_AMSS_VERSION == 6220) || (CONFIG_MSM_AMSS_VERSION == 6225)
-//#define PM_LIBVERS	  0xfb837d0b
-//#else
-//#define PM_LIBVERS	  MSM_RPC_VERS(1,1)
-//#endif
-//
-//#ifdef CONFIG_ARCH_QSD8X50
-//#define HTC_PROCEDURE_SET_VIB_ON_OFF	22
-//#else
-//#define HTC_PROCEDURE_SET_VIB_ON_OFF	21
-//#endif
 
 #define PMIC_VIBRATOR_LEVEL	(3000)
 
