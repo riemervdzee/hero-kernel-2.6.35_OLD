@@ -219,8 +219,8 @@ source "net/sched/Kconfig"
 source "net/dcb/Kconfig"
 
 config RPS
-	boolean
-	depends on SMP && SYSFS && USE_GENERIC_SMP_HELPERS
+	boolean "RPS"
+	depends on SMP && SYSFS
 	default y
 
 menu "Network testing"
