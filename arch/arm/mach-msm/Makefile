@@ -10,6 +10,7 @@ obj-$(CONFIG_ARCH_MSM_SCORPION) += arch-init-scorpion.o
 obj-y += clock.o
 obj-y += gpio.o generic_gpio.o
 obj-y += nand_partitions.o
+obj-y += drv_callback.o
 
 obj-$(CONFIG_MSM_FIQ_SUPPORT) += fiq_glue.o
 obj-$(CONFIG_MACH_TROUT) += board-trout-rfkill.o

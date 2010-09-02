@@ -1,1109 +1,410 @@
-/*
-*	BMA150 linux driver
-* 
-* Usage:	BMA150 driver by i2c for linux
-*
-*
- * This software program is licensed subject to the GNU General Public License
- * (GPL).Version 2,June 1991, available at http://www.fsf.org/copyleft/gpl.html
+/* drivers/i2c/chips/bma150.c - bma150 G-sensor driver
  *
+ * Copyright (C) 2008-2009 HTC Corporation.
+ *
+ * This software is licensed under the terms of the GNU General Public
+ * License version 2, as published by the Free Software Foundation, and
+ * may be copied, distributed, and modified under those terms.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
  */
 
-#include <linux/kernel.h>
-#include <linux/module.h>
-#include <linux/fs.h>
-#include <linux/slab.h>
-#include <linux/init.h>
-#include <linux/list.h>
 #include <linux/i2c.h>
-#include <linux/i2c-dev.h>
-#include <asm/uaccess.h>
-#include <linux/unistd.h>
-#include <linux/delay.h>
+#include <linux/slab.h>
 #include <linux/miscdevice.h>
-#include <linux/interrupt.h>
+#include <asm/uaccess.h>
 #include <linux/input.h>
-#include <linux/workqueue.h>
-#include <linux/irq.h>
-#include <mach/gpio.h>
-#include <linux/timer.h>
-#include <linux/jiffies.h>
-#include "smb380.h"
-#include "smb380calib.h"
+#include <linux/bma150.h>
+#include <asm/gpio.h>
+#include <linux/delay.h>
+#include<linux/earlysuspend.h>
 
-#ifdef BMA150_MODULES 
-#include "smb380.c"
-#include "smb380calib.c"
-#endif
+static struct i2c_client *this_client;
 
-#define BMA150_IOC_MAGIC 'B'
-
-#define BMA150_SOFT_RESET				_IO(BMA150_IOC_MAGIC,0)
-#define BMA150_SET_RANGE				_IOWR(BMA150_IOC_MAGIC,4, unsigned char)
-#define BMA150_GET_RANGE				_IOWR(BMA150_IOC_MAGIC,5, unsigned char)
-#define BMA150_SET_MODE					_IOWR(BMA150_IOC_MAGIC,6, unsigned char)
-#define BMA150_GET_MODE					_IOWR(BMA150_IOC_MAGIC,7, unsigned char)
-#define BMA150_SET_BANDWIDTH			_IOWR(BMA150_IOC_MAGIC,8, unsigned char)
-#define BMA150_GET_BANDWIDTH			_IOWR(BMA150_IOC_MAGIC,9, unsigned char)
-#define BMA150_SET_WAKE_UP_PAUSE		_IOWR(BMA150_IOC_MAGIC,10,unsigned char)
-#define BMA150_GET_WAKE_UP_PAUSE		_IOWR(BMA150_IOC_MAGIC,11,unsigned char)
-#define BMA150_SET_LOW_G_THRESHOLD		_IOWR(BMA150_IOC_MAGIC,12,unsigned char)
-#define BMA150_GET_LOW_G_THRESHOLD		_IOWR(BMA150_IOC_MAGIC,13,unsigned char)
-#define BMA150_SET_LOW_G_COUNTDOWN		_IOWR(BMA150_IOC_MAGIC,14,unsigned char)
-#define BMA150_GET_LOW_G_COUNTDOWN		_IOWR(BMA150_IOC_MAGIC,15,unsigned char)
-#define BMA150_SET_HIGH_G_COUNTDOWN		_IOWR(BMA150_IOC_MAGIC,16,unsigned char)
-#define BMA150_GET_HIGH_G_COUNTDOWN		_IOWR(BMA150_IOC_MAGIC,17,unsigned char)
-#define BMA150_SET_LOW_G_DURATION		_IOWR(BMA150_IOC_MAGIC,18,unsigned char)
-#define BMA150_GET_LOW_G_DURATION		_IOWR(BMA150_IOC_MAGIC,19,unsigned char)
-#define BMA150_SET_HIGH_G_THRESHOLD		_IOWR(BMA150_IOC_MAGIC,20,unsigned char)
-#define BMA150_GET_HIGH_G_THRESHOLD		_IOWR(BMA150_IOC_MAGIC,21,unsigned char)
-#define BMA150_SET_HIGH_G_DURATION		_IOWR(BMA150_IOC_MAGIC,22,unsigned char)
-#define BMA150_GET_HIGH_G_DURATION		_IOWR(BMA150_IOC_MAGIC,23,unsigned char)
-#define BMA150_SET_ANY_MOTION_THRESHOLD	_IOWR(BMA150_IOC_MAGIC,24,unsigned char)
-#define BMA150_GET_ANY_MOTION_THRESHOLD	_IOWR(BMA150_IOC_MAGIC,25,unsigned char)
-#define BMA150_SET_ANY_MOTION_COUNT		_IOWR(BMA150_IOC_MAGIC,26,unsigned char)
-#define BMA150_GET_ANY_MOTION_COUNT		_IOWR(BMA150_IOC_MAGIC,27,unsigned char)
-#define BMA150_SET_INTERRUPT_MASK		_IOWR(BMA150_IOC_MAGIC,28,unsigned char)
-#define BMA150_GET_INTERRUPT_MASK		_IOWR(BMA150_IOC_MAGIC,29,unsigned char)
-#define BMA150_RESET_INTERRUPT			_IO(BMA150_IOC_MAGIC,30)
-#define BMA150_READ_ACCEL_X				_IOWR(BMA150_IOC_MAGIC,31,short)
-#define BMA150_READ_ACCEL_Y				_IOWR(BMA150_IOC_MAGIC,32,short)
-#define BMA150_READ_ACCEL_Z				_IOWR(BMA150_IOC_MAGIC,33,short)
-#define BMA150_GET_INTERRUPT_STATUS		_IOWR(BMA150_IOC_MAGIC,34,unsigned char)
-#define BMA150_SET_LOW_G_INT			_IOWR(BMA150_IOC_MAGIC,35,unsigned char)
-#define BMA150_SET_HIGH_G_INT			_IOWR(BMA150_IOC_MAGIC,36,unsigned char)
-#define BMA150_SET_ANY_MOTION_INT		_IOWR(BMA150_IOC_MAGIC,37,unsigned char)
-#define BMA150_SET_ALERT_INT			_IOWR(BMA150_IOC_MAGIC,38,unsigned char)
-#define BMA150_SET_ADVANCED_INT			_IOWR(BMA150_IOC_MAGIC,39,unsigned char)
-#define BMA150_LATCH_INT				_IOWR(BMA150_IOC_MAGIC,40,unsigned char)
-#define BMA150_SET_NEW_DATA_INT			_IOWR(BMA150_IOC_MAGIC,41,unsigned char)
-#define BMA150_GET_LOW_G_HYST			_IOWR(BMA150_IOC_MAGIC,42,unsigned char)
-#define BMA150_SET_LOW_G_HYST			_IOWR(BMA150_IOC_MAGIC,43,unsigned char)
-#define BMA150_GET_HIGH_G_HYST			_IOWR(BMA150_IOC_MAGIC,44,unsigned char)
-#define BMA150_SET_HIGH_G_HYST			_IOWR(BMA150_IOC_MAGIC,45,unsigned char)
-#define BMA150_READ_ACCEL_XYZ			_IOWR(BMA150_IOC_MAGIC,46,short)
-#define BMA150_READ_TEMPERATURE			_IOWR(BMA150_IOC_MAGIC,47,unsigned char)
-#define BMA150_CALIBRATION				_IOWR(BMA150_IOC_MAGIC,48,short)
-#define BMA150_READ_INT					_IOWR(BMA150_IOC_MAGIC,49,unsigned char)
-#define BMA150_IOC_MAXNR				50
-
-
-#define	BMA150_ENABLE_IRQ
-#define EVENT_TIPATP					ABS_X
-#define EVENT_SHAKE						ABS_Y
-#define EVENT_FFALL						ABS_Z
-#define BMA150_DEBUG
-//#define BMA150_SMBUS
-
-/* i2c operation for bma150 API */
-static char bma150_i2c_write(unsigned char reg_addr, unsigned char *data, unsigned char len);
-static char bma150_i2c_read(unsigned char reg_addr, unsigned char *data, unsigned char len);
-static void bma150_i2c_delay(unsigned int msec);
-
-/* globe variant */
-static struct i2c_client *bma150_client = NULL;
 struct bma150_data {
-	smb380_t			smb380;
-	int IRQ;
-	struct fasync_struct *async_queue;
-	
+	struct input_dev *input_dev;
+	struct work_struct work;
+	struct early_suspend early_suspend;
 };
 
-/*definition for GPIO*/
-#ifdef BMA150_ENABLE_IRQ
-static int bma150_interrupt_config(void);
+static struct bma150_platform_data *pdata;
 
-
-#define BMA150_IRQ_PIN					133
-//#define OMAP_CTRL_READADDR			0x48002000
-//#define OMAP_MMC2_DATA1				0x15C+2
-#define BMA150_IRQ						OMAP_GPIO_IRQ(BMA150_IRQ_PIN)
-
-/* config interval of tap-tip */
-#define TAPTIP_INTERVAL					60
-#define SHAKE_INTERVAL					40					
-#define LOW_G_THRES						20
-#define LOW_G_DUR						150
-#define HIGH_G_THRES					160
-#define HIGH_G_DUR						60
-#define ANY_MOTION_THRES				30
-#define ANY_MOTION_CT					2
-#endif
-
-#ifdef BMA150_ENABLE_IRQ
-static int bma150_interrupt_config()
+static int BMA_I2C_RxData(char *rxData, int length)
 {
-	unsigned char temp;
-#ifdef BMA150_DEBUG
-	printk(KERN_INFO "%s\n",__FUNCTION__);
-#endif
+	int retry;
+	struct i2c_msg msgs[] = {
+		{
+		 .addr = this_client->addr,
+		 .flags = 0,
+		 .len = 1,
+		 .buf = rxData,
+		},
+		{
+		 .addr = this_client->addr,
+		 .flags = I2C_M_RD,
+		 .len = length,
+		 .buf = rxData,
+		 },
+	};
 
-/* config interrupt pin for ZOOM_1 omap3430*/
-	if(omap_request_gpio(BMA150_IRQ_PIN) < 0)
-	{
-		printk(KERN_ERR "Failed to request GPIO%d for bma150 IRQ\n",
-                       BMA150_IRQ_PIN);
-               return -1;
+	for (retry = 0; retry <= 100; retry++) {
+		if (i2c_transfer(this_client->adapter, msgs, 2) > 0)
+			break;
+		else
+			mdelay(10);
 	}
-	omap_set_gpio_direction(BMA150_IRQ_PIN, 1);
-
-/* low-g interrupt config: 0.156g, 150ms */
-	temp = LOW_G_THRES;
-	smb380_set_low_g_threshold(temp);
-	temp = LOW_G_DUR;
-	smb380_set_low_g_duration(temp);
-
-/* high-g interrupt config: 1.50g, 150ms */
-	temp = HIGH_G_THRES;
-	smb380_set_high_g_threshold(temp);
-	temp = HIGH_G_DUR;
-	smb380_set_high_g_duration(temp);
-
-/* any motion interrupt config: 0.75g, 3 */
-	temp = ANY_MOTION_THRES;
-	smb380_set_any_motion_threshold(temp);
-	temp = ANY_MOTION_CT;
-	smb380_set_any_motion_count(temp);
+	if (retry > 100) {
+		printk(KERN_ERR "%s: retry over 100\n", __func__);
+		return -EIO;
+	}	else
 	return 0;
-} 
-#endif
 
 
-static irqreturn_t bma150_irq_handler(int irq, void *_id)
-{
-	struct bma150_data *data;	
-    unsigned long flags;
-	if(((smb380_t*)_id)->chip_id != 0x02)
-	{
-#ifdef BMA150_DEBUG
-		printk(KERN_INFO "%s error\n",__FUNCTION__);
-#endif
-		return IRQ_HANDLED;
-	}
-	if(bma150_client == NULL)
-		return IRQ_HANDLED;
-    printk("bma150 irq handler\n");
-    data = i2c_get_clientdata(bma150_client);
-    if(data == NULL)
-		return IRQ_HANDLED;
- 	local_irq_save(flags);
-    if(data->async_queue)
-				kill_fasync(&data->async_queue,SIGIO, POLL_IN);
-	local_irq_restore(flags);
-	return IRQ_HANDLED;
 }
 
-
-/*	i2c delay routine for eeprom	*/
-static inline void bma150_i2c_delay(unsigned int msec)
+static int BMA_I2C_TxData(char *txData, int length)
 {
-	mdelay(msec);
-}
+	int retry;
+	struct i2c_msg msg[] = {
+		{
+		 .addr = this_client->addr,
+		 .flags = 0,
+		 .len = length,
+		 .buf = txData,
+		 },
+	};
 
-/*	i2c write routine for bma150	*/
-static inline char bma150_i2c_write(unsigned char reg_addr, unsigned char *data, unsigned char len)
-{
-	s32 dummy;
-#ifndef BMA150_SMBUS
-	unsigned char buffer[2];
-#endif
-	if( bma150_client == NULL )	/*	No global client pointer?	*/
-		return -1;
-
-	while(len--)
-	{
-#ifdef BMA150_SMBUS
-		dummy = i2c_smbus_write_byte_data(bma150_client, reg_addr, *data);
-#else
-		buffer[0] = reg_addr;
-		buffer[1] = *data;
-		dummy = i2c_master_send(bma150_client, (char*)buffer, 2);
-#endif
-		reg_addr++;
-		data++;
-		if(dummy < 0)
-			return -1;
+	for (retry = 0; retry <= 100; retry++) {
+		if (i2c_transfer(this_client->adapter, msg, 1) > 0)
+			break;
+		else
+			mdelay(10);
 	}
+	if (retry > 100) {
+		printk(KERN_ERR "%s: retry over 100\n", __func__);
+		return -EIO;
+	}	else
 	return 0;
 }
-
-/*	i2c read routine for bma150	*/
-static inline char bma150_i2c_read(unsigned char reg_addr, unsigned char *data, unsigned char len) 
+static int BMA_Init(void)
 {
-	s32 dummy;
-	if( bma150_client == NULL )	/*	No global client pointer?	*/
-		return -1;
-
-	while(len--)
-	{        
-#ifdef BMA150_SMBUS
-		dummy = i2c_smbus_read_byte_data(bma150_client, reg_addr);
-		if(dummy < 0)
-			return -1;
-		*data = dummy & 0x000000ff;
-#else
-		dummy = i2c_master_send(bma150_client, (char*)&reg_addr, 1);
-		if(dummy < 0)
-			return -1;
-		dummy = i2c_master_recv(bma150_client, (char*)data, 1);
-		if(dummy < 0)
-			return -1;
-#endif
-		reg_addr++;
-		data++;
-	}
-	return 0;
-}
-
-
-/*	read command for BMA150 device file	*/
-static ssize_t bma150_read(struct file *file, char __user *buf, size_t count, loff_t *offset)
-{	
-	smb380acc_t acc;	
+	char buffer[4];
 	int ret;
-	if( bma150_client == NULL )
-	{
-#ifdef BMA150_DEBUG
-		printk(KERN_INFO "I2C driver not install\n");
-#endif
+	buffer[0] = RANGE_BWIDTH_REG;
+	ret = BMA_I2C_RxData(buffer, 2);
+	if (ret < 0)
 		return -1;
-	}
-
-	smb380_read_accel_xyz(&acc);
-//#ifdef BMA150_DEBUG
-	printk(KERN_INFO "BMA150: X/Y/Z axis: %-8d %-8d %-8d\n" ,
-		(int)acc.x, (int)acc.y, (int)acc.z);  
-//#endif
-
-	if( count != sizeof(acc) )
-	{
+	buffer[3] = buffer[1]|1<<3;
+	buffer[2] = SMB150_CONF2_REG;
+	buffer[1] = (buffer[0]&0xe0);
+	buffer[0] = RANGE_BWIDTH_REG;
+	ret = BMA_I2C_TxData(buffer, 4);
+	if (ret < 0)
 		return -1;
-	}
-	ret = copy_to_user(buf,&acc, sizeof(acc));
-	if( ret != 0 )
-	{
-#ifdef BMA150_DEBUG
-	printk(KERN_INFO "BMA150: copy_to_user result: %d\n", ret);
-#endif
-	}
-	return sizeof(acc);
-}
-
-/*	write command for BMA150 device file	*/
-static ssize_t bma150_write(struct file *file, const char __user *buf, size_t count, loff_t *offset)
-{
-	if( bma150_client == NULL )
-		return -1;
-#ifdef BMA150_DEBUG
-	printk(KERN_INFO "BMA150 should be accessed with ioctl command\n");
-#endif
 	return 0;
+
 }
 
-/*	open command for BMA150 device file	*/
-static int bma150_open(struct inode *inode, struct file *file)
+static int BMA_TransRBuff(short *rbuf)
 {
-#ifdef BMA150_DEBUG
-		printk(KERN_INFO "%s\n",__FUNCTION__); 
-#endif
-
-	if( bma150_client == NULL)
-	{
-#ifdef BMA150_DEBUG
-		printk(KERN_INFO "I2C driver not install\n"); 
-#endif
-		return -1;
-	}
-
-#ifdef BMA150_DEBUG
-	printk(KERN_INFO "BMA150 has been opened\n");
-#endif
-	return 0;
-}
-
-/*	release command for BMA150 device file	*/
-static int bma150_close(struct inode *inode, struct file *file)
-{
-#ifdef BMA150_DEBUG
-	printk(KERN_INFO "%s\n",__FUNCTION__);	
-#endif
-	return 0;
-}
-
-
-/*	ioctl command for BMA150 device file	*/
-static int bma150_ioctl(struct inode *inode, struct file *file, unsigned int cmd, unsigned long arg)
-{
-	int err = 0;
-	unsigned char data[6];
-	int temp;
-	struct bma150_data* pdata;
-	pdata = i2c_get_clientdata(bma150_client);
-
-
-#ifdef BMA150_DEBUG
-	printk(KERN_INFO "%s\n",__FUNCTION__);	
-#endif
-
-	/* check cmd */
-	if(_IOC_TYPE(cmd) != BMA150_IOC_MAGIC)	
-	{
-#ifdef BMA150_DEBUG		
-		printk(KERN_INFO "cmd magic type error\n");
-#endif
-		return -ENOTTY;
-	}
-	if(_IOC_NR(cmd) > BMA150_IOC_MAXNR)
-	{
-#ifdef BMA150_DEBUG
-		printk(KERN_INFO "cmd number error\n");
-#endif
-		return -ENOTTY;
-	}
-
-	if(_IOC_DIR(cmd) & _IOC_READ)
-		err = !access_ok(VERIFY_WRITE,(void __user*)arg, _IOC_SIZE(cmd));
-	else if(_IOC_DIR(cmd) & _IOC_WRITE)
-		err = !access_ok(VERIFY_READ, (void __user*)arg, _IOC_SIZE(cmd));
-	if(err)
-	{
-#ifdef BMA150_DEBUG
-		printk(KERN_INFO "cmd access_ok error\n");
-#endif
-		return -EFAULT;
-	}
-	/* check bam150_client */
-	if( bma150_client == NULL)
-	{
-#ifdef BMA150_DEBUG
-		printk(KERN_INFO "I2C driver not install\n"); 
-#endif
-		return -EFAULT;
-	}
-
-	/* cmd mapping */
-
-	switch(cmd)
-	{
-	case BMA150_SOFT_RESET:
-		err = smb380_soft_reset();
-		return err;
-
-	case BMA150_SET_RANGE:
-		if(copy_from_user(data,(unsigned char*)arg,1)!=0)
-		{
-#ifdef BMA150_DEBUG			
-			printk(KERN_INFO "copy_from_user error\n");
-#endif
-			return -EFAULT;
-		}
-		err = smb380_set_range(*data);
-		return err;
-
-	case BMA150_GET_RANGE:
-		err = smb380_get_range(data);
-		if(copy_to_user((unsigned char*)arg,data,1)!=0)
-		{
-#ifdef BMA150_DEBUG			
-			printk(KERN_INFO "copy_to_user error\n");
-#endif
-			return -EFAULT;
-		}
-		return err;
-
-	case BMA150_SET_MODE:
-		if(copy_from_user(data,(unsigned char*)arg,1)!=0)
-		{
-#ifdef BMA150_DEBUG			
-			printk(KERN_INFO "copy_from_user error\n");
-#endif
-			return -EFAULT;
-		}
-		err = smb380_set_mode(*data);
-		return err;
-
-	case BMA150_GET_MODE:
-		err = smb380_get_mode(data);
-		if(copy_to_user((unsigned char*)arg,data,1)!=0)
-		{
-#ifdef BMA150_DEBUG			
-			printk(KERN_INFO "copy_to_user error\n");
-#endif
-			return -EFAULT;
-		}
-		return err;
-
-	
-	case BMA150_SET_BANDWIDTH:
-		if(copy_from_user(data,(unsigned char*)arg,1)!=0)
-		{
-#ifdef BMA150_DEBUG
-			printk(KERN_INFO "copy_from_user error\n");
-#endif
-			return -EFAULT;
-		}
-		err = smb380_set_bandwidth(*data);
-		return err;
-
-	case BMA150_GET_BANDWIDTH:
-		err = smb380_get_bandwidth(data);
-		if(copy_to_user((unsigned char*)arg,data,1)!=0)
-		{
-#ifdef BMA150_DEBUG
-			printk(KERN_INFO "copy_to_user error\n");
-#endif
-			return -EFAULT;
-		}
-		return err;
-
-	case BMA150_SET_WAKE_UP_PAUSE:
-		if(copy_from_user(data,(unsigned char*)arg,1)!=0)
-		{
-#ifdef BMA150_DEBUG
-			printk(KERN_INFO "copy_from_user error\n");
-#endif
-			return -EFAULT;
-		}
-		err = smb380_set_wake_up_pause(*data);
-		return err;
-
-	case BMA150_GET_WAKE_UP_PAUSE:
-		err = smb380_get_wake_up_pause(data);
-		if(copy_to_user((unsigned char*)arg,data,1)!=0)
-		{
-#ifdef BMA150_DEBUG
-			printk(KERN_INFO "copy_to_user error\n");
-#endif
-			return -EFAULT;
-		}
-		return err;
-
-	case BMA150_SET_LOW_G_THRESHOLD:
-		if(copy_from_user(data,(unsigned char*)arg,1)!=0)
-		{
-#ifdef BMA150_DEBUG			
-			printk(KERN_INFO "copy_from_user error\n");
-#endif
-			return -EFAULT;
-		}
-		err = smb380_set_low_g_threshold(*data);
-		return err;
-
-	case BMA150_GET_LOW_G_THRESHOLD:
-		err = smb380_get_low_g_threshold(data);
-		if(copy_to_user((unsigned char*)arg,data,1)!=0)
-		{
-#ifdef BMA150_DEBUG
-			printk(KERN_INFO "copy_to_user error\n");
-#endif
-			return -EFAULT;
-		}
-		return err;
-
-	case BMA150_SET_LOW_G_COUNTDOWN:
-		if(copy_from_user(data,(unsigned char*)arg,1)!=0)
-		{
-#ifdef BMA150_DEBUG
-			printk(KERN_INFO "copy_from_user error\n");
-#endif
-			return -EFAULT;
-		}
-		err = smb380_set_low_g_countdown(*data);
-		return err;
-
-	case BMA150_GET_LOW_G_COUNTDOWN:
-		err = smb380_get_low_g_countdown(data);
-		if(copy_to_user((unsigned char*)arg,data,1)!=0)
-		{
-#ifdef BMA150_DEBUG
-			printk(KERN_INFO "copy_to_user error\n");
-#endif
-			return -EFAULT;
-		}
-		return err;
-
-	case BMA150_SET_HIGH_G_COUNTDOWN:
-		if(copy_from_user(data,(unsigned char*)arg,1)!=0)
-		{
-#ifdef BMA150_DEBUG
-			printk(KERN_INFO "copy_from_user error\n");
-#endif
-			return -EFAULT;
-		}
-		err = smb380_set_high_g_countdown(*data);
-		return err;
-
-	case BMA150_GET_HIGH_G_COUNTDOWN:
-		err = smb380_get_high_g_countdown(data);
-		if(copy_to_user((unsigned char*)arg,data,1)!=0)
-		{
-#ifdef BMA150_DEBUG			
-			printk(KERN_INFO "copy_to_user error\n");
-#endif
-			return -EFAULT;
-		}
-		return err;
-
-	case BMA150_SET_LOW_G_DURATION:
-		if(copy_from_user(data,(unsigned char*)arg,1)!=0)
-		{
-#ifdef BMA150_DEBUG
-			printk(KERN_INFO "copy_from_user error\n");
-#endif
-			return -EFAULT;
-		}
-		err = smb380_set_low_g_duration(*data);
-		return err;
-
-	case BMA150_GET_LOW_G_DURATION:
-		err = smb380_get_low_g_duration(data);
-		if(copy_to_user((unsigned char*)arg,data,1)!=0)
-		{
-#ifdef BMA150_DEBUG
-			printk(KERN_INFO "copy_to_user error\n");
-#endif
-			return -EFAULT;
-		}
-		return err;
-
-	case BMA150_SET_HIGH_G_THRESHOLD:
-		if(copy_from_user(data,(unsigned char*)arg,1)!=0)
-		{
-#ifdef BMA150_DEBUG
-			printk(KERN_INFO "copy_from_user error\n");
-#endif
-			return -EFAULT;
-		}
-		err = smb380_set_high_g_threshold(*data);
-		return err;
-
-	case BMA150_GET_HIGH_G_THRESHOLD:
-		err = smb380_get_high_g_threshold(data);
-		if(copy_to_user((unsigned char*)arg,data,1)!=0)
-		{
-#ifdef BMA150_DEBUG
-			printk(KERN_INFO "copy_to_user error\n");
-#endif
-			return -EFAULT;
-		}
-		return err;
-
-	case BMA150_SET_HIGH_G_DURATION:
-		if(copy_from_user(data,(unsigned char*)arg,1)!=0)
-		{
-#ifdef BMA150_DEBUG
-			printk(KERN_INFO "copy_from_user error\n");
-#endif
-			return -EFAULT;
-		}
-		err = smb380_set_high_g_duration(*data);
-		return err;
-
-	case BMA150_GET_HIGH_G_DURATION:
-		err = smb380_get_high_g_duration(data);
-		if(copy_to_user((unsigned char*)arg,data,1)!=0)
-		{
-#ifdef BMA150_DEBUG
-			printk(KERN_INFO "copy_to_user error\n");
-#endif
-			return -EFAULT;
-		}
-		return err;
-
-	case BMA150_SET_ANY_MOTION_THRESHOLD:
-		if(copy_from_user(data,(unsigned char*)arg,1)!=0)
-		{
-#ifdef BMA150_DEBUG
-			printk(KERN_INFO "copy_from_user error\n");
-#endif
-			return -EFAULT;
-		}
-		err = smb380_set_any_motion_threshold(*data);
-		return err;
-
-	case BMA150_GET_ANY_MOTION_THRESHOLD:
-		err = smb380_get_any_motion_threshold(data);
-		if(copy_to_user((unsigned char*)arg,data,1)!=0)
-		{
-#ifdef BMA150_DEBUG
-			printk(KERN_INFO "copy_to_user error\n");
-#endif
-			return -EFAULT;
-		}
-		return err;
-
-	case BMA150_SET_ANY_MOTION_COUNT:
-		if(copy_from_user(data,(unsigned char*)arg,1)!=0)
-		{
-#ifdef BMA150_DEBUG
-			printk(KERN_INFO "copy_from_user error\n");
-#endif
-			return -EFAULT;
-		}
-		err = smb380_set_any_motion_count(*data);
-		return err;
-
-	case BMA150_GET_ANY_MOTION_COUNT:
-		err = smb380_get_any_motion_count(data);
-		if(copy_to_user((unsigned char*)arg,data,1)!=0)
-		{
-#ifdef BMA150_DEBUG
-			printk(KERN_INFO "copy_to_user error\n");
-#endif
-			return -EFAULT;
-		}
-		return err;
-
-	case BMA150_SET_INTERRUPT_MASK:
-		if(copy_from_user(data,(unsigned char*)arg,1)!=0)
-		{
-#ifdef BMA150_DEBUG
-			printk(KERN_INFO "copy_from_user error\n");
-#endif
-			return -EFAULT;
-		}
-		err = smb380_set_interrupt_mask(*data);
-		return err;
-
-	case BMA150_GET_INTERRUPT_MASK:
-		err = smb380_get_interrupt_mask(data);
-		if(copy_to_user((unsigned char*)arg,data,1)!=0)
-		{
-#ifdef BMA150_DEBUG
-			printk(KERN_INFO "copy_to_user error\n");
-#endif
-			return -EFAULT;
-		}
-		return err;
-
-	case BMA150_RESET_INTERRUPT:
-		err = smb380_reset_interrupt();
-		return err;
-
-	case BMA150_READ_ACCEL_X:
-		err = smb380_read_accel_x((short*)data);
-		if(copy_to_user((short*)arg,(short*)data,2)!=0)
-		{
-#ifdef BMA150_DEBUG
-			printk(KERN_INFO "copy_to_user error\n");
-#endif
-			return -EFAULT;
-		}
-		return err;
-
-	case BMA150_READ_ACCEL_Y:
-		err = smb380_read_accel_y((short*)data);
-		if(copy_to_user((short*)arg,(short*)data,2)!=0)
-		{
-#ifdef BMA150_DEBUG
-			printk(KERN_INFO "copy_to_user error\n");
-#endif
-			return -EFAULT;
-		}
-		return err;
-
-	case BMA150_READ_ACCEL_Z:
-		err = smb380_read_accel_z((short*)data);
-		if(copy_to_user((short*)arg,(short*)data,2)!=0)
-		{
-#ifdef BMA150_DEBUG
-			printk(KERN_INFO "copy_to_user error\n");
-#endif
-			return -EFAULT;
-		}
-		return err;
-
-	case BMA150_GET_INTERRUPT_STATUS:
-		err = smb380_get_interrupt_status(data);
-		if(copy_to_user((unsigned char*)arg,data,1)!=0)
-		{
-#ifdef BMA150_DEBUG
-			printk(KERN_INFO "copy_to_user error\n");
-#endif
-			return -EFAULT;
-		}
-		return err;
-
-	case BMA150_SET_LOW_G_INT:
-		if(copy_from_user(data,(unsigned char*)arg,1)!=0)
-		{
-#ifdef BMA150_DEBUG
-			printk(KERN_INFO "copy_from_user error\n");
-#endif
-			return -EFAULT;
-		}
-		err = smb380_set_low_g_int(*data);
-		return err;
-
-	case BMA150_SET_HIGH_G_INT:
-		if(copy_from_user(data,(unsigned char*)arg,1)!=0)
-		{
-#ifdef BMA150_DEBUG
-			printk(KERN_INFO "copy_from_user error\n");
-#endif
-			return -EFAULT;
-		}
-		err = smb380_set_high_g_int(*data);
-		return err;
-
-	case BMA150_SET_ANY_MOTION_INT:
-		if(copy_from_user(data,(unsigned char*)arg,1)!=0)
-		{
-#ifdef BMA150_DEBUG
-			printk(KERN_INFO "copy_from_user error\n");
-#endif
-			return -EFAULT;
-		}
-		err = smb380_set_any_motion_int(*data);
-		return err;
-
-	case BMA150_SET_ALERT_INT:
-		if(copy_from_user(data,(unsigned char*)arg,1)!=0)
-		{
-#ifdef BMA150_DEBUG
-			printk(KERN_INFO "copy_from_user error\n");
-#endif
-			return -EFAULT;
-		}
-		err = smb380_set_alert_int(*data);
-		return err;
-
-	case BMA150_SET_ADVANCED_INT:
-		if(copy_from_user(data,(unsigned char*)arg,1)!=0)
-		{
-#ifdef BMA150_DEBUG
-			printk(KERN_INFO "copy_from_user error\n");
-#endif
-			return -EFAULT;
-		}
-		err = smb380_set_advanced_int(*data);
-		return err;
-
-	case BMA150_LATCH_INT:
-		if(copy_from_user(data,(unsigned char*)arg,1)!=0)
-		{
-#ifdef BMA150_DEBUG
-			printk(KERN_INFO "copy_from_user error\n");
-#endif
-			return -EFAULT;
-		}
-		err = smb380_latch_int(*data);
-		return err;
-
-	case BMA150_SET_NEW_DATA_INT:
-		if(copy_from_user(data,(unsigned char*)arg,1)!=0)
-		{
-#ifdef BMA150_DEBUG
-			printk(KERN_INFO "copy_from_user error\n");
-#endif
-			return -EFAULT;
-		}
-		err = smb380_set_new_data_int(*data);
-		return err;
-
-	case BMA150_GET_LOW_G_HYST:
-		err = smb380_get_low_g_hysteresis(data);
-		if(copy_to_user((unsigned char*)arg,data,1)!=0)
-		{
-#ifdef BMA150_DEBUG
-			printk(KERN_INFO "copy_to_user error\n");
-#endif
-			return -EFAULT;
-		}
-		return err;
-
-	case BMA150_SET_LOW_G_HYST:
-		if(copy_from_user(data,(unsigned char*)arg,1)!=0)
-		{
-#ifdef BMA150_DEBUG
-			printk(KERN_INFO "copy_from_user error\n");
-#endif
-			return -EFAULT;
-		}
-		err = smb380_set_low_g_hysteresis(*data);
-		return err;
-
-	case BMA150_GET_HIGH_G_HYST:
-		err = smb380_get_high_g_hysteresis(data);
-		if(copy_to_user((unsigned char*)arg,data,1)!=0)
-		{
-#ifdef BMA150_DEBUG
-			printk(KERN_INFO "copy_to_user error\n");
-#endif
-			return -EFAULT;
-		}
-		return err;
-
-	case BMA150_SET_HIGH_G_HYST:
-		if(copy_from_user(data,(unsigned char*)arg,1)!=0)
-		{
-#ifdef BMA150_DEBUG
-			printk(KERN_INFO "copy_from_user error\n");
-#endif
-			return -EFAULT;
-		}
-		err = smb380_set_high_g_hysteresis(*data);
-		return err;
-
-	case BMA150_READ_ACCEL_XYZ:
-		err = smb380_read_accel_xyz((smb380acc_t*)data);
-		if(copy_to_user((smb380acc_t*)arg,(smb380acc_t*)data,6)!=0)
-		{
-#ifdef BMA150_DEBUG
-			printk(KERN_INFO "copy_to error\n");
-#endif
-			return -EFAULT;
-		}
-		return err;
-
-	case BMA150_READ_TEMPERATURE:
-		err = smb380_read_temperature(data);
-		if(copy_to_user((unsigned char*)arg,data,1)!=0)
-		{
-#ifdef BMA150_DEBUG
-			printk(KERN_INFO "copy_to_user error\n");
-#endif
-			return -EFAULT;
-		}
-		return err;
-
-	/* offset calibration routine */
-	case BMA150_CALIBRATION:
-		if(copy_from_user((smb380acc_t*)data,(smb380acc_t*)arg,6)!=0)
-		{
-#ifdef BMA150_DEBUG
-			printk(KERN_INFO "copy_from_user error\n");
-#endif
-			return -EFAULT;
-		}
-		/* iteration time 20 */
-		temp = 20;
-		err = smb380_calibrate(*(smb380acc_t*)data, &temp);
-		return err;
-
-	case BMA150_READ_INT:
-		//data[0] = omap_get_gpio_datain(BMA150_IRQ_PIN);
-		smb380_read_reg(0x0B,data,1);
-		smb380_read_reg(0x15,data+1,1);
-		data[0] = data[0] & 0x43;
-		data[1] = data[1] & 0x40;
-		data[1] <<= 1;
-		data[0] |= data[1]; 
-		if(copy_to_user((unsigned char*)arg,data,1)!=0)
-		{
-#ifdef BMA150_DEBUG
-			printk(KERN_INFO "copy_to_user error\n");
-#endif
-			return -EFAULT;
-		}
-		return err;
-
-	default:
+	char buffer[6];
+	int ret;
+	memset(buffer, 0, 6);
+	buffer[0] = X_AXIS_LSB_REG;
+	ret = BMA_I2C_RxData(buffer, 6);
+	if (ret < 0)
 		return 0;
-	}
+	rbuf[0] = buffer[1]<<2|buffer[0]>>6;
+	if (rbuf[0]&0x200)
+		rbuf[0] -= 1<<10;
+	rbuf[1] = buffer[3]<<2|buffer[2]>>6;
+	if (rbuf[1]&0x200)
+		rbuf[1] -= 1<<10;
+	rbuf[2] = buffer[5]<<2|buffer[4]>>6;
+	if (rbuf[2]&0x200)
+		rbuf[2] -= 1<<10;
+	return 1;
+}
+/*
+static int BMA_set_range(char range)
+{
+	char buffer[2];
+	int ret;
+	buffer[0] = RANGE_BWIDTH_REG;
+	ret = BMA_I2C_RxData(buffer, 1);
+	if (ret < 0)
+		return -1;
+	buffer[1] = (buffer[0]&0xe7)|range<<3;
+	buffer[0] = RANGE_BWIDTH_REG;
+	ret = BMA_I2C_TxData(buffer, 2);
+
+	return ret;
+}
+*/
+/*
+static int BMA_get_range(void)
+{
+	char buffer;
+	int ret;
+	buffer = RANGE_BWIDTH_REG;
+	ret = BMA_I2C_RxData(&buffer, 1);
+	if (ret < 0)
+		return -1;
+	buffer = (buffer&0x18)>>3;
+	return buffer;
+}
+*/
+/*
+static int BMA_reset_int(void)
+{
+	char buffer[2];
+	int ret;
+	buffer[0] = SMB150_CTRL_REG;
+	ret = BMA_I2C_RxData(buffer, 1);
+	if (ret < 0)
+		return -1;
+	buffer[1] = (buffer[0]&0xbf)|0x40;
+	buffer[0] = SMB150_CTRL_REG;
+	ret = BMA_I2C_TxData(buffer, 2);
+
+	return ret;
+}
+*/
+/* set  operation mode 0 = normal, 1 = sleep*/
+static int BMA_set_mode(char mode)
+{
+	char buffer[2];
+	int ret;
+	buffer[0] = SMB150_CTRL_REG;
+	ret = BMA_I2C_RxData(buffer, 1);
+	if (ret < 0)
+		return -1;
+	buffer[1] = (buffer[0]&0xfe)|mode;
+	buffer[0] = SMB150_CTRL_REG;
+	ret = BMA_I2C_TxData(buffer, 2);
+	return ret;
 }
 
-static int bma150_fasync(int fd, struct file *file, int mode)
+static int BMA_GET_INT(void)
 {
-    struct bma150_data* data;
-#ifdef BMA150_DEBUG
-	printk(KERN_INFO "%s\n",__FUNCTION__);	
-#endif
- 	data=i2c_get_clientdata(bma150_client); 
-	return fasync_helper(fd,file,mode,&data->async_queue);
+	int ret;
+	ret = gpio_get_value(pdata->intr);
+	return ret;
+}
+
+static int bma_open(struct inode *inode, struct file *file)
+{
+	return nonseekable_open(inode, file);
+}
+
+static int bma_release(struct inode *inode, struct file *file)
+{
 	return 0;
 }
 
-static const struct file_operations bma150_fops = {
+static int bma_ioctl(struct inode *inode, struct file *file, unsigned int cmd,
+	   unsigned long arg)
+{
+
+	void __user *argp = (void __user *)arg;
+
+	char rwbuf[8];
+	int ret = -1;
+	short buf[8], temp;
+
+	switch (cmd) {
+	case BMA_IOCTL_READ:
+	case BMA_IOCTL_WRITE:
+	case BMA_IOCTL_SET_MODE:
+		if (copy_from_user(&rwbuf, argp, sizeof(rwbuf)))
+			return -EFAULT;
+		break;
+	case BMA_IOCTL_READ_ACCELERATION:
+		if (copy_from_user(&buf, argp, sizeof(buf)))
+			return -EFAULT;
+		break;
+	default:
+		break;
+	}
+
+	switch (cmd) {
+	case BMA_IOCTL_INIT:
+		ret = BMA_Init();
+		if (ret < 0)
+			return ret;
+		break;
+	case BMA_IOCTL_READ:
+		if (rwbuf[0] < 1)
+			return -EINVAL;
+		ret = BMA_I2C_RxData(&rwbuf[1], rwbuf[0]);
+		if (ret < 0)
+			return ret;
+		break;
+	case BMA_IOCTL_WRITE:
+		if (rwbuf[0] < 2)
+			return -EINVAL;
+		ret = BMA_I2C_TxData(&rwbuf[1], rwbuf[0]);
+		if (ret < 0)
+			return ret;
+		break;
+	case BMA_IOCTL_READ_ACCELERATION:
+		ret = BMA_TransRBuff(&buf[0]);
+		if (ret < 0)
+			return ret;
+		break;
+	case BMA_IOCTL_SET_MODE:
+		BMA_set_mode(rwbuf[0]);
+		break;
+	case BMA_IOCTL_GET_INT:
+		temp = BMA_GET_INT();
+		break;
+	case BMA_IOCTL_GET_CHIP_LAYOUT:
+		if (pdata)
+			temp = pdata->chip_layout;
+		break;
+	default:
+		return -ENOTTY;
+	}
+
+	switch (cmd) {
+	case BMA_IOCTL_READ:
+		if (copy_to_user(argp, &rwbuf, sizeof(rwbuf)))
+			return -EFAULT;
+		break;
+	case BMA_IOCTL_READ_ACCELERATION:
+		if (copy_to_user(argp, &buf, sizeof(buf)))
+			return -EFAULT;
+		break;
+	case BMA_IOCTL_GET_INT:
+		if (copy_to_user(argp, &temp, sizeof(temp)))
+			return -EFAULT;
+		break;
+	case BMA_IOCTL_GET_CHIP_LAYOUT:
+		if (copy_to_user(argp, &temp, sizeof(temp)))
+			return -EFAULT;
+		break;
+	default:
+		break;
+	}
+
+	return 0;
+}
+
+static void bma150_early_suspend(struct early_suspend *handler)
+{
+	BMA_set_mode(BMA_MODE_SLEEP);
+}
+
+static void bma150_early_resume(struct early_suspend *handler)
+{
+	BMA_set_mode(BMA_MODE_NORMAL);
+}
+
+static struct file_operations bma_fops = {
 	.owner = THIS_MODULE,
-	.read = bma150_read,
-	.write = bma150_write,
-	.open = bma150_open,
-	.release = bma150_close,
-	.ioctl = bma150_ioctl,
-	.fasync = bma150_fasync,
+	.open = bma_open,
+	.release = bma_release,
+	.ioctl = bma_ioctl,
 };
 
-/* May 4th 2009 modified*
- * add miscdevices for bma
- */
 static struct miscdevice bma_device = {
 	.minor = MISC_DYNAMIC_MINOR,
 	.name = "bma150",
-	.fops = &bma150_fops,
+	.fops = &bma_fops,
 };
 
-static int bma150_detect(struct i2c_client *client, int kind,
-			  struct i2c_board_info *info)
+int bma150_probe(struct i2c_client *client, const struct i2c_device_id *id)
 {
-	struct i2c_adapter *adapter = client->adapter;
-#ifdef BMA150_DEBUG
-	printk(KERN_INFO "%s\n", __FUNCTION__);
-#endif
-	if (!i2c_check_functionality(adapter, I2C_FUNC_I2C))
-		return -ENODEV;
-
-	strlcpy(info->type, "bma150", I2C_NAME_SIZE);
-
-	return 0;
-}
-
-static int bma150_probe(struct i2c_client *client,
-			 const struct i2c_device_id *id)
-{
+	struct bma150_data *bma;
 	int err = 0;
-	int tempvalue;
-	struct bma150_data *data;
-#ifdef BMA150_DEBUG
-	printk(KERN_INFO "%s\n",__FUNCTION__);
-#endif
 
-	if (!i2c_check_functionality(client->adapter, I2C_FUNC_I2C))
-	{
-		printk(KERN_INFO "i2c_check_functionality error\n");
-		goto exit;
+	if (!i2c_check_functionality(client->adapter, I2C_FUNC_I2C)) {
+		err = -ENODEV;
+		goto exit_check_functionality_failed;
 	}
-	data = kzalloc(sizeof(struct bma150_data), GFP_KERNEL);
-	if (!data) {
+
+	bma = kzalloc(sizeof(struct bma150_data), GFP_KERNEL);
+	if (!bma) {
 		err = -ENOMEM;
-		goto exit;
-	}		
-	/* read chip id */
-	tempvalue = 0;
-#ifdef BMA150_SMBUS
-	tempvalue = i2c_smbus_read_word_data(client, 0x00);
-#else
-	i2c_master_send(client, (char*)&tempvalue, 1);
-	i2c_master_recv(client, (char*)&tempvalue, 1);
-#endif
-	if((tempvalue&0x00FF) == 0x0002)
-	{
-		printk(KERN_INFO "Bosch Sensortec Device detected!\nBMA150/SMB380 registered I2C driver!\n");
-		bma150_client = client;
+		goto exit_alloc_data_failed;
 	}
-	else
-	{
-		printk(KERN_INFO "Bosch Sensortec Device not found, i2c error %d \n", tempvalue);
-		i2c_detach_client(client);				/*modified on Apr 27 2009*/
-		bma150_client = NULL;
-		err = -1;
-		goto kfree_exit;
+
+	i2c_set_clientdata(client, bma);
+
+	pdata = client->dev.platform_data;
+	if (pdata == NULL) {
+		printk(KERN_ERR "bma150_init_client: platform data is NULL\n");
+		goto exit_platform_data_null;
 	}
-	i2c_set_clientdata(bma150_client, data);
-	/* May 4th modified for device create*/
+
+	this_client = client;
+
+	err = BMA_Init();
+	if (err < 0) {
+		printk(KERN_ERR "bma150_probe: bma_init failed\n");
+		goto exit_init_failed;
+	}
+
 	err = misc_register(&bma_device);
 	if (err) {
-		printk(KERN_ERR "bma150 device register failed\n");
-		goto kfree_exit;
+		printk(KERN_ERR "bma150_probe: device register failed\n");
+		goto exit_misc_device_register_failed;
 	}
-	printk(KERN_INFO "bma150 device create ok\n");
 
-	/* bma150 sensor initial */
-	data->smb380.bus_write = bma150_i2c_write;
-	data->smb380.bus_read = bma150_i2c_read;
-	data->smb380.delay_msec = bma150_i2c_delay;
-	smb380_init(&data->smb380);
+	bma->early_suspend.suspend = bma150_early_suspend;
+	bma->early_suspend.resume = bma150_early_resume;
+	register_early_suspend(&bma->early_suspend);
 
-	smb380_set_bandwidth(4);		//bandwidth 375Hz
-	smb380_set_range(0);			//range +/-2G
-
-	//close all interrupt
-	smb380_set_low_g_int(0);
-	smb380_set_high_g_int(0);
-	smb380_set_any_motion_int(0);
-	smb380_set_alert_int(0);
-	smb380_set_advanced_int(1);
-	smb380_reset_interrupt();
-
-	/* register interrupt */
-#ifdef	BMA150_ENABLE_IRQ
-
-	err = bma150_interrupt_config();
-	if (err < 0)
-		goto exit_dereg;
-	data->IRQ = BMA150_IRQ;
-	err = request_irq(data->IRQ, bma150_irq_handler, IRQF_TRIGGER_RISING, "bma150", &data->smb380);
-	if (err)
-	{
-		printk(KERN_ERR "could not request irq\n");
-		goto exit_dereg;
-	}
-	
-#endif
 	return 0;
 
-#ifdef BMA150_ENABLE_IRQ
-
-
-exit_dereg:
-    misc_deregister(&bma_device);
-#endif
-kfree_exit:
-	kfree(data);
-exit:
+exit_misc_device_register_failed:
+exit_init_failed:
+exit_platform_data_null:
+	kfree(bma);
+exit_alloc_data_failed:
+exit_check_functionality_failed:
 	return err;
 }
 
-
 static int bma150_remove(struct i2c_client *client)
 {
-	struct bma150_data *data = i2c_get_clientdata(client);
-#ifdef BMA150_DEBUG
-	printk(KERN_INFO "%s\n",__FUNCTION__);
-#endif	
-	misc_deregister(&bma_device);
-#ifdef BMA150_ENABLE_IRQ
-	free_irq(data->IRQ, &data->smb380);
-#endif
-	i2c_detach_client(client);
-	kfree(data);
-	bma150_client = NULL;
+	struct bma150_data *bma = i2c_get_clientdata(client);
+	input_unregister_device(bma->input_dev);
+	kfree(bma);
 	return 0;
 }
 
-
-static unsigned short normal_i2c[] = { I2C_CLIENT_END};
-I2C_CLIENT_INSMOD_1(bma150);
-
 static const struct i2c_device_id bma150_id[] = {
-	{ "bma150", 0 },
+	{ BMA150_I2C_NAME, 0 },
 	{ }
 };
 
-MODULE_DEVICE_TABLE(i2c, bma150_id);
-
-static struct i2c_driver bma150_driver = {	
-	.driver = {
-		.owner	= THIS_MODULE,	
-		.name	= "bma150",
-	},
-	.class		= I2C_CLASS_HWMON,
+static struct i2c_driver bma150_driver = {
+	.probe = bma150_probe,
+	.remove = bma150_remove,
 	.id_table	= bma150_id,
-	.address_data	= &addr_data,
-	.probe		= bma150_probe,
-	.remove		= bma150_remove,
-	.detect		= bma150_detect,
+	.driver = {
+		   .name = BMA150_I2C_NAME,
+		   },
 };
 
-static int __init BMA150_init(void)
+static int __init bma150_init(void)
 {
-#ifdef BMA150_DEBUG
-	printk(KERN_INFO "%s\n",__FUNCTION__);
-#endif
+	printk(KERN_INFO "BMA150 G-sensor driver: init\n");
 	return i2c_add_driver(&bma150_driver);
 }
 
-static void __exit BMA150_exit(void)
+static void __exit bma150_exit(void)
 {
 	i2c_del_driver(&bma150_driver);
-	printk(KERN_ERR "BMA150 exit\n");
 }
 
+module_init(bma150_init);
+module_exit(bma150_exit);
 
-
-MODULE_DESCRIPTION("BMA150 driver");
+MODULE_DESCRIPTION("BMA150 G-sensor driver");
 MODULE_LICENSE("GPL");
-
-module_init(BMA150_init);
-module_exit(BMA150_exit);
 

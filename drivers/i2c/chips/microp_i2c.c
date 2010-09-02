@@ -1834,7 +1834,7 @@ static ssize_t show_adc_value(struct device *dev, struct device_attribute *attr,
 		char *buf)
 {
 	int ret = 0, value_tmp = 0;
-	struct microp_pin_config *dev_config = dev->driver_data;
+	struct microp_pin_config *dev_config = dev->p;
 	struct i2c_client *client;
 
 	client = to_i2c_client(dev);
@@ -2787,9 +2787,9 @@ static int microp_i2c_probe(struct i2c_client *client
 		for (i = 0, j = 0; i < pdata->num_pins; i++) {
 			if (microp_i2c_is_adc_read(pdata->pin_config[i].config) &&
 				pdata->pin_config[i].name) {
-				strcpy(cdata->adc_device[j].bus_id, pdata->pin_config[i].name);
+				dev_set_name(&cdata->adc_device[j],pdata->pin_config[i].name);
 				cdata->adc_device[j].parent = &client->dev;
-				cdata->adc_device[j].driver_data = &pdata->pin_config[i];
+				cdata->adc_device[j].p = &pdata->pin_config[i];
 				remote_adc_read_channel = pdata->pin_config[i].adc_pin;
 				if (device_register(&cdata->adc_device[j]) != 0) {
 					dev_err(&client->dev, "%s: can't register device_register\n", __func__);
