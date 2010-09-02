@@ -216,7 +216,7 @@
 #define HERO_GPIO_COMPASS_IRQ         		(HERO_GPIO_INT_B0_BASE + 1)
 #define HERO_GPIO_SEARCH_ACT_N			(HERO_GPIO_INT_B0_BASE + 2)
 #define HERO_GPIO_AUD_HSMIC_DET_N      		(HERO_GPIO_INT_B0_BASE + 3)
-#define HERO_GPIO_SDMC_CD_N      			(HERO_GPIO_INT_B0_BASE + 4)
+//#define HERO_GPIO_SDMC_CD_N      		(HERO_GPIO_INT_B0_BASE + 4)
 #define HERO_GPIO_CAM_BTN_STEP1_N          	(HERO_GPIO_INT_B0_BASE + 5)
 #define HERO_GPIO_CAM_BTN_STEP2_N          	(HERO_GPIO_INT_B0_BASE + 6)
 #define HERO_GPIO_TP_ATT_N            		(HERO_GPIO_INT_B0_BASE + 7)
@@ -287,7 +287,7 @@
 #define HERO_GPIO_MDDI_1V8_EN           (26)
 #define HERO_GPIO_UP_INT_N              (27)
 #define HERO_GPIO_COMPASS_INT_N   (36)
-//#define HERO_GPIO_SDMC_CD_N             (38)
+#define HERO_GPIO_SDMC_CD_N             (38)
 #define HERO_GPIO_GSENSOR_INT_N         (49)
 
 /* BT */
