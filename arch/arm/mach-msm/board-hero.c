@@ -249,6 +249,336 @@ static struct synaptics_i2c_rmi_platform_data hero_ts_data[] = {
         }
 };
 
+static int hero_microp_intr_debounce(uint8_t *pin_status);
+static void hero_microp_intr_function(uint8_t *pin_status);
+
+static struct microp_pin_config microp_pins_skuid_0[] = {
+	MICROP_PIN(23, MICROP_PIN_CONFIG_PULL_UP),
+	MICROP_PIN(0, MICROP_PIN_CONFIG_GPO),
+	MICROP_PIN(1, MICROP_PIN_CONFIG_GPO),
+	MICROP_PIN(2, MICROP_PIN_CONFIG_GPO_INV),
+	MICROP_PIN(4, MICROP_PIN_CONFIG_GPO_INV),
+	MICROP_PIN(9, MICROP_PIN_CONFIG_GPO),
+	MICROP_PIN(10, MICROP_PIN_CONFIG_GPO),
+	MICROP_PIN(11, MICROP_PIN_CONFIG_GPO),
+	MICROP_PIN(12, MICROP_PIN_CONFIG_GPO),
+	MICROP_PIN(13, MICROP_PIN_CONFIG_GPO),
+	MICROP_PIN(14, MICROP_PIN_CONFIG_GPO_INV),
+	MICROP_PIN(15, MICROP_PIN_CONFIG_GPO),
+	MICROP_PIN(16, MICROP_PIN_CONFIG_GPO),
+	{	.name = "microp-pullup",
+		.pin = 23,
+		.config = MICROP_PIN_CONFIG_PULL_UP1,
+		.mask = { 0x00, 0x00, 0x01 },
+	},
+	{
+		.name   = "green",
+		.pin    = 3,
+		.config = MICROP_PIN_CONFIG_GPO_INV,
+	},
+	{
+		.name   = "amber",
+		.pin    = 5,
+		.config = MICROP_PIN_CONFIG_GPO_INV,
+	},
+	{
+		.name   = "lcd-backlight",
+		.pin    = 6,
+		.config = MICROP_PIN_CONFIG_PWM,
+		.freq   = MICROP_PIN_PWM_FREQ_HZ_15600,
+		.levels = { 30, 48, 66, 84, 102, 133, 163, 194, 224, 255 },
+		.dutys	= {  8, 16, 34, 61,  96, 138, 167, 195, 227, 255 },
+	},
+	{
+		.name	= "button-backlight",
+		.pin	= 7,
+		.config = MICROP_PIN_CONFIG_GPO,
+	},
+	{
+		.name   = "adc",
+		.pin    = 24,
+		.config = MICROP_PIN_CONFIG_ADC,
+		.levels = { 0, 0, 0, 6, 24, 60, 425, 497, 569, 638 },
+	},
+	{
+		.pin	 = 17,
+		.config  = MICROP_PIN_CONFIG_INTR_ALL,
+		.mask 	 = { 0x00, 0x01, 0x00 },
+		.intr_debounce = hero_microp_intr_debounce,
+		.intr_function = hero_microp_intr_function,
+		.init_intr_function = 1,
+	}
+};
+
+/* XC and enable LABC */
+static struct microp_pin_config microp_pins_skuid_1[] = {
+	MICROP_PIN(23, MICROP_PIN_CONFIG_PULL_UP),
+	MICROP_PIN(0, MICROP_PIN_CONFIG_GPO),
+	MICROP_PIN(1, MICROP_PIN_CONFIG_GPO),
+	MICROP_PIN(2, MICROP_PIN_CONFIG_GPO_INV),
+	MICROP_PIN(4, MICROP_PIN_CONFIG_GPO_INV),
+	MICROP_PIN(9, MICROP_PIN_CONFIG_GPO),
+	MICROP_PIN(10, MICROP_PIN_CONFIG_GPO),
+	MICROP_PIN(11, MICROP_PIN_CONFIG_GPO),
+	MICROP_PIN(12, MICROP_PIN_CONFIG_GPO),
+	MICROP_PIN(13, MICROP_PIN_CONFIG_GPO),
+	MICROP_PIN(14, MICROP_PIN_CONFIG_GPO_INV),
+	MICROP_PIN(15, MICROP_PIN_CONFIG_GPO),
+	MICROP_PIN(16, MICROP_PIN_CONFIG_GPO_INV),
+	{	.name = "microp-pullup",
+		.pin = 23,
+		.config = MICROP_PIN_CONFIG_PULL_UP1,
+		.mask = { 0x00, 0x00, 0x01 },
+	},
+	{
+		.name   = "green",
+		.pin    = 3,
+		.config = MICROP_PIN_CONFIG_GPO_INV,
+	},
+	{
+		.name   = "amber",
+		.pin    = 5,
+		.config = MICROP_PIN_CONFIG_GPO_INV,
+	},
+	{
+		.name	= "button-backlight",
+		.pin	= 7,
+		.config = MICROP_PIN_CONFIG_GPO,
+	},
+	{
+		.name   = "adc",
+		.pin    = 24,
+		.config = MICROP_PIN_CONFIG_ADC,
+		.levels = { 0, 0, 0, 6, 24, 60, 425, 497, 569, 638 },
+	},
+	{
+		.name	= "35mm_adc",
+		.pin	= 25,
+		.adc_pin = 7,
+		.config = MICROP_PIN_CONFIG_ADC_READ,
+	},
+	{
+		.name   = "microp_intrrupt",
+		.pin	 = 17,
+		.config  = MICROP_PIN_CONFIG_INTR_ALL,
+		.mask 	 = { 0x00, 0x01, 0x00 },
+		.intr_debounce = hero_microp_intr_debounce,
+		.intr_function = hero_microp_intr_function,
+		.init_intr_function = 1,
+	}
+};
+
+/* XD, add jogball backlight function*/
+static struct microp_pin_config microp_pins_skuid_2[] = {
+	MICROP_PIN(23, MICROP_PIN_CONFIG_PULL_UP),
+	MICROP_PIN(0, MICROP_PIN_CONFIG_GPO),
+	MICROP_PIN(1, MICROP_PIN_CONFIG_GPO),
+	MICROP_PIN(2, MICROP_PIN_CONFIG_GPO_INV),
+	MICROP_PIN(4, MICROP_PIN_CONFIG_GPO_INV),
+	MICROP_PIN(9, MICROP_PIN_CONFIG_GPO),
+	MICROP_PIN(11, MICROP_PIN_CONFIG_GPO),
+	MICROP_PIN(12, MICROP_PIN_CONFIG_GPO),
+	MICROP_PIN(13, MICROP_PIN_CONFIG_GPO),
+	MICROP_PIN(14, MICROP_PIN_CONFIG_GPO_INV),
+	MICROP_PIN(15, MICROP_PIN_CONFIG_GPO),
+	{	.name = "microp-pullup",
+		.pin = 23,
+		.config = MICROP_PIN_CONFIG_PULL_UP1,
+		.mask = { 0x00, 0x00, 0x03 },
+	},
+	{
+		.name   = "green",
+		.pin    = 3,
+		.config = MICROP_PIN_CONFIG_GPO_INV,
+	},
+	{
+		.name   = "amber",
+		.pin    = 5,
+		.config = MICROP_PIN_CONFIG_GPO_INV,
+	},
+	{
+		.name	= "button-backlight",
+		.pin	= 7,
+		.config = MICROP_PIN_CONFIG_GPO,
+	},
+	{
+		.name	= "jogball-backlight",
+		.pin	= 10,
+		.config = MICROP_PIN_CONFIG_PWM,
+		.auto_if_on = 1,
+		.i_am_jogball_function = 1,
+	},
+	{
+		.name   = "adc",
+		.pin    = 24,
+		.config = MICROP_PIN_CONFIG_ADC,
+		.levels = { 0, 0, 0, 6, 24, 60, 425, 497, 569, 638 },
+	},
+	{
+		.name	= "35mm_adc",
+		.pin	= 25,
+		.adc_pin = 7,
+		.config = MICROP_PIN_CONFIG_ADC_READ,
+	},
+	{
+		.name   = "microp_intrrupt",
+		.pin	 = 17,
+		.config  = MICROP_PIN_CONFIG_INTR_ALL,
+		.mask 	 = { 0x00, 0x01, 0x00 },
+		.intr_debounce = hero_microp_intr_debounce,
+		.intr_function = hero_microp_intr_function,
+		.init_intr_function = 1,
+	}
+};
+
+/* XE, 11pin mic function*/
+static struct microp_pin_config microp_pins_skuid_3[] = {
+	MICROP_PIN(23, MICROP_PIN_CONFIG_PULL_UP),
+	MICROP_PIN(0, MICROP_PIN_CONFIG_GPO),
+	MICROP_PIN(1, MICROP_PIN_CONFIG_GPO),
+	MICROP_PIN(2, MICROP_PIN_CONFIG_GPO_INV),
+	MICROP_PIN(4, MICROP_PIN_CONFIG_GPO_INV),
+	MICROP_PIN(9, MICROP_PIN_CONFIG_GPO),
+	MICROP_PIN(11, MICROP_PIN_CONFIG_GPO),
+	MICROP_PIN(12, MICROP_PIN_CONFIG_GPO),
+	MICROP_PIN(13, MICROP_PIN_CONFIG_GPO),
+	MICROP_PIN(14, MICROP_PIN_CONFIG_GPO_INV),
+	MICROP_PIN(15, MICROP_PIN_CONFIG_GPO),
+	{	.name = "microp-pullup",
+		.pin = 23,
+		.config = MICROP_PIN_CONFIG_PULL_UP1,
+		.mask = { 0x00, 0x00, 0x03 },
+	},
+	{
+		.name   = "green",
+		.pin    = 3,
+		.config = MICROP_PIN_CONFIG_GPO_INV,
+	},
+	{
+		.name   = "amber",
+		.pin    = 5,
+		.config = MICROP_PIN_CONFIG_GPO_INV,
+	},
+	{
+		.name	= "button-backlight",
+		.pin	= 7,
+		.config = MICROP_PIN_CONFIG_GPO,
+	},
+	{
+		.name	= "jogball-backlight",
+		.pin	= 10,
+		.config = MICROP_PIN_CONFIG_PWM,
+		.auto_if_on = 1,
+		.i_am_jogball_function = 1,
+	},
+	{
+		.name = "microp_11pin_mic",
+		.pin = 16,
+		.config = MICROP_PIN_CONFIG_MIC,
+		.init_value = 1,
+	},
+	{
+		.name   = "adc",
+		.pin    = 24,
+		.config = MICROP_PIN_CONFIG_ADC,
+		.levels = { 0, 0, 0, 6, 24, 60, 425, 497, 569, 638 },
+	},
+	{
+		.name	= "35mm_adc",
+		.pin	= 25,
+		.adc_pin = 7,
+		.config = MICROP_PIN_CONFIG_ADC_READ,
+	},
+	{
+		.name   = "microp_intrrupt",
+		.pin	 = 17,
+		.config  = MICROP_PIN_CONFIG_INTR_ALL,
+		.mask 	 = { 0x00, 0x01, 0x00 },
+		.intr_debounce = hero_microp_intr_debounce,
+		.intr_function = hero_microp_intr_function,
+		.init_intr_function = 1,
+	}
+};
+
+static struct microp_i2c_platform_data microp_data = {
+	.num_pins   = ARRAY_SIZE(microp_pins_skuid_0),
+	.pin_config = microp_pins_skuid_0,
+	.gpio_reset = HERO_GPIO_UP_RESET_N,
+	.cabc_backlight_enable = 0,
+	.microp_enable_early_suspend = 1,
+	.microp_enable_reset_button = 1,
+};
+
+#define DEBOUNCE_LENGTH 4
+static int hero_microp_intr_debounce(uint8_t *pin_status)
+{
+/*Per HW RD's request, wait 300 mill-seconds.*/
+#if 1
+	mdelay(100);
+	return 0;
+#else
+	static int count;
+	static uint8_t data[DEBOUNCE_LENGTH];
+
+	if (pin_status[0] == 0 && pin_status[1] == 0 && pin_status[2] == 0) {
+		mdelay(5);
+		return 1;
+	}
+	/*
+	printk(KERN_INFO "hero_microp_intr_debounce : %02X %02X %02X\n",
+		pin_status[0], pin_status[1], pin_status[2]);
+	*/
+	if (count < DEBOUNCE_LENGTH - 1) {
+		data[count] = pin_status[1] & 0x01;
+		count++;
+	} else {
+		data[DEBOUNCE_LENGTH - 1] = pin_status[1] & 0x01;
+		for (count = 0; count < DEBOUNCE_LENGTH - 1; count++)
+			if (data[count] != data[count + 1])
+				break;
+		if (count == DEBOUNCE_LENGTH - 1) {
+			count = 0;
+			return 0;
+		}
+		for (count = 0; count < DEBOUNCE_LENGTH - 1; count++)
+			data[count] = data[count + 1];
+	}
+
+	mdelay(20);
+
+	return 1;
+#endif
+}
+
+void hero_headset_mic_select(uint8_t select)
+{
+	microp_i2c_set_pin_mode(4, select, microp_data.dev_id);
+}
+
+static void hero_microp_intr_function(uint8_t *pin_status)
+{
+	static int last_insert = 0;
+	int insert;
+	/*
+	printk(KERN_INFO "hero_microp_intr_function : %02X %02X %02X\n",
+		pin_status[0], pin_status[1], pin_status[2]);
+	*/
+	if (pin_status[1] & 0x01) {
+		insert = 0;
+	} else {
+		insert = 1;
+	}
+
+	if (last_insert != insert) {
+		printk(KERN_INFO "hero_microp_intr_function : %s\n", insert ? "inserted" : "not inserted");
+		microp_i2c_set_pin_mode(4, insert, microp_data.dev_id);
+#ifdef CONFIG_HTC_HEADSET_V1
+		cnf_driver_event("H2W_extend_headset", &insert);
+#endif
+		last_insert = insert;
+	}
+}
+
 static struct akm8973_platform_data compass_platform_data = {
         .layouts = HERO_LAYOUTS,
         .project_name = HERO_PROJECT_NAME,
@@ -277,6 +607,11 @@ static struct i2c_board_info i2c_devices[] = {
                 .platform_data = &hero_cypress_ts_data,
                 .irq = HERO_GPIO_TO_INT(HERO_GPIO_TP_ATT_N)
         },
+	{
+		I2C_BOARD_INFO(MICROP_I2C_NAME, 0xCC >> 1),
+		.platform_data = &microp_data,
+		.irq = HERO_GPIO_TO_INT(HERO_GPIO_UP_INT_N)
+	},
         {
                 I2C_BOARD_INFO(AKM8973_I2C_NAME, 0x1C),
                 .platform_data = &compass_platform_data,
@@ -1170,6 +1505,20 @@ static void __init hero_init(void)
 	platform_add_devices(devices, ARRAY_SIZE(devices));
 	
 	i2c_register_board_info(0, &i2c_bma150, 1);
+
+//	if (hero_engineerid() || system_rev > 2) {
+//		if (system_rev >= 4) {
+//			microp_data.num_pins = ARRAY_SIZE(microp_pins_skuid_3);
+//			microp_data.pin_config = microp_pins_skuid_3;
+//		} else if (system_rev >= 3) {
+//			microp_data.num_pins = ARRAY_SIZE(microp_pins_skuid_2);
+//			microp_data.pin_config = microp_pins_skuid_2;
+//		} else {
+//			microp_data.num_pins = ARRAY_SIZE(microp_pins_skuid_1);
+//			microp_data.pin_config = microp_pins_skuid_1;
+//		}
+//		microp_data.cabc_backlight_enable = 1;
+//	}
 
 #ifdef CONFIG_HTC_AUDIO_JACK
 	if (hero_get_skuid() == 0x22800) {
