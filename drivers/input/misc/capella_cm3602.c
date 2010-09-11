@@ -64,9 +64,7 @@ static int capella_cm3602_enable(struct capella_cm3602_data *data)
 	if (data->enabled) {
 		D("%s: already enabled\n", __func__);
 	} else {
-#if defined(CONFIG_MACH_BRAVO)
-		data->pdata->power(PS_PWR_ON, 1);
-#elif defined(CONFIG_MACH_BRAVOC)
+#if defined(CONFIG_MACH_BRAVO) || defined(CONFIG_MACH_BRAVOC)
 		data->pdata->power(PS_PWR_ON, 1);
 #else
 		data->pdata->power(1);
@@ -81,10 +79,8 @@ static int capella_cm3602_disable(struct capella_cm3602_data *data)
 {
 	D("%s\n", __func__);
 	if (data->enabled) {
-#if defined(CONFIG_MACH_BRAVO)
+#if defined(CONFIG_MACH_BRAVO) || defined(CONFIG_MACH_BRAVOC)
 		data->pdata->power(PS_PWR_ON ,0);
-#elif defined(CONFIG_MACH_BRAVOC)
-		data->pdata->power(PS_PWR_ON, 1);
 #else
 		data->pdata->power(0);
 #endif
