@@ -82,6 +82,9 @@ int q6fm_close(struct audio_client *ac);
 int q6audio_aac_close(struct audio_client *ac);
 int q6audio_qcelp_close(struct audio_client *ac);
 
+struct audio_client *q6fm_open(void);
+int q6fm_close(struct audio_client *ac);
+
 int q6audio_read(struct audio_client *ac, struct audio_buffer *ab);
 int q6audio_write(struct audio_client *ac, struct audio_buffer *ab);
 int q6audio_async(struct audio_client *ac);

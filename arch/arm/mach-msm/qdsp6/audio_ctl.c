@@ -78,7 +78,7 @@ static int q6_voice_stop(void)
 	return 0;
 }
 
-static int q6_fm_start(void)
+int q6_fm_start(void)
 {
 	int rc = 0;
 
@@ -103,7 +103,7 @@ done:
 	return rc;
 }
 
-static int q6_fm_stop(void)
+int q6_fm_stop(void)
 {
 	mutex_lock(&fm_lock);
 	if (fm_started) {
