@@ -8262,7 +8262,7 @@ void sched_move_task(struct task_struct *tsk)
 		tsk->sched_class->task_move_group(tsk, on_rq);
 	else
 #endif
-	set_task_rq(tsk, task_cpu(tsk));
+		set_task_rq(tsk, task_cpu(tsk));
 
 	if (unlikely(running))
 		tsk->sched_class->set_curr_task(rq);
