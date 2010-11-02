@@ -424,7 +424,7 @@ struct fsg_dev {
 
 	struct usb_ep		*bulk_in;
 	struct usb_ep		*bulk_out;
-	struct switch_dev sdev;
+  struct switch_dev sdev;
 };
 
 
@@ -2536,8 +2536,8 @@ static void handle_exception(struct fsg_common *common)
 		break;
 
 	case FSG_STATE_CONFIG_CHANGE:
-		rc = do_set_config(common, new_config);
-		switch_set_state(&the_fsg->sdev, !!common->new_fsg);
+		do_set_interface(common, common->new_fsg);
+    switch_set_state(&the_fsg->sdev, !!common->new_fsg);
 		break;
 
 	case FSG_STATE_EXIT:
@@ -2910,8 +2910,17 @@ static void fsg_unbind(struct usb_configuration *c, struct usb_function *f)
 	struct fsg_dev		*fsg = fsg_from_func(f);
 
 	DBG(fsg, "unbind\n");
-	fsg_common_put(fsg->common);
-	switch_dev_unregister(&fsg->sdev);
+	if (fsg->common->fsg == fsg) {
+		fsg->common->new_fsg = NULL;
+		raise_exception(fsg->common, FSG_STATE_CONFIG_CHANGE);
+		/* FIXME: make interruptible or killable somehow? */
+		wait_event(common->fsg_wait, common->fsg != fsg);
+	}
+
+	fsg_common_put(common);
+	usb_free_descriptors(fsg->function.descriptors);
+	usb_free_descriptors(fsg->function.hs_descriptors);
+  switch_dev_unregister(&fsg->sdev);
 	kfree(fsg);
 }
 
@@ -2973,13 +2982,13 @@ static struct usb_gadget_strings *fsg_strings_array[] = {
 
 static ssize_t print_switch_name(struct switch_dev *sdev, char *buf)
 {
-	return sprintf(buf, "%s\n", FUNCTION_NAME);
+  return sprintf(buf, "%s\n", FUNCTION_NAME);
 }
 
 static ssize_t print_switch_state(struct switch_dev *sdev, char *buf)
 {
-	struct fsg_dev  *fsg = container_of(sdev, struct fsg_dev, sdev);
-	return sprintf(buf, "%s\n", (fsg->common->new_fsg ? "online" : "offline"));
+  struct fsg_dev  *fsg = container_of(sdev, struct fsg_dev, sdev);
+  return sprintf(buf, "%s\n", (fsg->common->new_fsg ? "online" : "offline"));
 }
 
 static int fsg_add(struct usb_composite_dev *cdev,
@@ -2993,14 +3002,17 @@ static int fsg_add(struct usb_composite_dev *cdev,
 	if (unlikely(!fsg))
 		return -ENOMEM;
 
-	the_fsg = fsg;
-	fsg->sdev.name = FUNCTION_NAME;
-	fsg->sdev.print_name = print_switch_name;
-	fsg->sdev.print_state = print_switch_state;
-	rc = switch_dev_register(&fsg->sdev);
-	if (rc < 0)
-		return rc
+  the_fsg = fsg;
+  fsg->sdev.name = FUNCTION_NAME;
+  fsg->sdev.print_name = print_switch_name;
+  fsg->sdev.print_state = print_switch_state;
+  rc = switch_dev_register(&fsg->sdev);
+  if (rc < 0)
+    return rc;
 
+#ifdef CONFIG_USB_ANDROID_MASS_STORAGE
+	fsg->function.name        = FUNCTION_NAME;
+#else
 	fsg->function.name        = FSG_DRIVER_DESC;
 	fsg->function.strings     = fsg_strings_array;
 	fsg->function.descriptors = fsg_fs_function;
