@@ -161,7 +161,7 @@ struct venc_pmem_list {
 };
 struct venc_dev {
 	bool is_active;
-	bool pmem_freed;
+	bool stop_called;
 	enum venc_state_type state;
 	struct list_head venc_msg_list_head;
 	struct list_head venc_msg_list_free;
@@ -820,17 +820,10 @@ static int venc_q6_stop(struct venc_dev *dvenc)
 {
 	int ret = 0;
 	struct venc_pmem_list *plist;
-	unsigned long flags;
 
 	wake_up(&dvenc->venc_msg_evt);
-	spin_lock_irqsave(&dvenc->venc_pmem_list_lock, flags);
-	if (!dvenc->pmem_freed) {
-		list_for_each_entry(plist, &dvenc->venc_pmem_list_head, list)
-			put_pmem_file(plist->buf.file);
-		dvenc->pmem_freed = 1;
-	}
-	spin_unlock_irqrestore(&dvenc->venc_pmem_list_lock, flags);
-
+	list_for_each_entry(plist, &dvenc->venc_pmem_list_head, list)
+		put_pmem_file(plist->buf.file);
 	dvenc->state = VENC_STATE_STOP;
 	return ret;
 }
@@ -1151,7 +1144,6 @@ static int q6venc_release(struct inode *inode, struct file *file)
 	struct venc_msg_list *l, *n;
 	struct venc_pmem_list *plist, *m;
 	struct venc_dev *dvenc;
-	unsigned long flags;
 
 	venc_ref--;
 	dvenc = file->private_data;
@@ -1168,13 +1160,11 @@ static int q6venc_release(struct inode *inode, struct file *file)
 		list_del(&l->list);
 		kfree(l);
 	}
-	spin_lock_irqsave(&dvenc->venc_pmem_list_lock, flags);
-	if (!dvenc->pmem_freed) {
+	if (!dvenc->stop_called) {
 		list_for_each_entry(plist, &dvenc->venc_pmem_list_head, list)
 			put_pmem_file(plist->buf.file);
-		dvenc->pmem_freed = 1;
+		dvenc->stop_called = 1;
 	}
-	spin_unlock_irqrestore(&dvenc->venc_pmem_list_lock, flags);
 
 	list_for_each_entry_safe(plist, m, &dvenc->venc_pmem_list_head, list) {
 		list_del(&plist->list);

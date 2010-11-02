@@ -33,7 +33,7 @@
 #include "dal_adie.h"
 #include <mach/msm_qdsp6_audio.h>
 #include <mach/htc_acoustic_qsd.h>
-
+#include <mach/msm_audio_qcp.h>
 #include <linux/gpio.h>
 
 #include "q6audio_devices.h"
@@ -1738,17 +1738,68 @@ int q6audio_async(struct audio_client *ac)
 	return audio_ioctl(ac, &rpc, sizeof(rpc));
 }
 
-struct audio_client *q6fm_open(void)
+struct audio_client *q6audio_open_aac(uint32_t bufsz, uint32_t rate,
+				      uint32_t flags, void *data, uint32_t acdb_id)
 {
 	struct audio_client *ac;
+
+	TRACE("q6audio_open_aac flags=%d rate=%d\n", flags, rate);
 
 	if (q6audio_init())
 		return 0;
 
-/*	if (audio_rx_device_id != ADSP_AUDIO_DEVICE_ID_HEADSET_SPKR_STEREO &&
+	ac = audio_client_alloc(bufsz);
+	if (!ac)
+		return 0;
+
+	ac->flags = flags;
+	if (ac->flags & AUDIO_FLAG_WRITE)
+		audio_rx_path_enable(1, acdb_id);
+	else {
+		/* TODO: consider concourrency with voice call */
+		tx_clk_freq = rate;
+		audio_tx_path_enable(1, acdb_id);
+	}
+
+	audio_aac_open(ac, bufsz, data);
+	audio_command(ac, ADSP_AUDIO_IOCTL_CMD_SESSION_START);
+
+	if (!(ac->flags & AUDIO_FLAG_WRITE)) {
+		ac->buf[0].used = 1;
+		ac->buf[1].used = 1;
+		q6audio_read(ac, &ac->buf[0]);
+		q6audio_read(ac, &ac->buf[1]);
+	}
+	audio_prevent_sleep();
+	return ac;
+}
+
+int q6audio_aac_close(struct audio_client *ac)
+{
+	audio_close(ac);
+	if (ac->flags & AUDIO_FLAG_WRITE)
+		audio_rx_path_enable(0, 0);
+	else
+		audio_tx_path_enable(0, 0);
+
+	audio_client_free(ac);
+	audio_allow_sleep();
+	return 0;
+}
+
+struct audio_client *q6fm_open(void)
+{
+	struct audio_client *ac;
+
+	printk("q6fm_open()\n");
+
+	if (q6audio_init())
+		return 0;
+
+	if (audio_rx_device_id != ADSP_AUDIO_DEVICE_ID_HEADSET_SPKR_STEREO &&
 	    audio_rx_device_id != ADSP_AUDIO_DEVICE_ID_SPKR_PHONE_MONO)
 		return 0;
-*/
+
 	ac = audio_client_alloc(0);
 	if (!ac)
 		return 0;
@@ -1765,6 +1816,43 @@ int q6fm_close(struct audio_client *ac)
 	audio_rx_path_enable(0, 0);
 	enable_aux_loopback(0);
 	audio_client_free(ac);
+	return 0;
+}
+
+struct audio_client *q6audio_open_qcelp(uint32_t bufsz, uint32_t rate,
+				      void *data, uint32_t acdb_id)
+{
+	struct audio_client *ac;
+
+	if (q6audio_init())
+		return 0;
+
+	ac = audio_client_alloc(bufsz);
+	if (!ac)
+		return 0;
+
+	ac->flags = AUDIO_FLAG_READ;
+	tx_clk_freq = rate;
+	audio_tx_path_enable(1, acdb_id);
+
+	audio_qcelp_open(ac, bufsz, data);
+	audio_command(ac, ADSP_AUDIO_IOCTL_CMD_SESSION_START);
+
+	ac->buf[0].used = 1;
+	ac->buf[1].used = 1;
+	q6audio_read(ac, &ac->buf[0]);
+	q6audio_read(ac, &ac->buf[1]);
+
+	audio_prevent_sleep();
+	return ac;
+}
+
+int q6audio_qcelp_close(struct audio_client *ac)
+{
+	audio_close(ac);
+	audio_tx_path_enable(0, 0);
+	audio_client_free(ac);
+	audio_allow_sleep();
 	return 0;
 }
 
