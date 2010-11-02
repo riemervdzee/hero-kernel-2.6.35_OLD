@@ -679,6 +679,6 @@ config VIRTUAL_KPANIC_SRC
 	default "cache"
 	help
 	  Sets the partition to steal from to make the virtual one.
-	
+
 
 endif

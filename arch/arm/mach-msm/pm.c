@@ -855,6 +855,29 @@ static void __init boot_lock_nohalt(void)
   pr_info("Acquire 'boot-time' no_halt_lock %ds\n", nohalt_timeout / HZ);
 }
 
+static void __init boot_lock_nohalt(void)
+{
+  int nohalt_timeout;
+
+  /* normal/factory2/recovery */
+  switch (board_mfg_mode()) {
+  case 0: /* normal */
+  case 1: /* factory2 */
+  case 2: /* recovery */
+    nohalt_timeout = BOOT_LOCK_TIMEOUT_NORMAL;
+    break;
+  case 3: /* charge */
+  case 4: /* power_test */
+  case 5: /* offmode_charge */
+  default:
+    nohalt_timeout = BOOT_LOCK_TIMEOUT_SHORT;
+    break;
+  }
+  disable_hlt();
+  schedule_delayed_work(&work_expire_boot_lock, nohalt_timeout);
+  pr_info("Acquire 'boot-time' no_halt_lock %ds\n", nohalt_timeout / HZ);
+}
+
 static int __init msm_pm_init(void)
 {
 	pm_power_off = msm_pm_power_off;

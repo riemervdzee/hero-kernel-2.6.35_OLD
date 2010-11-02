@@ -254,8 +254,8 @@ static void msmfb_pan_update(struct fb_info *info, uint32_t left, uint32_t top,
 	DLOG(SHOW_UPDATES, "update %d %d %d %d %d %d\n",
 		left, top, eright, ebottom, yoffset, pan_display);
 
-		if (msmfb->sleeping != AWAKE)
-			DLOG(SUSPEND_RESUME, "pan_update in state(%d)\n", msmfb->sleeping);
+        if (msmfb->sleeping != AWAKE)
+                DLOG(SUSPEND_RESUME, "pan_update in state(%d)\n", msmfb->sleeping);
 
 restart:
 	spin_lock_irqsave(&msmfb->update_lock, irq_flags);
@@ -400,23 +400,23 @@ int register_display_notifier(struct notifier_block *nb)
 	return blocking_notifier_chain_register(&display_chain_head, nb);
 }
 static int display_notifier_callback(struct notifier_block *nfb,
-	unsigned long action,
-	void *ignored)
+	  unsigned long action,
+	  void *ignored)
 {
 	//struct msmfb_info *msm_fb = (struct msmfb_info *)ignored;
 
 	switch (action) {
 	case NOTIFY_MSM_FB:
-		printk(KERN_DEBUG "NOTIFY_MSM_FB\n");
-		//msmfb_resume(&msm_fb->early_suspend);
-		break;
+	  printk(KERN_DEBUG "NOTIFY_MSM_FB\n");
+	  //msmfb_resume(&msm_fb->early_suspend);
+	  break;
 	case NOTIFY_POWER:
-		/* nothing to do */
-		break;
+	  /* nothing to do */
+	  break;
 	default:
-		printk(KERN_ERR "%s: unknown action in 0x%lx\n",
-			__func__, action);
-		return NOTIFY_BAD;
+	  printk(KERN_ERR "%s: unknown action in 0x%lx\n",
+	      __func__, action);
+	  return NOTIFY_BAD;
 	}
 	return NOTIFY_OK;
 }
@@ -461,22 +461,22 @@ static void msmfb_suspend(struct early_suspend *h)
 static void msmfb_resume_handler(struct early_suspend *h)
 {
 	struct msmfb_info *msmfb = container_of(h, struct msmfb_info,
-						early_suspend);
-	#ifdef CONFIG_HTC_ONMODE_CHARGING
-		if (msmfb->fb_resumed == 1) {
-			DLOG(SUSPEND_RESUME, "fb is resumed by onchg. skip resume\n");
-			return;
+	        early_suspend);
+#ifdef CONFIG_HTC_ONMODE_CHARGING
+	if (msmfb->fb_resumed == 1) {
+	  DLOG(SUSPEND_RESUME, "fb is resumed by onchg. skip resume\n");
+	  return;
 	}
-	#endif
-		queue_work(msmfb->resume_workqueue, &msmfb->msmfb_resume_work);
-		wait_event_interruptible_timeout(msmfb->frame_wq, msmfb->fb_resumed==1,HZ/2);
+#endif
+	queue_work(msmfb->resume_workqueue, &msmfb->msmfb_resume_work);
+	wait_event_interruptible_timeout(msmfb->frame_wq, msmfb->fb_resumed==1,HZ/2);
 }
 
-	#ifdef CONFIG_HTC_ONMODE_CHARGING
-	static void msmfb_onchg_earlier_suspend(struct early_suspend *h)
-	{
-		struct msmfb_info *msmfb = container_of(h, struct msmfb_info,
-			onchg_earlier_suspend);
+#ifdef CONFIG_HTC_ONMODE_CHARGING
+static void msmfb_onchg_earlier_suspend(struct early_suspend *h)
+{
+	struct msmfb_info *msmfb = container_of(h, struct msmfb_info,
+	          onchg_earlier_suspend);
 	struct msm_panel_data *panel = msmfb->panel;
 	unsigned long irq_flags=0;
 
@@ -486,7 +486,7 @@ static void msmfb_resume_handler(struct early_suspend *h)
 	spin_lock_irqsave(&msmfb->update_lock, irq_flags);
 	spin_unlock_irqrestore(&msmfb->update_lock, irq_flags);
 	wait_event_timeout(msmfb->frame_wq,
-		msmfb->frame_requested == msmfb->frame_done, HZ/10);
+	       msmfb->frame_requested == msmfb->frame_done, HZ/10);
 	/* turn off the panel */
 	panel->blank(panel);
 }
@@ -494,7 +494,7 @@ static void msmfb_resume_handler(struct early_suspend *h)
 static void msmfb_onchg_suspend(struct early_suspend *h)
 {
 	struct msmfb_info *msmfb = container_of(h, struct msmfb_info,
-		onchg_suspend);
+	          onchg_suspend);
 	struct msm_panel_data *panel = msmfb->panel;
 	/* suspend the panel */
 	panel->suspend(panel);
@@ -505,7 +505,7 @@ static void msmfb_onchg_suspend(struct early_suspend *h)
 static void msmfb_onchg_resume_handler(struct early_suspend *h)
 {
 	struct msmfb_info *msmfb = container_of(h, struct msmfb_info,
-		onchg_suspend);
+	        onchg_suspend);
 	queue_work(msmfb->resume_workqueue, &msmfb->msmfb_resume_work);
 	wait_event_interruptible_timeout(msmfb->frame_wq, msmfb->fb_resumed == 1, HZ/2);
 }
@@ -513,23 +513,23 @@ static void msmfb_onchg_resume_handler(struct early_suspend *h)
 
 static void msmfb_resume(struct work_struct *work)
 {
-	struct msmfb_info *msmfb =
-		container_of(work, struct msmfb_info, msmfb_resume_work);
-	struct msm_panel_data *panel = msmfb->panel;
-	unsigned long irq_flags=0;
+  struct msmfb_info *msmfb =
+    container_of(work, struct msmfb_info, msmfb_resume_work);
+  struct msm_panel_data *panel = msmfb->panel;
+  unsigned long irq_flags=0;
 
-	if (panel->resume(panel)) {
-		printk(KERN_INFO "msmfb: panel resume failed, not resuming "
-			"fb\n");
-		return;
-	}
-	spin_lock_irqsave(&msmfb->update_lock, irq_flags);
-	msmfb->frame_requested = msmfb->frame_done = msmfb->update_frame = 0;
-	msmfb->sleeping = WAKING;
-	DLOG(SUSPEND_RESUME, "ready, waiting for full update\n");
-	spin_unlock_irqrestore(&msmfb->update_lock, irq_flags);
-	msmfb->fb_resumed = 1;
-	wake_up(&msmfb->frame_wq);
+  if (panel->resume(panel)) {
+    printk(KERN_INFO "msmfb: panel resume failed, not resuming "
+           "fb\n");
+    return;
+  }
+  spin_lock_irqsave(&msmfb->update_lock, irq_flags);
+  msmfb->frame_requested = msmfb->frame_done = msmfb->update_frame = 0;
+  msmfb->sleeping = WAKING;
+  DLOG(SUSPEND_RESUME, "ready, waiting for full update\n");
+  spin_unlock_irqrestore(&msmfb->update_lock, irq_flags);
+  msmfb->fb_resumed = 1;
+  wake_up(&msmfb->frame_wq);
 }
 #endif
 
@@ -958,21 +958,21 @@ static void msmfb_shutdown(struct platform_device *pdev)
 	printk(KERN_INFO "%s\n", __func__);
 	fb = registered_fb[0];
 	if (!fb) {
-		printk(KERN_ERR "fb0 unavailable.\n");
-		return;
+	  printk(KERN_ERR "fb0 unavailable.\n");
+	  return;
 	}
 	msmfb = fb->par;
 
 	mdp->dma(mdp, virt_to_phys(msmfb->black), 0,
-		msmfb->fb->var.xres, msmfb->fb->var.yres, 0, 0,
-		NULL, panel->interface_type);
+	    msmfb->fb->var.xres, msmfb->fb->var.yres, 0, 0,
+	    NULL, panel->interface_type);
 
 	if (panel->blank)
-		panel->blank(panel);
+	  panel->blank(panel);
 
 	if (panel->shutdown)
-		panel->shutdown(panel);
-	}
+	  panel->shutdown(panel);
+}
 
 static struct platform_driver msm_panel_driver = {
 	/* need to write remove */

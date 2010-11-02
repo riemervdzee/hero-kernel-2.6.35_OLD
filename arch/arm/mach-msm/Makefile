@@ -11,6 +11,7 @@ obj-y += clock.o clock-pcom.o
 obj-y += gpio.o generic_gpio.o
 obj-y += nand_partitions.o
 obj-y += drv_callback.o
+obj-y += devices.o
 
 obj-$(CONFIG_ARCH_QSD8X50) += sirc.o
 obj-$(CONFIG_MSM_FIQ_SUPPORT) += fiq_glue.o
@@ -95,6 +96,8 @@ obj-$(CONFIG_MICROP_COMMON) += atmega_microp_common.o
 obj-$(CONFIG_HTC_HEADSET_MGR) += htc_headset_mgr.o
 obj-$(CONFIG_HTC_HEADSET_GPIO) += htc_headset_gpio.o
 obj-$(CONFIG_HTC_HEADSET_MICROP) += htc_headset_microp.o
+obj-$(CONFIG_PERFLOCK) += perflock.o
+obj-$(CONFIG_PERFLOCK) += htc_set_perflock.o
 
 obj-$(CONFIG_MACH_MAHIMAHI) += board-mahimahi-tpa2018d1.o
 obj-$(CONFIG_MACH_MAHIMAHI) += board-mahimahi-smb329.o
