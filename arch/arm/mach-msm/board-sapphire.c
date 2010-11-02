@@ -1337,31 +1337,19 @@ static void __init sapphire_fixup(struct machine_desc *desc, struct tag *tags,
 	die_sz = parse_tag_monodie((const struct tag *)tags);
 	printk("sapphire_fixup:diesize=0x%x\n", die_sz);
 
+	mi->nr_banks = 1;
+	mi->bank[0].start = PHYS_OFFSET;
+	mi->bank[0].node = PHYS_TO_NID(PHYS_OFFSET);
 	if (smi_sz == 32) {
-		mi->nr_banks = 1;
-		mi->bank[0].start = PHYS_OFFSET;
-		mi->bank[0].node = PHYS_TO_NID(PHYS_OFFSET);
 		mi->bank[0].size = (84*1024*1024);
 	} else if (smi_sz == 64) {
-		mi->nr_banks = 2;
-		mi->bank[0].start = SMI64_MSM_LINUX_BASE_1;
-		mi->bank[0].node = PHYS_TO_NID(SMI64_MSM_LINUX_BASE_1);
-		mi->bank[0].size = (32*1024*1024);
-		mi->bank[1].start = SMI64_MSM_LINUX_BASE_2;
-		mi->bank[1].node = PHYS_TO_NID(SMI64_MSM_LINUX_BASE_2);
-		mi->bank[1].size = (84*1024*1024);
+		mi->bank[0].size = (101*1024*1024);
 	} else {
 		printk(KERN_ERR "can not get smi size\n");
 
 		/*Give a default value when not get smi size*/
 		smi_sz = 64;
-		mi->nr_banks = 2;
-		mi->bank[0].start = SMI64_MSM_LINUX_BASE_1;
-		mi->bank[0].node = PHYS_TO_NID(SMI64_MSM_LINUX_BASE_1);
-		mi->bank[0].size = (32*1024*1024);
-		mi->bank[1].start = SMI64_MSM_LINUX_BASE_2;
-		mi->bank[1].node = PHYS_TO_NID(SMI64_MSM_LINUX_BASE_2);
-		mi->bank[1].size = (84*1024*1024);
+		mi->bank[0].size = (101*1024*1024);
 		printk(KERN_ERR "use default  :  smisize=%d\n", smi_sz);
 	}
 #endif
@@ -1381,7 +1369,7 @@ MACHINE_START(SAPPHIRE, "sapphire")
 	.phys_io        = MSM_DEBUG_UART_PHYS,
 	.io_pg_offst    = ((MSM_DEBUG_UART_BASE) >> 18) & 0xfffc,
 #endif
-	.boot_params    = 0x02000100,
+	.boot_params    = 0x10000100,
 	.fixup          = sapphire_fixup,
 	.map_io         = sapphire_map_io,
 	.init_irq       = sapphire_init_irq,
