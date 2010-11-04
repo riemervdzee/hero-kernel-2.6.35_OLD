@@ -1256,7 +1256,8 @@ static void usb_do_work(struct work_struct *w)
 					printk(KERN_INFO "usb: notify offline\n");
 					ui->driver->disconnect(&ui->gadget);
 				}
-#ifdef CONFIG_ARCH_MSM_SCORPION
+
+#ifndef CONFIG_ARCH_MSM7X00A
 				usb_phy_reset(ui);
 #endif
 
