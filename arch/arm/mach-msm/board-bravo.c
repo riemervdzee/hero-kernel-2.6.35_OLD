@@ -78,7 +78,7 @@ static int bravo_phy_init_seq[] = {
 	0x31, 0x32,
 	0x1D, 0x0D,
 	0x1D, 0x10,
-	-1 
+	-1
 };
 
 static void bravo_usb_phy_reset(void)
@@ -707,7 +707,7 @@ static uint32_t flashlight_gpio_table_rev_CX[] = {
 						GPIO_NO_PULL, GPIO_2MA),
 };
 
-static int config_bravo_flashlight_gpios(void)
+static void config_bravo_flashlight_gpios(void)
 {
 	if (is_cdma_version(system_rev)) {
 		config_gpio_table(flashlight_gpio_table_rev_CX,
@@ -716,7 +716,6 @@ static int config_bravo_flashlight_gpios(void)
 		config_gpio_table(flashlight_gpio_table,
 				ARRAY_SIZE(flashlight_gpio_table));
 	}
-	return 0;
 }
 
 static struct flashlight_platform_data bravo_flashlight_data = {
@@ -857,7 +856,7 @@ static void curcial_oj_shutdown(int enable)
 	cmd[2] = 0x20;
 	// microp firmware(v04) non-shutdown by default
 	microp_i2c_write(0x90, cmd, 3);
-	pr_err("%s\n", __func__);	
+	pr_err("%s\n", __func__);
 }
 
 #define CURCIAL_OJ_POWER		150
@@ -1085,27 +1084,6 @@ static int __init parse_tag_bdaddr(const struct tag *tag)
 
 __tagtable(ATAG_BDADDR, parse_tag_bdaddr);
 
-static int __init board_serialno_setup(char *serialno)
-{
-#ifdef CONFIG_USB_ANDROID_RNDIS
-	int i;
-	char *src = serialno;
-
-	/* create a fake MAC address from our serial number.
-	 * first byte is 0x02 to signify locally administered.
-	 */
-	rndis_pdata.ethaddr[0] = 0x02;
-	for (i = 0; *src; i++) {
-		/* XOR the USB serial across the remaining bytes */
-		rndis_pdata.ethaddr[i % (ETH_ALEN - 1) + 1] ^= *src++;
-	}
-#endif
-
-	android_usb_pdata.serial_number = serialno;
-	return 1;
-}
-__setup("androidboot.serialno=", board_serialno_setup);
-
 static void config_gpio_table(uint32_t *table, int len)
 {
 	int n;
@@ -1152,6 +1130,8 @@ static void __init bravo_init(void)
 	int ret;
 
 	printk("bravo_init() revision=%d\n", system_rev);
+
+  android_usb_pdata.serial_number = board_serialno();
 
 	if (is_cdma_version(system_rev))
 		smd_set_channel_list(smd_cdma_default_channels,
