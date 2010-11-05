@@ -364,45 +364,10 @@ static void cpufreq_interactive_idle(void)
 	smp_wmb();
 	pending = timer_pending(&pcpu->cpu_timer);
 
-	if (pcpu->target_freq != pcpu->policy->min) {
-#ifdef CONFIG_SMP
-		/*
-		 * Entering idle while not at lowest speed.  On some
-		 * platforms this can hold the other CPU(s) at that speed
-		 * even though the CPU is idle. Set a timer to re-evaluate
-		 * speed so this idle CPU doesn't hold the other CPUs above
-		 * min indefinitely.  This should probably be a quirk of
-		 * the CPUFreq driver.
-		 */
-		if (!pending) {
-			pcpu->time_in_idle = get_cpu_idle_time_us(
-				smp_processor_id(), &pcpu->idle_exit_time);
-			pcpu->timer_idlecancel = 0;
-			mod_timer(&pcpu->cpu_timer, jiffies + 2);
-			dbgpr("idle: enter at %d, set timer for %lu exit=%llu\n",
-			      pcpu->target_freq, pcpu->cpu_timer.expires,
-			      pcpu->idle_exit_time);
-		}
-#endif
-	} else {
-		/*
-		 * If at min speed and entering idle after load has
-		 * already been evaluated, and a timer has been set just in
-		 * case the CPU suddenly goes busy, cancel that timer.  The
-		 * CPU didn't go busy; we'll recheck things upon idle exit.
-		 */
-		if (pending && pcpu->timer_idlecancel) {
-			dbgpr("idle: cancel timer for %lu\n", pcpu->cpu_timer.expires);
-			del_timer(&pcpu->cpu_timer);
-			/*
-			 * Ensure last timer run time is after current idle
-			 * sample start time, so next idle exit will always
-			 * start a new idle sampling period.
-			 */
-			pcpu->idle_exit_time = 0;
-			pcpu->timer_idlecancel = 0;
-		}
-	}
+	if (delta_time == 0)
+	  return policy->cur;
+
+	cpu_load = 100 * (delta_time - idle_time) / delta_time;
 
 	pm_idle_old();
 	pcpu->idling = 0;
