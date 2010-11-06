@@ -1410,7 +1410,15 @@ MACHINE_START(SAPPHIRE, "sapphire")
 	.phys_io        = MSM_DEBUG_UART_PHYS,
 	.io_pg_offst    = ((MSM_DEBUG_UART_BASE) >> 18) & 0xfffc,
 #endif
+#if defined(CONFIG_MSM_AMSS_SUPPORT_256MB_EBI1)
+        .boot_params    = 0x19200100,
+#else
+#if defined(CONFIG_MSM_AMSS_RADIO2708_MEMMAP)
+	.boot_params    = 0x02000100,
+#else
 	.boot_params    = 0x10000100,
+#endif
+#endif
 	.fixup          = sapphire_fixup,
 	.map_io         = sapphire_map_io,
 	.init_irq       = sapphire_init_irq,
