@@ -19,6 +19,10 @@
 #define BATT_EVENT_SUSPEND	0x01
 
 #define CHECK_CHG           0X64
+#define SET_ICL500		0X65
+#define SET_ICL100		0X66
+#define CHECK_INT2		0X67
+
 /* information about the system we're running on */
 extern unsigned int system_rev;
 
@@ -42,6 +46,7 @@ enum {
 	GUAGE_NONE,
 	GUAGE_MODEM,
 	GUAGE_DS2784,
+	GUAGE_DS2746,
 };
 
 enum {
@@ -85,7 +90,7 @@ static int unregister_notifier_cable_status(struct notifier_block *nb) { return 
 #ifdef CONFIG_BATTERY_DS2784
 extern int battery_charging_ctrl(enum batt_ctl_t ctl);
 #endif
-
+extern int get_cable_status(void);
 #ifdef CONFIG_HTC_BATTCHG
 extern int batt_register_client(struct notifier_block *nb);
 extern int batt_unregister_client(struct notifier_block *nb);
