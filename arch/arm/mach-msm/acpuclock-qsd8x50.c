@@ -475,7 +475,8 @@ static void __init acpuclk_init(void)
 
 	loops_per_jiffy = drv_state.current_speed->lpj;
 
-	for (speed = acpu_freq_tbl; speed->acpu_khz != 0; speed++); 
+	for (speed = acpu_freq_tbl; speed->acpu_khz != 0; speed++)
+		;
 
 	max_s = speed - 1;
 	max_axi_rate = max_s->axiclk_khz * 1000;
