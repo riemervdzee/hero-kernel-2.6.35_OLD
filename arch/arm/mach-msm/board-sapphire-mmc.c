@@ -40,17 +40,6 @@
 extern int msm_add_sdcc(unsigned int controller, struct mmc_platform_data *plat,
 			unsigned int stat_irq, unsigned long stat_irq_flags);
 
-/* ---- COMMON ---- */
-static void config_gpio_table(uint32_t *table, int len)
-{
-	int n;
-	unsigned id;
-	for (n = 0; n < len; n++) {
-		id = table[n];
-		msm_proc_comm(PCOM_RPC_GPIO_TLMM_CONFIG_EX, &id, 0);
-	}
-}
-
 /* ---- SDCARD ---- */
 
 static uint32_t sdcard_on_gpio_table[] = {

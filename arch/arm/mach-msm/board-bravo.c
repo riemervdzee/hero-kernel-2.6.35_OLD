@@ -71,8 +71,6 @@ extern void __init bravo_audio_init(void);
 
 extern int microp_headset_has_mic(void);
 
-static void config_gpio_table(uint32_t *table, int len);
-
 static int bravo_phy_init_seq[] = {
 	0x0C, 0x31,
 	0x31, 0x32,
@@ -541,8 +539,6 @@ static struct i2c_board_info rev_CX_i2c_devices[] = {
 		I2C_BOARD_INFO("smb329", 0x6E >> 1),
 	},
 };
-
-static void config_gpio_table(uint32_t *table, int len);
 
 static uint32_t camera_off_gpio_table[] = {
 	/* CAMERA */
@@ -1087,16 +1083,6 @@ static int __init parse_tag_bdaddr(const struct tag *tag)
 }
 
 __tagtable(ATAG_BDADDR, parse_tag_bdaddr);
-
-static void config_gpio_table(uint32_t *table, int len)
-{
-	int n;
-	unsigned id;
-	for(n = 0; n < len; n++) {
-		id = table[n];
-		msm_proc_comm(PCOM_RPC_GPIO_TLMM_CONFIG_EX, &id, 0);
-	}
-}
 
 static struct msm_acpu_clock_platform_data bravo_clock_data = {
 	.acpu_switch_time_us	= 20,
