@@ -47,6 +47,7 @@
 #include <mach/bcm_bt_lpm.h>
 #include <mach/msm_smd.h>
 #include <mach/msm_flashlight.h>
+#include <mach/perflock.h>
 #include <mach/vreg.h>
 #include <mach/board-bravo-microp-common.h>
 
@@ -1101,10 +1102,21 @@ static struct msm_acpu_clock_platform_data bravo_cdma_clock_data = {
 	.mpll_khz		= 235930
 };
 
+static unsigned bravo_perf_acpu_table[] = {
+	245000000,
+	576000000,
+	998400000,
+};
+
+static struct perflock_platform_data bravo_perflock_data = {
+	.perf_acpu_table = bravo_perf_acpu_table,
+	.table_size = ARRAY_SIZE(bravo_perf_acpu_table),
+};
+
 static void bravo_reset(void)
 {
 	gpio_set_value(BRAVO_GPIO_PS_HOLD, 0);
-}
+};
 
 int bravo_init_mmc(int sysrev, unsigned debug_uart);
 
@@ -1120,7 +1132,7 @@ static void __init bravo_init(void)
 
 	printk("bravo_init() revision=%d\n", system_rev);
 
-  android_usb_pdata.serial_number = board_serialno();
+	android_usb_pdata.serial_number = board_serialno();
 
 	if (is_cdma_version(system_rev))
 		smd_set_channel_list(smd_cdma_default_channels,
@@ -1132,6 +1144,8 @@ static void __init bravo_init(void)
 		msm_acpu_clock_init(&bravo_cdma_clock_data);
 	else
 		msm_acpu_clock_init(&bravo_clock_data);
+
+	perflock_init(&bravo_perflock_data);
 
 	msm_serial_debug_init(MSM_UART1_PHYS, INT_UART1,
 			      &msm_device_uart1.dev, 1, MSM_GPIO_TO_INT(139));
