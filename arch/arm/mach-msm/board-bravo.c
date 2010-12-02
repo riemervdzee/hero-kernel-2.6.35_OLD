@@ -37,7 +37,6 @@
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
-#include <asm/setup.h>
 #include <mach/board.h>
 #include <mach/hardware.h>
 #include <mach/msm_hsusb.h>

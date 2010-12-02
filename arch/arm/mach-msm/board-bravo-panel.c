@@ -26,7 +26,6 @@
 
 #include <asm/io.h>
 #include <asm/mach-types.h>
-#include <asm/setup.h>
 
 #include <mach/msm_fb.h>
 #include <mach/msm_iomap.h>
