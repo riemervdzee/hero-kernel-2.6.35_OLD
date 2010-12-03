@@ -461,28 +461,6 @@ XB : GPIO33 = 0 -> USB
 */
 
 
-static int __init board_serialno_setup(char *serialno)
-{
-#ifdef CONFIG_USB_ANDROID_RNDIS
-	int i;
-	char *src = serialno;
-
-	/* create a fake MAC address from our serial number.
-	 * first byte is 0x02 to signify locally administered.
-	 */
-	rndis_pdata.ethaddr[0] = 0x02;
-	for (i = 0; *src; i++) {
-		/* XOR the USB serial across the remaining bytes */
-	rndis_pdata.ethaddr[i % (ETH_ALEN - 1) + 1] ^= *src++;
-	}
-#endif
-
-	android_usb_pdata.serial_number = serialno;
-	return 1;
-}
-__setup("androidboot.serialno=", board_serialno_setup);
-
-
 static struct platform_device supersonic_rfkill = {
 	.name = "supersonic_rfkill",
 	.id = -1,
@@ -1449,6 +1427,8 @@ static void __init supersonic_init(void)
 	struct kobject *properties_kobj;
 
 	printk("supersonic_init() revision=%d\n", system_rev);
+
+	android_usb_pdata.serial_number = board_serialno();
 
 	msm_hw_reset_hook = supersonic_reset;
 
