@@ -22,7 +22,7 @@
 #include <linux/leds.h>
 #include <linux/switch.h>
 #include <linux/synaptics_i2c_rmi.h>
-#include <mach/cy8c_i2c.h>
+#include <linux/cy8c_tmg_ts.h>
 #include <linux/akm8973.h>
 #include <mach/htc_headset.h>
 #include <mach/audio_jack.h>
@@ -603,7 +603,7 @@ static struct i2c_board_info i2c_devices[] = {
                 .irq = HERO_GPIO_TO_INT(HERO_GPIO_TP_ATT_N)
         },
         {
-                I2C_BOARD_INFO(CY8C_I2C_NAME, 0x13),
+                I2C_BOARD_INFO(CYPRESS_TMG_NAME, 0x13),
                 .platform_data = &hero_cypress_ts_data,
                 .irq = HERO_GPIO_TO_INT(HERO_GPIO_TP_ATT_N)
         },

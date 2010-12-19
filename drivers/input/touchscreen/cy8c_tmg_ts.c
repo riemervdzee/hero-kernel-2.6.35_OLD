@@ -22,6 +22,7 @@
 #include <linux/interrupt.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
+#include <linux/slab.h>
 
 #define CY8C_REG_START_NEW_SCAN 0x0F
 #define CY8C_REG_INTR_STATUS    0x3C
