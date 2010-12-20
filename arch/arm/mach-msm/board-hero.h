@@ -135,7 +135,7 @@
 #define HERO_GPIO_PS_HOLD   (25)
 #define HERO_MDDI_1V5_EN	(28)
 #define HERO_BL_PWM			(27)
-#define HERO_TP_LS_EN    	(1)
+//#define HERO_TP_LS_EN    	(1)
 #define HERO20_TP_LS_EN			(88)
 
 /* H2W */
@@ -194,7 +194,7 @@
 #define HERO_GPIO_H2W_SEL1                 	(HERO_GPIO_MISC2_BASE + 7)
 
 #define HERO_GPIO_I2C_PULL                 	(HERO_GPIO_MISC3_BASE + 2)
-#define HERO_GPIO_TP_EN                    	(HERO_GPIO_MISC3_BASE + 4)
+//#define HERO_GPIO_TP_EN                    	(HERO_GPIO_MISC3_BASE + 4)
 #define HERO_GPIO_JOG_EN                   	(HERO_GPIO_MISC3_BASE + 5)
 #define HERO_GPIO_JOG_LED_EN               	(HERO_GPIO_MISC3_BASE + 6)
 #define HERO_GPIO_APKEY_LED_EN             	(HERO_GPIO_MISC3_BASE + 7)
@@ -320,8 +320,8 @@
 //#define HERO_GPIO_USB_PHY_RST_N         (100)
 //#define HERO_GPIO_WIFI_EN               (102)
 #define HERO_CAM_PWDN                   (107)
-//#define HERO_TP_LS_EN                   (108)
-//#define HERO_GPIO_TP_EN                 (109)
+#define HERO_TP_LS_EN                   (108)
+#define HERO_GPIO_TP_EN                 (109)
 
 //#define HERO_GPIO_TO_INT(x)             (x+64)/*from gpio_to_irq*/
 
