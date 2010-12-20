@@ -600,12 +600,12 @@ static struct i2c_board_info i2c_devices[] = {
         {
                 I2C_BOARD_INFO(SYNAPTICS_I2C_RMI_NAME, 0x20),
                 .platform_data = &hero_ts_data,
-                .irq = HERO_GPIO_TO_INT(HERO_GPIO_TP_ATT_N)
+                .irq = 0xc9
         },
         {
                 I2C_BOARD_INFO(CYPRESS_TMG_NAME, 0x13),
                 .platform_data = &hero_cypress_ts_data,
-                .irq = HERO_GPIO_TO_INT(HERO_GPIO_TP_ATT_N)
+                .irq = 0xc9
         },
 	{
 		I2C_BOARD_INFO(MICROP_I2C_NAME, 0xCC >> 1),
