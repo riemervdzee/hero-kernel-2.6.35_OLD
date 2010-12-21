@@ -10,7 +10,7 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
-*/
+ */
 
 #include <linux/kernel.h>
 #include <linux/init.h>
@@ -167,86 +167,67 @@ static struct platform_device hero_search_button_device = {
 	},
 };
 
-static int gpio_tp_ls_en = HERO_TP_LS_EN;
-
 static int hero_ts_power(int on)
 {
-        printk(KERN_INFO "hero_ts_power:%d\n", on);
-        if (on) {
-                gpio_set_value(HERO_GPIO_TP_EN, 1);
-                msleep(250);
-                /* enable touch panel level shift */
-                gpio_set_value(HERO_TP_LS_EN, 1);
-                msleep(2);
-        } else {
-                gpio_set_value(HERO_TP_LS_EN, 0);
-                udelay(50);
-                gpio_set_value(HERO_GPIO_TP_EN, 0);
-        }
-        return 0;
+	printk(KERN_INFO "hero_ts_power:%d\n", on);
+	if (on) {
+		gpio_set_value(HERO_GPIO_TP_EN, 1);
+		msleep(250);
+		/* enable touch panel level shift */
+		gpio_set_value(HERO_TP_LS_EN, 1);
+		msleep(2);
+	} else {
+		gpio_set_value(HERO_TP_LS_EN, 0);
+		udelay(50);
+		gpio_set_value(HERO_GPIO_TP_EN, 0);
+	}
+	return 0;
 }
 
-//static int hero_ts_power(int on)
-//{
-//	if (on) {
-//		hero_gpio_write(NULL, HERO_GPIO_TP_EN, 1);
-//		/* touchscreen must be powered before we enable i2c pullup */
-//		msleep(2);
-//		/* enable touch panel level shift */
-//		gpio_direction_output(gpio_tp_ls_en, 1);
-//		msleep(2);
-//	} else {
-//		gpio_direction_output(gpio_tp_ls_en, 0);
-//		udelay(50);
-//		hero_gpio_write(NULL, HERO_GPIO_TP_EN, 0);
-//	}
-//	return 0;
-//}
-
 static struct cy8c_i2c_platform_data hero_cypress_ts_data = {
-        .version = 0x0001,
-        .abs_x_min = 0,
-        .abs_x_max = 319,
-        .abs_y_min = 0,
-        .abs_y_max = 479,
-        .abs_pressure_min = 0,
-        .abs_pressure_max = 255,
-        .abs_width_min = 0,
-        .abs_width_max = 15,
-        .power = hero_ts_power,
+	.version = 0x0001,
+	.abs_x_min = 0,
+	.abs_x_max = 319,
+	.abs_y_min = 0,
+	.abs_y_max = 479,
+	.abs_pressure_min = 0,
+	.abs_pressure_max = 255,
+	.abs_width_min = 0,
+	.abs_width_max = 15,
+	.power = hero_ts_power,
 };
 
 static struct synaptics_i2c_rmi_platform_data hero_ts_data[] = {
-        {
-                .version = 0x0101,
-                .power = hero_ts_power,
-                .sensitivity_adjust = 7,
-                .flags = SYNAPTICS_FLIP_Y | SYNAPTICS_SNAP_TO_INACTIVE_EDGE,
-                .inactive_left = -50 * 0x10000 / 4334,
-                .inactive_right = -50 * 0x10000 / 4334,
-                .inactive_top = -40 * 0x10000 / 6696,
-                .inactive_bottom = -40 * 0x10000 / 6696,
-                .snap_left_on = 50 * 0x10000 / 4334,
-                .snap_left_off = 60 * 0x10000 / 4334,
-                .snap_right_on = 50 * 0x10000 / 4334,
-                .snap_right_off = 60 * 0x10000 / 4334,
-                .snap_top_on = 100 * 0x10000 / 6696,
-                .snap_top_off = 110 * 0x10000 / 6696,
-                .snap_bottom_on = 100 * 0x10000 / 6696,
-                .snap_bottom_off = 110 * 0x10000 / 6696,
-                .display_width = 320,
-                .display_height = 480,
-                .dup_threshold = 10,
-        },
-        {
-                .flags = SYNAPTICS_FLIP_Y | SYNAPTICS_SNAP_TO_INACTIVE_EDGE,
-                .inactive_left = ((4674 - 4334) / 2 + 200) * 0x10000 / 4334,
-                .inactive_right = ((4674 - 4334) / 2 + 200) * 0x10000 / 4334,
-                .inactive_top = ((6946 - 6696) / 2) * 0x10000 / 6696,
-                .inactive_bottom = ((6946 - 6696) / 2) * 0x10000 / 6696,
-                .display_width = 320,
-                .display_height = 480,
-        }
+	{
+		.version = 0x0101,
+		.power = hero_ts_power,
+		.sensitivity_adjust = 7,
+		.flags = SYNAPTICS_FLIP_Y | SYNAPTICS_SNAP_TO_INACTIVE_EDGE,
+		.inactive_left = -50 * 0x10000 / 4334,
+		.inactive_right = -50 * 0x10000 / 4334,
+		.inactive_top = -40 * 0x10000 / 6696,
+		.inactive_bottom = -40 * 0x10000 / 6696,
+		.snap_left_on = 50 * 0x10000 / 4334,
+		.snap_left_off = 60 * 0x10000 / 4334,
+		.snap_right_on = 50 * 0x10000 / 4334,
+		.snap_right_off = 60 * 0x10000 / 4334,
+		.snap_top_on = 100 * 0x10000 / 6696,
+		.snap_top_off = 110 * 0x10000 / 6696,
+		.snap_bottom_on = 100 * 0x10000 / 6696,
+		.snap_bottom_off = 110 * 0x10000 / 6696,
+		.display_width = 320,
+		.display_height = 480,
+		.dup_threshold = 10,
+	},
+	{
+		.flags = SYNAPTICS_FLIP_Y | SYNAPTICS_SNAP_TO_INACTIVE_EDGE,
+		.inactive_left = ((4674 - 4334) / 2 + 200) * 0x10000 / 4334,
+		.inactive_right = ((4674 - 4334) / 2 + 200) * 0x10000 / 4334,
+		.inactive_top = ((6946 - 6696) / 2) * 0x10000 / 6696,
+		.inactive_bottom = ((6946 - 6696) / 2) * 0x10000 / 6696,
+		.display_width = 320,
+		.display_height = 480,
+	}
 };
 
 static int hero_microp_intr_debounce(uint8_t *pin_status);
@@ -580,43 +561,43 @@ static void hero_microp_intr_function(uint8_t *pin_status)
 }
 
 static struct akm8973_platform_data compass_platform_data = {
-        .layouts = HERO_LAYOUTS,
-        .project_name = HERO_PROJECT_NAME,
-        .reset = HERO_GPIO_COMPASS_RST_N,
-        .intr = HERO_GPIO_COMPASS_INT_N,
+	.layouts = HERO_LAYOUTS,
+	.project_name = HERO_PROJECT_NAME,
+	.reset = HERO_GPIO_COMPASS_RST_N,
+	.intr = HERO_GPIO_COMPASS_INT_N,
 };
 
 static struct bma150_platform_data gsensor_platform_data = {
-        .intr = HERO_GPIO_GSENSOR_INT_N,
+	.intr = HERO_GPIO_GSENSOR_INT_N,
 };
 
 static struct i2c_board_info i2c_bma150 = {
-        I2C_BOARD_INFO(BMA150_I2C_NAME, 0x38),
-        .platform_data = &gsensor_platform_data,
-        .irq = HERO_GPIO_TO_INT(HERO_GPIO_GSENSOR_INT_N),
-	};
+	I2C_BOARD_INFO(BMA150_I2C_NAME, 0x38),
+	.platform_data = &gsensor_platform_data,
+	.irq = HERO_GPIO_TO_INT(HERO_GPIO_GSENSOR_INT_N),
+};
 
 static struct i2c_board_info i2c_devices[] = {
-        {
-                I2C_BOARD_INFO(SYNAPTICS_I2C_RMI_NAME, 0x20),
-                .platform_data = &hero_ts_data,
-                .irq = 0xc9
-        },
-        {
-                I2C_BOARD_INFO(CYPRESS_TMG_NAME, 0x13),
-                .platform_data = &hero_cypress_ts_data,
-                .irq = 0xc9
-        },
+	{
+		I2C_BOARD_INFO(SYNAPTICS_I2C_RMI_NAME, 0x20),
+		.platform_data = &hero_ts_data,
+		.irq = MSM_GPIO_TO_INT(HERO_GPIO_TP_ATT_N)
+	},
+	{
+		I2C_BOARD_INFO(CYPRESS_TMG_NAME, 0x13),
+		.platform_data = &hero_cypress_ts_data,
+		.irq = MSM_GPIO_TO_INT(HERO_GPIO_TP_ATT_N)
+	},
 	{
 		I2C_BOARD_INFO(MICROP_I2C_NAME, 0xCC >> 1),
 		.platform_data = &microp_data,
 		.irq = HERO_GPIO_TO_INT(HERO_GPIO_UP_INT_N)
 	},
-        {
-                I2C_BOARD_INFO(AKM8973_I2C_NAME, 0x1C),
-                .platform_data = &compass_platform_data,
-                .irq = HERO_GPIO_TO_INT(HERO_GPIO_COMPASS_INT_N),
-        },
+	{
+		I2C_BOARD_INFO(AKM8973_I2C_NAME, 0x1C),
+		.platform_data = &compass_platform_data,
+		.irq = HERO_GPIO_TO_INT(HERO_GPIO_COMPASS_INT_N),
+	},
 
 #ifdef CONFIG_MSM_CAMERA
 #ifdef CONFIG_MT9P012
@@ -1140,8 +1121,6 @@ static struct platform_device hero_snd = {
 };
 
 #ifdef CONFIG_MSM_CAMERA
-void config_hero_camera_on_gpios(void);
-void config_hero_camera_on_gpios(void);
 static struct msm_camera_device_platform_data msm_camera_device_data = {
 	.camera_gpio_on  = config_hero_camera_on_gpios,
 	.camera_gpio_off = config_hero_camera_off_gpios,
@@ -1172,14 +1151,14 @@ static struct platform_device msm_camera_sensor_mt9t013 = {
 static struct msm_camera_sensor_info msm_camera_sensor_mt9p012_data = {
 	.sensor_name	= "mt9p012",
 	.sensor_reset	= 108,
-	.sensor_pwd	= 85,
-	.vcm_pwd        = HERO_GPIO_VCM_PWDN,
-	.pdata		= &msm_camera_device_data,
+	.sensor_pwd		= 85,
+	.vcm_pwd		= HERO_GPIO_VCM_PWDN,
+	.pdata			= &msm_camera_device_data,
 };
 
 static struct platform_device msm_camera_sensor_mt9p012 = {
-	.name           = "msm_camera_mt9p012",
-	.dev            = {
+	.name		= "msm_camera_mt9p012",
+	.dev		= {
 		.platform_data = &msm_camera_sensor_mt9p012_data,
 	},
 };
@@ -1406,11 +1385,11 @@ static struct msm_acpu_clock_platform_data hero_clock_data = {
 	.max_speed_delta_khz = 256000,
 	.vdd_switch_time_us = 62,
 	.power_collapse_khz = 19200000,
-#if defined(CONFIG_TURBO_MODE) 
-        .wait_for_irq_khz = 176000000, 
-#else 
-        .wait_for_irq_khz = 128000000, 
-#endif 
+#if defined(CONFIG_TURBO_MODE)
+	.wait_for_irq_khz = 176000000,
+#else
+	.wait_for_irq_khz = 128000000,
+#endif
 };
 
 #ifdef CONFIG_SERIAL_MSM_HS
@@ -1497,9 +1476,7 @@ static void __init hero_init(void)
 	if(system_rev != 0x80)
 		hero_search_button_info.keymap = hero_search_button_v1;
 
-	if (is_12pin_camera())
-		gpio_tp_ls_en = HERO20_TP_LS_EN;
-	gpio_request(gpio_tp_ls_en, "tp_ls_en");
+	gpio_request( HERO_TP_LS_EN, "tp_ls_en");
 
 	i2c_register_board_info(0, i2c_devices, ARRAY_SIZE(i2c_devices));
 	platform_add_devices(devices, ARRAY_SIZE(devices));

@@ -168,9 +168,9 @@
 #define HERO_GPIO_INT_B0_STAT_REG           (0x0e)	/*INT1 STATUS*/
 
 /* LED control register */
-#define HERO_CPLD_LED_BASE									(HERO_CPLD_BASE + 0x10)		/* VA */
-#define HERO_CPLD_LED_START									(HERO_CPLD_START + 0x10)	/* PA */
-#define HERO_CPLD_LED_SIZE									0x08
+#define HERO_CPLD_LED_BASE					(HERO_CPLD_BASE + 0x10)		/* VA */
+#define HERO_CPLD_LED_START					(HERO_CPLD_START + 0x10)	/* PA */
+#define HERO_CPLD_LED_SIZE					0x08
 
 /* MISCn: GPO pin to Enable/Disable some functions. */
 #define HERO_GPIO_MISC1_BASE               	(HERO_GPIO_START + 0x00)
@@ -194,7 +194,7 @@
 #define HERO_GPIO_H2W_SEL1                 	(HERO_GPIO_MISC2_BASE + 7)
 
 #define HERO_GPIO_I2C_PULL                 	(HERO_GPIO_MISC3_BASE + 2)
-//#define HERO_GPIO_TP_EN                    	(HERO_GPIO_MISC3_BASE + 4)
+//#define HERO_GPIO_TP_EN					(HERO_GPIO_MISC3_BASE + 4)
 #define HERO_GPIO_JOG_EN                   	(HERO_GPIO_MISC3_BASE + 5)
 #define HERO_GPIO_JOG_LED_EN               	(HERO_GPIO_MISC3_BASE + 6)
 #define HERO_GPIO_APKEY_LED_EN             	(HERO_GPIO_MISC3_BASE + 7)
@@ -214,46 +214,46 @@
 /* INT STATUS/LEVEL/MASK : INT GPIO should be the last. */
 #define HERO_GPIO_NAVI_ACT_N           		(HERO_GPIO_INT_B0_BASE + 0)
 #define HERO_GPIO_COMPASS_IRQ         		(HERO_GPIO_INT_B0_BASE + 1)
-#define HERO_GPIO_SEARCH_ACT_N			(HERO_GPIO_INT_B0_BASE + 2)
+#define HERO_GPIO_SEARCH_ACT_N				(HERO_GPIO_INT_B0_BASE + 2)
 #define HERO_GPIO_AUD_HSMIC_DET_N      		(HERO_GPIO_INT_B0_BASE + 3)
-//#define HERO_GPIO_SDMC_CD_N      		(HERO_GPIO_INT_B0_BASE + 4)
+//#define HERO_GPIO_SDMC_CD_N				(HERO_GPIO_INT_B0_BASE + 4)
 #define HERO_GPIO_CAM_BTN_STEP1_N          	(HERO_GPIO_INT_B0_BASE + 5)
 #define HERO_GPIO_CAM_BTN_STEP2_N          	(HERO_GPIO_INT_B0_BASE + 6)
-#define HERO_GPIO_TP_ATT_N            		(HERO_GPIO_INT_B0_BASE + 7)
+//#define HERO_GPIO_TP_ATT_N				(HERO_GPIO_INT_B0_BASE + 7)
 
-#define	HERO_GPIO_END						HERO_GPIO_TP_ATT_N
-#define	HERO_GPIO_LAST_INT					(HERO_GPIO_TP_ATT_N)
+#define HERO_GPIO_END						(HERO_GPIO_INT_B0_BASE + 7)
+#define HERO_GPIO_LAST_INT					(HERO_GPIO_INT_B0_BASE + 7)
 
 /* Bit position in the CPLD MISCn by the CPLD GPIOn: only bit0-7 is used. */
-#define	CPLD_GPIO_BIT_POS_MASK(n)		(1U << ((n) & 7))
-#define	CPLD_GPIO_REG_OFFSET(n)			_g_CPLD_MISCn_Offset[((n)-HERO_GPIO_START) >> 3]
-#define	CPLD_GPIO_REG(n)				(CPLD_GPIO_REG_OFFSET(n) + HERO_CPLD_BASE)
+#define CPLD_GPIO_BIT_POS_MASK(n)		(1U << ((n) & 7))
+#define CPLD_GPIO_REG_OFFSET(n)			_g_CPLD_MISCn_Offset[((n)-HERO_GPIO_START) >> 3]
+#define CPLD_GPIO_REG(n)				(CPLD_GPIO_REG_OFFSET(n) + HERO_CPLD_BASE)
 
 /*
 ** CPLD INT Start
 */
 #define HERO_INT_START 					(NR_MSM_IRQS + NR_GPIO_IRQS)	/* pseudo number for CPLD INT */
 /* Using INT status/Bank0 for GPIO to INT */
-#define	HERO_GPIO_TO_INT(n)				((n-HERO_GPIO_INT_B0_BASE) + HERO_INT_START)
+#define HERO_GPIO_TO_INT(n)				((n-HERO_GPIO_INT_B0_BASE) + HERO_INT_START)
 #define HERO_INT_END 					(HERO_GPIO_TO_INT(HERO_GPIO_END))
 
 /* get the INT reg by GPIO number */
-#define	CPLD_INT_GPIO_TO_BANK(n)			(((n)-HERO_GPIO_INT_B0_BASE) >> 3)
-#define	CPLD_INT_STATUS_REG_OFFSET_G(n)		_g_INT_BANK_Offset[CPLD_INT_GPIO_TO_BANK(n)][0]
-#define	CPLD_INT_LEVEL_REG_OFFSET_G(n)		_g_INT_BANK_Offset[CPLD_INT_GPIO_TO_BANK(n)][1]
-#define	CPLD_INT_MASK_REG_OFFSET_G(n)		_g_INT_BANK_Offset[CPLD_INT_GPIO_TO_BANK(n)][2]
-#define	CPLD_INT_STATUS_REG_G(n)			(HERO_CPLD_BASE + CPLD_INT_STATUS_REG_OFFSET_G(n))
-#define	CPLD_INT_LEVEL_REG_G(n)				(HERO_CPLD_BASE + CPLD_INT_LEVEL_REG_OFFSET_G(n))
-#define	CPLD_INT_MASK_REG_G(n)				(HERO_CPLD_BASE + CPLD_INT_MASK_REG_OFFSET_G(n))
+#define CPLD_INT_GPIO_TO_BANK(n)			(((n)-HERO_GPIO_INT_B0_BASE) >> 3)
+#define CPLD_INT_STATUS_REG_OFFSET_G(n)		_g_INT_BANK_Offset[CPLD_INT_GPIO_TO_BANK(n)][0]
+#define CPLD_INT_LEVEL_REG_OFFSET_G(n)		_g_INT_BANK_Offset[CPLD_INT_GPIO_TO_BANK(n)][1]
+#define CPLD_INT_MASK_REG_OFFSET_G(n)		_g_INT_BANK_Offset[CPLD_INT_GPIO_TO_BANK(n)][2]
+#define CPLD_INT_STATUS_REG_G(n)			(HERO_CPLD_BASE + CPLD_INT_STATUS_REG_OFFSET_G(n))
+#define CPLD_INT_LEVEL_REG_G(n)				(HERO_CPLD_BASE + CPLD_INT_LEVEL_REG_OFFSET_G(n))
+#define CPLD_INT_MASK_REG_G(n)				(HERO_CPLD_BASE + CPLD_INT_MASK_REG_OFFSET_G(n))
 
 /* get the INT reg by INT number */
-#define	CPLD_INT_TO_BANK(i)					((i-HERO_INT_START) >> 3)
-#define	CPLD_INT_STATUS_REG_OFFSET(i)		_g_INT_BANK_Offset[CPLD_INT_TO_BANK(i)][0]
-#define	CPLD_INT_LEVEL_REG_OFFSET(i)		_g_INT_BANK_Offset[CPLD_INT_TO_BANK(i)][1]
-#define	CPLD_INT_MASK_REG_OFFSET(i)			_g_INT_BANK_Offset[CPLD_INT_TO_BANK(i)][2]
-#define	CPLD_INT_STATUS_REG(i)				(HERO_CPLD_BASE + CPLD_INT_STATUS_REG_OFFSET(i))
-#define	CPLD_INT_LEVEL_REG(i)				(HERO_CPLD_BASE + CPLD_INT_LEVEL_REG_OFFSET(i))
-#define	CPLD_INT_MASK_REG(i)				(HERO_CPLD_BASE + CPLD_INT_MASK_REG_OFFSET(i) )
+#define CPLD_INT_TO_BANK(i)					((i-HERO_INT_START) >> 3)
+#define CPLD_INT_STATUS_REG_OFFSET(i)		_g_INT_BANK_Offset[CPLD_INT_TO_BANK(i)][0]
+#define CPLD_INT_LEVEL_REG_OFFSET(i)		_g_INT_BANK_Offset[CPLD_INT_TO_BANK(i)][1]
+#define CPLD_INT_MASK_REG_OFFSET(i)			_g_INT_BANK_Offset[CPLD_INT_TO_BANK(i)][2]
+#define CPLD_INT_STATUS_REG(i)				(HERO_CPLD_BASE + CPLD_INT_STATUS_REG_OFFSET(i))
+#define CPLD_INT_LEVEL_REG(i)				(HERO_CPLD_BASE + CPLD_INT_LEVEL_REG_OFFSET(i))
+#define CPLD_INT_MASK_REG(i)				(HERO_CPLD_BASE + CPLD_INT_MASK_REG_OFFSET(i) )
 
 /* return the bit mask by INT number */
 #define HERO_INT_BIT_MASK(i) 			(1U << ((i - HERO_INT_START) & 7))
@@ -310,7 +310,7 @@
                         { {  1,  0, 0}, { 0,  0, 1}, {0, 1, 0} }  \
                                                                 }
 #define HERO_GPIO_MDDI_BRIDGE_ID        (85)
-//#define HERO_GPIO_TP_ATT_N              (90)
+#define HERO_GPIO_TP_ATT_N              (137)
 //#define HERO_GPIO_VCM_PWDN              (91)
 #define HERO_GPIO_CAM_RST_N             (92)
 #define HERO_GPIO_EXT_3V_EN             (93)
