@@ -310,7 +310,7 @@
                         { {  1,  0, 0}, { 0,  0, 1}, {0, 1, 0} }  \
                                                                 }
 #define HERO_GPIO_MDDI_BRIDGE_ID        (85)
-#define HERO_GPIO_TP_ATT_N              (137)
+#define HERO_GPIO_TP_ATT_N              (90)
 //#define HERO_GPIO_VCM_PWDN              (91)
 #define HERO_GPIO_CAM_RST_N             (92)
 #define HERO_GPIO_EXT_3V_EN             (93)
