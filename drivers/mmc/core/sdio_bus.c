@@ -158,6 +158,35 @@ static int sdio_bus_remove(struct device *dev)
 	return 0;
 }
 
+#ifdef CONFIG_WIMAX
+static int sdio_bus_suspend(struct device *dev, pm_message_t state)
+{
+	struct sdio_driver *drv = to_sdio_driver(dev->driver);
+	struct sdio_func *func = dev_to_sdio_func(dev);
+	int ret = 0;
+
+	if (dev->driver && drv->suspend) {
+		ret = drv->suspend(func, state);
+	}
+
+	return ret;
+}
+
+
+static int sdio_bus_resume(struct device *dev)
+{
+	struct sdio_driver *drv = to_sdio_driver(dev->driver);
+	struct sdio_func *func = dev_to_sdio_func(dev);
+	int ret = 0;
+
+	if (dev->driver && drv->resume) {
+		ret = drv->resume(func);
+	}
+
+	return ret;
+}
+#endif
+
 static struct bus_type sdio_bus_type = {
 	.name		= "sdio",
 	.dev_attrs	= sdio_dev_attrs,
@@ -165,6 +194,10 @@ static struct bus_type sdio_bus_type = {
 	.uevent		= sdio_bus_uevent,
 	.probe		= sdio_bus_probe,
 	.remove		= sdio_bus_remove,
+#ifdef CONFIG_WIMAX
+	.suspend	= sdio_bus_suspend,
+	.resume	= sdio_bus_resume,
+#endif
 };
 
 int sdio_register_bus(void)
