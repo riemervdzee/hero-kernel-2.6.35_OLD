@@ -591,7 +591,7 @@ static struct i2c_board_info i2c_devices[] = {
 	{
 		I2C_BOARD_INFO(MICROP_I2C_NAME, 0xCC >> 1),
 		.platform_data = &microp_data,
-		.irq = HERO_GPIO_TO_INT(HERO_GPIO_UP_INT_N)
+		.irq = MSM_GPIO_TO_INT(HERO_GPIO_UP_INT_N)
 	},
 	{
 		I2C_BOARD_INFO(AKM8973_I2C_NAME, 0x1C),
@@ -1196,9 +1196,9 @@ static struct platform_device *devices[] __initdata = {
 //	&hero_nav_device,
 	&hero_search_button_device,
 //	&hero_reset_keys_device,
-	&android_leds,
+//	&android_leds,
 #ifdef CONFIG_LEDS_CPLD
-	&android_CPLD_leds,
+//	&android_CPLD_leds,
 #endif
 #ifdef CONFIG_HTC_HEADSET
 	&hero_h2w,
@@ -1477,25 +1477,32 @@ static void __init hero_init(void)
 		hero_search_button_info.keymap = hero_search_button_v1;
 
 	gpio_request( HERO_TP_LS_EN, "tp_ls_en");
-
-	i2c_register_board_info(0, i2c_devices, ARRAY_SIZE(i2c_devices));
 	platform_add_devices(devices, ARRAY_SIZE(devices));
 	
 	i2c_register_board_info(0, &i2c_bma150, 1);
 
-//	if (hero_engineerid() || system_rev > 2) {
-//		if (system_rev >= 4) {
-//			microp_data.num_pins = ARRAY_SIZE(microp_pins_skuid_3);
-//			microp_data.pin_config = microp_pins_skuid_3;
-//		} else if (system_rev >= 3) {
-//			microp_data.num_pins = ARRAY_SIZE(microp_pins_skuid_2);
-//			microp_data.pin_config = microp_pins_skuid_2;
-//		} else {
-//			microp_data.num_pins = ARRAY_SIZE(microp_pins_skuid_1);
-//			microp_data.pin_config = microp_pins_skuid_1;
-//		}
-//		microp_data.cabc_backlight_enable = 1;
-//	}
+	if (hero_engineerid() || system_rev > 2) {
+		if (system_rev >= 4) {
+			microp_data.num_pins = ARRAY_SIZE(microp_pins_skuid_3);
+			microp_data.pin_config = microp_pins_skuid_3;
+			printk(KERN_DEBUG "Using microp_pins_skuid_3");
+		} else if (system_rev == 3) {
+			microp_data.num_pins = ARRAY_SIZE(microp_pins_skuid_2);
+			microp_data.pin_config = microp_pins_skuid_2;
+			printk(KERN_DEBUG "Using microp_pins_skuid_2");
+		} else {
+			microp_data.num_pins = ARRAY_SIZE(microp_pins_skuid_1);
+			microp_data.pin_config = microp_pins_skuid_1;
+			printk(KERN_DEBUG "Using microp_pins_skuid_1");
+		}
+		microp_data.cabc_backlight_enable = 1;
+	}
+	else {
+		// We don't set anything here, as skuid_0 is default
+		printk(KERN_DEBUG "Using microp_pins_skuid_0");
+	}
+
+	i2c_register_board_info(0, i2c_devices, ARRAY_SIZE(i2c_devices));
 
 #ifdef CONFIG_HTC_AUDIO_JACK
 	if (hero_get_skuid() == 0x22800) {
@@ -1553,8 +1560,6 @@ unsigned int is_12pin_camera(void)
 
 	if (hero_get_skuid() == 0x1FF00 || hero_get_skuid() == 0x20100 || hero_get_skuid() == 0x22800)
 		ret = 1;
-	else
-		ret = 0;
 	return ret;
 }
 
@@ -1567,100 +1572,18 @@ int hero_get_smi_size(void)
 static void __init hero_fixup(struct machine_desc *desc, struct tag *tags,
 				  char **cmdline, struct meminfo *mi)
 {
-	smi_sz = parse_tag_smi((const struct tag *)tags);
-	printk("hero_fixup:smisize=%d\n", smi_sz);
-	hwid = parse_tag_hwid((const struct tag *)tags);
-	printk("hero_fixup:hwid=0x%x\n", hwid);
-	skuid = parse_tag_skuid((const struct tag *)tags);
-	printk("hero_fixup:skuid=0x%x\n", skuid);
-	engineerid = parse_tag_engineerid((const struct tag *)tags);
-	printk("hero_fixup:engineerid=0x%x\n", engineerid);
-	die_sz = parse_tag_monodie((const struct tag *)tags);
-	printk("hero_fixup:diesize=0x%x\n", die_sz);
+	// Get tags
+	smi_sz		= parse_tag_smi((const struct tag *)tags);
+	hwid		= parse_tag_hwid((const struct tag *)tags);
+	skuid		= parse_tag_skuid((const struct tag *)tags);
+	engineerid	= parse_tag_engineerid((const struct tag *)tags);
+	die_sz		= parse_tag_monodie((const struct tag *)tags);
 
-	mi->nr_banks = 1;
-	mi->bank[0].start = PHYS_OFFSET;
-	mi->bank[0].node = PHYS_TO_NID(PHYS_OFFSET);
-#if	defined(CONFIG_MSM_AMSS_SUPPORT_256MB_EBI1)
-	if (smi_sz == 32) {
-		switch (hero_get_die_size()) {
-		case EBI1_DUAL_128MB_128MB:
-			mi->nr_banks = 2;
-#ifdef CONFIG_HOLES_IN_ZONE
-			mi->bank[0].size = 0x6d00000;
-#else
-			mi->bank[0].size = 0x6c00000;
-#endif
-			mi->bank[1].start = 0x20000000;
-			mi->bank[1].size = 0x5800000;
-			mi->bank[1].node = PHYS_TO_NID(0x20000000);
-			break;
-		case EBI1_MONO_256MB:
-			mi->nr_banks = 2;
-#ifdef CONFIG_HOLES_IN_ZONE
-			mi->bank[0].size = 0x6d00000;
-#else
-			mi->bank[0].size = 0x6c00000;
-#endif
-			mi->bank[1].start = 0x18000000;
-			mi->bank[1].size = 0x5800000;
-			mi->bank[1].node = PHYS_TO_NID(0x18000000);
-			break;
-		default:
-			mi->bank[0].size = MSM_EBI_SMI32_256MB_SIZE;
-			break;
-		}
-	} else if (smi_sz == 64) {
-		mi->bank[0].size = MSM_EBI_SMI64_128MB_SIZE;
-	} else {
-		printk(KERN_ERR "can not get smi size\n");
-
-		/*Give a default value when not get smi size*/
-		smi_sz = 64;
-		mi->bank[0].size = MSM_EBI_SMI64_128MB_SIZE;
-		printk(KERN_ERR "use default  :  smisize=%d\n", smi_sz);
-	}
-#else
-	if (smi_sz == 32) {
-		switch (hero_get_die_size()) {
-		case EBI1_DUAL_128MB_128MB:
-			mi->nr_banks = 2;
-#ifdef CONFIG_HOLES_IN_ZONE
-			mi->bank[0].size = 0x6d00000;
-#else
-			mi->bank[0].size = 0x6c00000;
-#endif
-			mi->bank[1].start = 0x20000000;
-			mi->bank[1].size = 0x5800000;
-			mi->bank[1].node = PHYS_TO_NID(0x20000000);
-			break;
-		case EBI1_MONO_256MB:
-			mi->nr_banks = 2;
-#ifdef CONFIG_HOLES_IN_ZONE
-			mi->bank[0].size = 0x6d00000;
-#else
-			mi->bank[0].size = 0x6c00000;
-#endif
-			mi->bank[1].start = 0x18000000;
-			mi->bank[1].size = 0x5800000;
-			mi->bank[1].node = PHYS_TO_NID(0x18000000);
-			break;
-		default:
-			mi->bank[0].size = (84*1024*1024);
-			break;
-		}
-	} else if (smi_sz == 64) {
-		mi->bank[0].size = SMI64_MSM_LINUX_SIZE;	//(101*1024*1024);
-	} else {
-		printk(KERN_ERR "can not get smi size\n");
-
-		/*Give a default value when not get smi size*/
-		smi_sz = 64;
-		mi->bank[0].size = SMI64_MSM_LINUX_SIZE;	//(101*1024*1024);
-		printk(KERN_ERR "use default  :  smisize=%d\n", smi_sz);
-	}
-#endif
-	printk("hero_fixup:bank size=0x%x\n", mi->bank[0].size);
+	// Set bank info
+	mi->nr_banks		= 1;
+	mi->bank[0].start	= PHYS_OFFSET;
+	mi->bank[0].node	= PHYS_TO_NID(PHYS_OFFSET);
+	mi->bank[0].size	= MSM_EBI_SMI32_256MB_SIZE;
 }
 
 static void __init hero_map_io(void)
@@ -1676,11 +1599,7 @@ MACHINE_START(HERO, "hero")
 	.phys_io        = MSM_DEBUG_UART_PHYS,
 	.io_pg_offst    = ((MSM_DEBUG_UART_BASE) >> 18) & 0xfffc,
 #endif
-#if defined(CONFIG_MSM_AMSS_SUPPORT_256MB_EBI1)
 	.boot_params    = 0x19200100,
-#else
-	.boot_params    = 0x10000100,
-#endif
 	.fixup          = hero_fixup,
 	.map_io         = hero_map_io,
 	.init_irq       = hero_init_irq,

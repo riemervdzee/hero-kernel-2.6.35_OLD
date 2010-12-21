@@ -2818,8 +2818,9 @@ static int microp_i2c_probe(struct i2c_client *client
 	INIT_DELAYED_WORK(&auto_bl_delay_work,
 			microp_i2c_auto_bl_work_func);
 
+	// Riemer: Does not work
 	/* Light Sensor */
-	cdata->ls_input_dev = input_allocate_device();
+	/*cdata->ls_input_dev = input_allocate_device();
 	if (!cdata->ls_input_dev) {
 		pr_err("%s: could not allocate input device\n", __func__);
 		ret = -ENOMEM;
@@ -2841,7 +2842,7 @@ static int microp_i2c_probe(struct i2c_client *client
 		dev_err(&client->dev, "%s: can not register misc device\n",
 				__func__);
 		goto err_register_misc_register;
-	}
+	}*/
 
 #ifdef CONFIG_HAS_EARLYSUSPEND
 	if (cdata->enable_early_suspend)	{
