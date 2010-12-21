@@ -265,7 +265,7 @@ static inline void mmc_set_bus_resume_policy(struct mmc_host *host, int manual)
 
 extern int mmc_resume_bus(struct mmc_host *host);
 
-extern int mmc_suspend_host(struct mmc_host *);
+extern int mmc_suspend_host(struct mmc_host *, pm_message_t);
 extern int mmc_resume_host(struct mmc_host *);
 
 extern void mmc_power_save_host(struct mmc_host *host);
