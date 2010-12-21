@@ -137,7 +137,7 @@ static struct mmc_platform_data supersonic_sdslot_data = {
 	.ocr_mask	= SUPERSONIC_MMC_VDD,
 	.status		= supersonic_sdslot_status,
 	.translate_vdd	= supersonic_sdslot_switchvdd,
-//	.slot_type	= &supersonic_sdslot_type,
+	.slot_type	= &supersonic_sdslot_type,
 };
 
 int msm_add_sdcc(unsigned int controller, struct mmc_platform_data *plat,
@@ -286,8 +286,9 @@ static uint32_t wimax_off_gpio_table[] = {
 
 static void (*wimax_status_cb)(int card_present, void *dev_id);
 static void *wimax_status_cb_devid;
-static int supersonic_wimax_cd = 0;
-static int supersonic_wimax_sdio_status = 0;
+static int mmc_wimax_cd = 0;
+static int mmc_wimax_sdio_status = 0;
+static int mmc_wimax_hostwakeup_gpio = 40; // GPIO40
 
 static int supersonic_wimax_status_register(void (*callback)(int card_present, void *dev_id), void *dev_id)
 {
@@ -302,25 +303,28 @@ static int supersonic_wimax_status_register(void (*callback)(int card_present, v
 static unsigned int supersonic_wimax_status(struct device *dev)
 {
 	printk("%s\n", __func__);
-	return supersonic_wimax_cd;
+	return mmc_wimax_cd;
 }
 
-void supersonic_wimax_set_carddetect(int val)
+void mmc_wimax_set_carddetect(int val)
 {
 	printk("%s: %d\n", __func__, val);
-	supersonic_wimax_cd = val;
+	mmc_wimax_cd = val;
 	if (wimax_status_cb) {
 		wimax_status_cb(val, wimax_status_cb_devid);
 	} else
 		printk(KERN_WARNING "%s: Nobody to notify\n", __func__);
 }
-EXPORT_SYMBOL(supersonic_wimax_set_carddetect);
+EXPORT_SYMBOL(mmc_wimax_set_carddetect);
+
+static unsigned int supersonic_wimax_type = MMC_TYPE_SDIO_WIMAX;
 
 static struct mmc_platform_data supersonic_wimax_data = {
 	.ocr_mask		= MMC_VDD_27_28 | MMC_VDD_28_29 | MMC_VDD_29_30,
 	.status			= supersonic_wimax_status,
 	.register_status_notify	= supersonic_wimax_status_register,
 	.embedded_sdio		= NULL,
+	.slot_type		= &supersonic_wimax_type,
 };
 
 struct _vreg
@@ -341,7 +345,7 @@ XB : GPIO33 = 0 -> USB
     GPIO33 = 1 , GPIO160 = 0 -> CPU UART
     GPIO33 = 1 , GPIO160 = 1 -> Wimax UART
 */
-int supersonic_wimax_uart_switch(int uart)
+int mmc_wimax_uart_switch(int uart)
 {
 	printk("%s uart:%d\n", __func__, uart);
 	
@@ -350,9 +354,9 @@ int supersonic_wimax_uart_switch(int uart)
 		gpio_set_value(SUPERSONIC_WIMAX_CPU_UARTz_SW, uart==2?1:0);
 	return uart?1:0; 
 }
-EXPORT_SYMBOL(supersonic_wimax_uart_switch);
+EXPORT_SYMBOL(mmc_wimax_uart_switch);
 
-int supersonic_wimax_power(int on)
+int mmc_wimax_power(int on)
 {
 	printk("%s\n", __func__);
 
@@ -389,22 +393,28 @@ int supersonic_wimax_power(int on)
 	}
 	return 0;
 }
-EXPORT_SYMBOL(supersonic_wimax_power);
+EXPORT_SYMBOL(mmc_wimax_power);
 
-int supersonic_wimax_set_status(int on)
+int mmc_wimax_set_status(int on)
 {
 	printk(KERN_INFO "%s on:%d\n", __func__, on);
-	supersonic_wimax_sdio_status = on;
+	mmc_wimax_sdio_status = on;
 	return 0;
 }
-EXPORT_SYMBOL(supersonic_wimax_set_status);
+EXPORT_SYMBOL(mmc_wimax_set_status);
 
-int supersonic_wimax_get_status()
+int mmc_wimax_get_status()
 {
-	//printk(KERN_INFO "%s status:%d\n", __func__, supersonic_wimax_sdio_status);
-	return supersonic_wimax_sdio_status;
+	//printk(KERN_INFO "%s status:%d\n", __func__, mmc_wimax_sdio_status);
+	return mmc_wimax_sdio_status;
 }
-EXPORT_SYMBOL(supersonic_wimax_get_status);
+EXPORT_SYMBOL(mmc_wimax_get_status);
+
+int mmc_wimax_get_hostwakeup_gpio(void)
+{
+	return mmc_wimax_hostwakeup_gpio;
+}
+EXPORT_SYMBOL(mmc_wimax_get_hostwakeup_gpio);
 
 int __init supersonic_init_mmc(unsigned int sys_rev)
 {
@@ -417,6 +427,7 @@ int __init supersonic_init_mmc(unsigned int sys_rev)
 	/* initial WIFI_SHUTDOWN# */
 	id = PCOM_GPIO_CFG(SUPERSONIC_GPIO_WIFI_SHUTDOWN_N, 0, GPIO_OUTPUT, GPIO_NO_PULL, GPIO_2MA),
 	msm_proc_comm(PCOM_RPC_GPIO_TLMM_CONFIG_EX, &id, 0);
+	gpio_set_value(SUPERSONIC_GPIO_WIFI_SHUTDOWN_N, 0);
 
 	msm_add_sdcc(1, &supersonic_wifi_data, 0, 0);
 
