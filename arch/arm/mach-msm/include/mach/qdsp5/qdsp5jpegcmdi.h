@@ -277,7 +277,7 @@ typedef struct {
  * Command to start the encode process
  */
 
-#ifdef MSM_ADSP_COMP
+#ifdef CONFIG_MSM_ADSP_COMP
 #define	JPEG_CMD_ENC_ENCODE		0x0001
 #else
 #define	JPEG_CMD_ENC_ENCODE		0x0000
@@ -294,7 +294,7 @@ typedef struct {
  * Command to transition from current state of encoder to IDLE state
  */
 
-#ifdef MSM_ADSP_COMP
+#ifdef CONFIG_MSM_ADSP_COMP
 #define	JPEG_CMD_ENC_IDLE		0x0006
 #else
 #define	JPEG_CMD_ENC_IDLE		0x0001
@@ -339,7 +339,7 @@ typedef struct {
  * Command to transition from the current state of decoder to IDLE
  */
 
-#ifdef MSM_ADSP_COMP
+#ifdef CONFIG_MSM_ADSP_COMP
 #define	JPEG_CMD_DEC_IDLE	0x0007
 #else
 #define	JPEG_CMD_DEC_IDLE	0x0004
@@ -356,7 +356,7 @@ typedef struct {
  * Command to inform that an op buffer is ready for use
  */
 
-#ifdef MSM_ADSP_COMP
+#ifdef CONFIG_MSM_ADSP_COMP
 #define	JPEG_CMD_DEC_OP_CONSUMED	0x0004
 #else
 #define	JPEG_CMD_DEC_OP_CONSUMED	0x0005
@@ -376,7 +376,7 @@ typedef struct {
  * Command to pass a new ip buffer to the jpeg decoder
  */
 
-#ifdef MSM_ADSP_COMP
+#ifdef CONFIG_MSM_ADSP_COMP
 #define	JPEG_CMD_DEC_IP	0x0005
 #else
 #define	JPEG_CMD_DEC_IP	0x0006

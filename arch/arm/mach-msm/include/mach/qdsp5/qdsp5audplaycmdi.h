@@ -45,7 +45,7 @@ Riemer: added HTC HERO qdsp5_comp library support
 #define AUDPLAY_CMD_BITSTREAM_DATA_AVAIL_LEN	\
 	sizeof(audplay_cmd_bitstream_data_avail)
 
-#ifdef MSM_ADSP_COMP
+#ifdef CONFIG_MSM_ADSP_COMP
 #define AUDPLAY_CMD_AUDDEC_CMD_CHANNEL_INFO		0x0001
 #endif
 
@@ -69,7 +69,7 @@ typedef struct {
 	 * kernel */
 	unsigned int partition_number;
 
-#ifdef MSM_ADSP_COMP
+#ifdef CONFIG_MSM_ADSP_COMP
 	unsigned int dsp_write_phy_addr;
 #endif
 } __attribute__((packed)) audplay_cmd_bitstream_data_avail;
@@ -101,7 +101,7 @@ struct audplay_cmd_buffer_refresh {
 	unsigned int buf1_length;
 } __attribute__((packed));
 
-#ifdef MSM_ADSP_COMP
+#ifdef CONFIG_MSM_ADSP_COMP
 typedef struct {
 	/* command id */
 	unsigned int cmd_id;

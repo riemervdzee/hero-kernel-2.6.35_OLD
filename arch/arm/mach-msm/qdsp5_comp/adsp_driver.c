@@ -21,6 +21,7 @@
 #include <linux/sched.h>
 #include <linux/uaccess.h>
 #include <mach/htc_pwrsink.h>
+#include <linux/slab.h>
 
 #include "adsp.h"
 

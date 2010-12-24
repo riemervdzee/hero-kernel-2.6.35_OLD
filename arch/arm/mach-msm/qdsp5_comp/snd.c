@@ -20,6 +20,7 @@
 #include <linux/uaccess.h>
 #include <linux/kthread.h>
 #include <linux/delay.h>
+#include <linux/slab.h>
 
 #include <asm/atomic.h>
 #include <asm/ioctls.h>

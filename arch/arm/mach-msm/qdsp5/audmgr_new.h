@@ -150,7 +150,7 @@ struct rpc_audmgr_enable_client_args {
 #define AUDMGR_SET_DEVICE_MODE			10
 
 #define AUDMGR_PROG 0x30000013
-#ifdef MSM_ADSP_COMP
+#ifdef CONFIG_MSM_ADSP_COMP
 #define AUDMGR_VERS MSM_RPC_VERS(1,0)
 #endif /* CONFIG_MSM_ADSP_COMP */
 
@@ -176,7 +176,7 @@ struct rpc_audmgr_cb_func_ptr {
 #define AUDMGR_CODEC_LSTR_FUNC_PTR		3
 
 #define AUDMGR_CB_PROG 0x31000013
-#ifdef MSM_ADSP_COMP
+#ifdef CONFIG_MSM_ADSP_COMP
 #define AUDMGR_CB_VERS 0xf8e3e2d9
 #endif /* CONFIG_MSM_ADSP_COMP */
 

@@ -36,7 +36,7 @@ Riemer: added HTC HERO qdsp5_comp library support
 
 ===========================================================================*/
 #define AUDPLAY_MSG_DEC_NEEDS_DATA		0x0001
-#ifdef MSM_ADSP_COMP
+#ifdef CONFIG_MSM_ADSP_COMP
 #define AUDPLAY_MSG_STREAM_INFO			0x0003
 #endif
 

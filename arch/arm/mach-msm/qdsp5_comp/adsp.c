@@ -33,6 +33,7 @@
 #include <linux/module.h>
 #include <linux/uaccess.h>
 #include <linux/wait.h>
+#include <linux/slab.h>
 
 #include <linux/wakelock.h>
 static struct wake_lock adsp_suspend_lock;
@@ -416,7 +417,7 @@ int __msm_adsp_write(struct msm_adsp_module *module, unsigned dsp_queue_addr,
 		return -ENXIO;
 	}
 #if defined(CONFIG_ARCH_MSM7227)
-	if (dsp_queue_addr >= QDSP_MAX_NUM_QUEUES) {
+	if (dsp_queue_addr >= QDSP_QUEUE_MAX) {
 		pr_info("adsp: Invalid Queue Index: %d\n", dsp_queue_addr);
 		return -ENXIO;
 	}
@@ -1168,7 +1169,7 @@ fail_request_irq:
 static struct platform_driver msm_adsp_driver = {
 	.probe = msm_adsp_probe,
 	.driver = {
-		.name = ADSP_DRIVER_NAME,
+		.name = MSM_ADSP_DRIVER_NAME,
 		.owner = THIS_MODULE,
 	},
 };

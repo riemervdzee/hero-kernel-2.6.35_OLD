@@ -27,7 +27,7 @@ struct msm_adsp_ops {
 	 */
 	void (*event)(void *driver_data, unsigned id, size_t len,
 		      void (*getevent)(void *ptr, size_t len));
-#ifdef MSM_ADSP_COMP
+#ifdef CONFIG_MSM_ADSP_COMP
 	void (*modem_event) (void *driver_data, uint32_t image);
 #endif
 };
@@ -43,7 +43,7 @@ void msm_adsp_put(struct msm_adsp_module *module);
 int msm_adsp_enable(struct msm_adsp_module *module);
 int msm_adsp_disable(struct msm_adsp_module *module);
 int adsp_set_clkrate(struct msm_adsp_module *module, unsigned long clk_rate);
-#ifdef MSM_ADSP_COMP
+#ifdef CONFIG_MSM_ADSP_COMP
 int msm_adsp_disable_event_rsp(struct msm_adsp_module *module);
 #endif
 
