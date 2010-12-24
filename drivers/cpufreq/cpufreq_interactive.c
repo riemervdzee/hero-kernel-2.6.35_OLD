@@ -322,7 +322,7 @@ rearm_if_notmax:
 		goto exit;
 
 rearm:
-	if (!timer_pending(&pcpu->cpu_timer)) {
+	if (!timer_pending(&pcpu->cpu_timer) && pcpu->governor_enabled) {
 		/*
 		 * If already at min: if that CPU is idle, don't set timer.
 		 * Else cancel the timer if that CPU goes idle.  We don't
@@ -456,8 +456,6 @@ static int cpufreq_interactive_up_task(void *data)
 				      pcpu->target_freq);
 			}
 
-			smp_rmb();
-
 			if (!pcpu->governor_enabled)
 				continue;
 
@@ -487,6 +485,10 @@ static void cpufreq_interactive_freq_down(struct work_struct *work)
 
 	for_each_cpu(cpu, &tmp_mask) {
 		pcpu = &per_cpu(cpuinfo, cpu);
+
+		if (!pcpu->governor_enabled)
+			continue;
+
 		__cpufreq_driver_target(pcpu->policy,
 					pcpu->target_freq,
 					CPUFREQ_RELATION_H);
@@ -576,7 +578,6 @@ static int cpufreq_governor_interactive(struct cpufreq_policy *new_policy,
 
 	case CPUFREQ_GOV_STOP:
 		pcpu->governor_enabled = 0;
-		smp_wmb();
 		del_timer_sync(&pcpu->cpu_timer);
 		flush_work(&freq_scale_down_work);
 		/*
