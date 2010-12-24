@@ -11,6 +11,7 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.	 See the
  * GNU General Public License for more details.
  *
+ * Riemer: added HTC HERO qdsp5_comp library support
  */
 
 #ifndef __ASM__ARCH_MSM_RPC_VERSION_H
@@ -93,7 +94,7 @@
 
 #elif (CONFIG_MSM_AMSS_VERSION == 6355)
 #define INT_ADSP                               INT_ADSP_A9_A11
-#define MSM_ADSP_DRIVER_NAME                       "rs3000000a:00010001"
+#define MSM_ADSP_DRIVER_NAME                   "rs3000000a:00010001"
 #define RPC_ADSP_RTOS_ATOM_VERS                0x10001 /* 65537 */
 #define RPC_ADSP_RTOS_MTOA_VERS                0x20001 /* 131073 */
 #define AUDMGR_VERS                            0x10002 /* 65538 */
@@ -103,8 +104,16 @@
 #define TIME_REMOTE_MTOA_VERS                  0x10001 /* 65537 */
 #define RPC_SND_VERS                           0x10001
 #define RPC_SND_CB_VERS                        0x10001
-#define PM_LIBVERS	  MSM_RPC_VERS(1,1)
-#define HTC_PROCEDURE_SET_VIB_ON_OFF	21
+#ifdef MSM_ADSP_COMP
+#define VOCPCM_REGISTER_PCM_INPUT_CLIENT_PROC  23
+#define VOCPCM_REGISTER_PCM_OUTPUT_CLIENT_PROC 24
+#define APP_TIMEREMOTE_PDEV_NAME               "rs30000048:00010001"
+#define PM_LIBVERS                             0x10001
+#else
+// #TODO Check if same as above
+#define PM_LIBVERS	                           MSM_RPC_VERS(1,1)
+#endif
+#define HTC_PROCEDURE_SET_VIB_ON_OFF           21
 
 #elif (CONFIG_MSM_AMSS_VERSION == 4001)
 #define INT_ADSP                               INT_ADSP_A9_A11
