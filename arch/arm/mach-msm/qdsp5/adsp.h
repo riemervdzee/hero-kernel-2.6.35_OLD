@@ -13,6 +13,7 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
+ * Riemer: added HTC HERO qdsp5_comp library support
  */
 
 #ifndef _ARCH_ARM_MACH_MSM_ADSP_H
@@ -128,6 +129,24 @@ struct adsp_info {
 #define RPC_ADSP_RTOS_MTOA_NULL_PROC 0
 #define RPC_ADSP_RTOS_APP_TO_MODEM_PROC 2
 #define RPC_ADSP_RTOS_MODEM_TO_APP_PROC 2
+
+#ifdef MSM_ADSP_COMP
+#if CONFIG_MSM_AMSS_VERSION >= 6350
+#define RPC_ADSP_RTOS_ATOM_VERS MSM_RPC_VERS(1,0)
+#define RPC_ADSP_RTOS_MTOA_VERS MSM_RPC_VERS(2,1) /* must be actual vers */
+#define MSM_ADSP_DRIVER_NAME "rs3000000a:00010000"
+#elif (CONFIG_MSM_AMSS_VERSION == 6220) || (CONFIG_MSM_AMSS_VERSION == 6225)
+#define RPC_ADSP_RTOS_ATOM_VERS MSM_RPC_VERS(0x71d1094b, 0)
+#define RPC_ADSP_RTOS_MTOA_VERS MSM_RPC_VERS(0xee3a9966, 0)
+#define MSM_ADSP_DRIVER_NAME "rs3000000a:71d1094b"
+#elif CONFIG_MSM_AMSS_VERSION == 6210
+#define RPC_ADSP_RTOS_ATOM_VERS MSM_RPC_VERS(0x20f17fd3, 0)
+#define RPC_ADSP_RTOS_MTOA_VERS MSM_RPC_VERS(0x75babbd6, 0)
+#define MSM_ADSP_DRIVER_NAME "rs3000000a:20f17fd3"
+#else
+#error "Unknown AMSS version"
+#endif
+#endif /* CONFIG_MSM_ADSP_COMP */
 
 enum rpc_adsp_rtos_proc_type {
 	RPC_ADSP_RTOS_PROC_NONE = 0,

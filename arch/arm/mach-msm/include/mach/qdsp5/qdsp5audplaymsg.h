@@ -32,9 +32,14 @@ This section contains comments describing changes made to this file.
 Notice that changes are listed in reverse chronological order.
 
 $Header: //source/qcom/qct/multimedia2/Audio/drivers/QDSP5Driver/QDSP5Interface/main/latest/qdsp5audplaymsg.h#3 $
+Riemer: added HTC HERO qdsp5_comp library support
 
 ===========================================================================*/
 #define AUDPLAY_MSG_DEC_NEEDS_DATA		0x0001
+#ifdef MSM_ADSP_COMP
+#define AUDPLAY_MSG_STREAM_INFO			0x0003
+#endif
+
 #define AUDPLAY_MSG_DEC_NEEDS_DATA_MSG_LEN	\
 	sizeof(audplay_msg_dec_needs_data)
 

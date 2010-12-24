@@ -39,6 +39,8 @@ Revision History:
 when       who     what, where, why
 --------   ---     ----------------------------------------------------------
 06/09/08   sv      initial version
+
+Riemer: added HTC HERO qdsp5_comp library support
 ===========================================================================*/
 
 /*
@@ -275,7 +277,11 @@ typedef struct {
  * Command to start the encode process
  */
 
+#ifdef MSM_ADSP_COMP
+#define	JPEG_CMD_ENC_ENCODE		0x0001
+#else
 #define	JPEG_CMD_ENC_ENCODE		0x0000
+#endif
 #define	JPEG_CMD_ENC_ENCODE_LEN		sizeof(jpeg_cmd_enc_encode)
 
 
@@ -288,7 +294,11 @@ typedef struct {
  * Command to transition from current state of encoder to IDLE state
  */
 
+#ifdef MSM_ADSP_COMP
+#define	JPEG_CMD_ENC_IDLE		0x0006
+#else
 #define	JPEG_CMD_ENC_IDLE		0x0001
+#endif
 #define	JPEG_CMD_ENC_IDLE_LEN		sizeof(jpeg_cmd_enc_idle)
 
 
@@ -329,7 +339,11 @@ typedef struct {
  * Command to transition from the current state of decoder to IDLE
  */
 
+#ifdef MSM_ADSP_COMP
+#define	JPEG_CMD_DEC_IDLE	0x0007
+#else
 #define	JPEG_CMD_DEC_IDLE	0x0004
+#endif
 #define	JPEG_CMD_DEC_IDLE_LEN	sizeof(jpeg_cmd_dec_idle)
 
 
@@ -342,7 +356,11 @@ typedef struct {
  * Command to inform that an op buffer is ready for use
  */
 
+#ifdef MSM_ADSP_COMP
+#define	JPEG_CMD_DEC_OP_CONSUMED	0x0004
+#else
 #define	JPEG_CMD_DEC_OP_CONSUMED	0x0005
+#endif
 #define	JPEG_CMD_DEC_OP_CONSUMED_LEN	sizeof(jpeg_cmd_dec_op_consumed)
 
 
@@ -358,7 +376,11 @@ typedef struct {
  * Command to pass a new ip buffer to the jpeg decoder
  */
 
+#ifdef MSM_ADSP_COMP
+#define	JPEG_CMD_DEC_IP	0x0005
+#else
 #define	JPEG_CMD_DEC_IP	0x0006
+#endif
 #define	JPEG_CMD_DEC_IP_LEN	sizeof(jpeg_cmd_dec_ip_len)
 
 #define	JPEG_CMD_EOI_INDICATOR_NOT_END	0x0000

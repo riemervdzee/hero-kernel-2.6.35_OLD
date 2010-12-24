@@ -12,6 +12,7 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
+ * Riemer: added HTC HERO qdsp5_comp library support
  */
 
 #ifndef _ARCH_ARM_MACH_MSM_AUDMGR_H
@@ -143,8 +144,20 @@ struct rpc_audmgr_enable_client_args {
 #define AUDMGR_GET_TX_SAMPLE_RATE		9
 #define AUDMGR_SET_DEVICE_MODE			10
 
+#ifdef MSM_ADSP_COMP
+#if CONFIG_MSM_AMSS_VERSION < 6220
+#define AUDMGR_PROG_VERS "rs30000013:46255756"
+#define AUDMGR_PROG 0x30000013
+#define AUDMGR_VERS 0x46255756
+#else
+#define AUDMGR_PROG_VERS "rs30000013:e94e8f0c"
+#define AUDMGR_PROG 0x30000013
+#define AUDMGR_VERS 0xe94e8f0c
+#endif
+#else /* CONFIG_MSM_ADSP_COMP */
 #define AUDMGR_PROG 0x30000013
 #define AUDMGR_CB_PROG 0x31000013
+#endif /* !CONFIG_MSM_ADSP_COMP */
 
 struct rpc_audmgr_cb_func_ptr {
 	uint32_t cb_id;
@@ -160,6 +173,16 @@ struct rpc_audmgr_cb_func_ptr {
 #define AUDMGR_CB_FUNC_PTR			1
 #define AUDMGR_OPR_LSTNR_CB_FUNC_PTR		2
 #define AUDMGR_CODEC_LSTR_FUNC_PTR		3
+
+#ifdef MSM_ADSP_COMP
+#if CONFIG_MSM_AMSS_VERSION < 6220
+#define AUDMGR_CB_PROG 0x31000013
+#define AUDMGR_CB_VERS 0x5fa922a9
+#else
+#define AUDMGR_CB_PROG 0x31000013
+#define AUDMGR_CB_VERS 0x21570ba7
+#endif
+#endif /* CONFIG_MSM_ADSP_COMP */
 
 struct audmgr {
 	wait_queue_head_t wait;
