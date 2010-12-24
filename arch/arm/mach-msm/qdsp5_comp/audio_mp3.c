@@ -199,7 +199,7 @@ static void audplay_dsp_event(void *data, unsigned id, size_t len,
 		}
 		break;
 	default:
-		pr_err("mp3:unexpected message from decoder \n");
+		pr_err("mp3: unexpected message from decoder\n");
 		break;
 	}
 }
