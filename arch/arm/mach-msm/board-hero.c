@@ -618,43 +618,6 @@ static struct i2c_board_info i2c_devices[] = {
 #endif
 };
 
-#ifdef CONFIG_LEDS_CPLD
-static struct resource cpldled_resources[] = {
-	{
-		.start	= HERO_CPLD_LED_BASE,
-		.end	= HERO_CPLD_LED_BASE + HERO_CPLD_LED_SIZE - 1,
-		.flags	= IORESOURCE_MEM,
-	}
-};
-
-static struct platform_device android_CPLD_leds = {
-	.name		= "leds-cpld",
-	.id			= -1,
-	.num_resources	= ARRAY_SIZE(cpldled_resources),
-	.resource	= cpldled_resources,
-};
-#endif
-
-static struct gpio_led android_led_list[] = {
-	{
-		.name = "button-backlight",
-		.gpio = HERO_GPIO_APKEY_LED_EN,
-	},
-};
-
-static struct gpio_led_platform_data android_leds_data = {
-	.num_leds	= ARRAY_SIZE(android_led_list),
-	.leds		= android_led_list,
-};
-
-static struct platform_device android_leds = {
-	.name		= "leds-gpio",
-	.id		= -1,
-	.dev		= {
-		.platform_data = &android_leds_data,
-	},
-};
-
 #ifdef CONFIG_HTC_HEADSET
 /* RTS/CTS to GPO/GPI. */
 static uint32_t uart1_on_gpio_table[] = {
@@ -1003,51 +966,6 @@ static struct msm_pmem_setting pmem_setting_32 = {
 	.ram_console_size = SMI32_MSM_RAM_CONSOLE_SIZE,
 };
 
-static struct msm_pmem_setting pmem_setting_32_mono = {
-	.pmem_start = 0x1e000000,	// MDP_BASE
-	.pmem_size = 0x00800000,	// MDP_SIZE
-	.pmem_adsp_start = 0x1e800000,	// ADSP_BASE
-	.pmem_adsp_size = 0x00800000,	// ADSP_SIZE
-	.pmem_gpu0_start = 0x00000000,	// GPU0_BASE
-	.pmem_gpu0_size = 0x00700000,	// GPU0_SIZE
-	.pmem_gpu1_start = 0x1d800000,	// GPU1_BASE
-	.pmem_gpu1_size = 0x00800000,	// GPU1_SIZE
-	.pmem_camera_start = 0x1f000000,	// CAMERA_BASE
-	.pmem_camera_size = 0x01000000,	// CAMERA_SIZE
-	.ram_console_start = 0x007a0000,	// RAM_CONSOLE_BASE
-	.ram_console_size = 0x00020000,	// RAM_CONSOLE_SIZE
-};
-
-static struct msm_pmem_setting pmem_setting_32_dual = {
-	.pmem_start = 0x26000000,	// MDP_BASE
-	.pmem_size = 0x00800000,	// MDP_SIZE
-	.pmem_adsp_start = 0x26800000,	// ADSP_BASE
-	.pmem_adsp_size = 0x00800000,	// ADSP_SIZE
-	.pmem_gpu0_start = 0x00000000,	// GPU0_BASE
-	.pmem_gpu0_size = 0x00700000,	// GPU0_SIZE
-	.pmem_gpu1_start = 0x25800000,	// GPU1_BASE
-	.pmem_gpu1_size = 0x00800000,	// GPU1_SIZE
-	.pmem_camera_start = 0x27000000,	// CAMERA_BASE
-	.pmem_camera_size = 0x01000000,	// CAMERA_SIZE
-	.ram_console_start = 0x007a0000,	// RAM_CONSOLE_BASE
-	.ram_console_size = 0x00020000,	// RAM_CONSOLE_SIZE
-};
-
-static struct msm_pmem_setting pmem_setting_64 = {
-	.pmem_start = SMI64_MSM_PMEM_MDP_BASE,
-	.pmem_size = SMI64_MSM_PMEM_MDP_SIZE,
-	.pmem_adsp_start = SMI64_MSM_PMEM_ADSP_BASE,
-	.pmem_adsp_size = SMI64_MSM_PMEM_ADSP_SIZE,
-	.pmem_gpu0_start = MSM_PMEM_GPU0_BASE,
-	.pmem_gpu0_size = MSM_PMEM_GPU0_SIZE,
-	.pmem_gpu1_start = SMI64_MSM_PMEM_GPU1_BASE,
-	.pmem_gpu1_size = SMI64_MSM_PMEM_GPU1_SIZE,
-	.pmem_camera_start = SMI64_MSM_PMEM_CAMERA_BASE,
-	.pmem_camera_size = SMI64_MSM_PMEM_CAMERA_SIZE,
-	.ram_console_start = SMI64_MSM_RAM_CONSOLE_BASE,
-	.ram_console_size = SMI64_MSM_RAM_CONSOLE_SIZE,
-};
-
 #ifdef CONFIG_WIFI_CONTROL_FUNC
 static struct platform_device hero_wifi = {
 	.name		= "msm_wifi",
@@ -1196,10 +1114,6 @@ static struct platform_device *devices[] __initdata = {
 //	&hero_nav_device,
 	&hero_search_button_device,
 //	&hero_reset_keys_device,
-//	&android_leds,
-#ifdef CONFIG_LEDS_CPLD
-//	&android_CPLD_leds,
-#endif
 #ifdef CONFIG_HTC_HEADSET
 	&hero_h2w,
 #endif
@@ -1384,11 +1298,11 @@ static struct msm_acpu_clock_platform_data hero_clock_data = {
 	.acpu_switch_time_us = 20,
 	.max_speed_delta_khz = 256000,
 	.vdd_switch_time_us = 62,
-	.power_collapse_khz = 19200000,
+	.power_collapse_khz = 19200,
 #if defined(CONFIG_TURBO_MODE)
-	.wait_for_irq_khz = 176000000,
+	.wait_for_irq_khz = 176000,
 #else
-	.wait_for_irq_khz = 128000000,
+	.wait_for_irq_khz = 128000,
 #endif
 };
 
@@ -1445,21 +1359,7 @@ static void __init hero_init(void)
 #endif
 	msm_add_usb_devices(hero_phy_reset);
 
-	if (32 == smi_sz) {
-		switch (hero_get_die_size()) {
-		case EBI1_DUAL_128MB_128MB:
-			msm_add_mem_devices(&pmem_setting_32_dual);
-			break;
-		case EBI1_MONO_256MB:
-			msm_add_mem_devices(&pmem_setting_32_mono);
-			break;
-		default:
-			msm_add_mem_devices(&pmem_setting_32);
-			break;
-		}
-	} else
-		msm_add_mem_devices(&pmem_setting_64);
-
+	msm_add_mem_devices(&pmem_setting_32);
 	rc = hero_init_mmc(system_rev);
 	if (rc)
 		printk(KERN_CRIT "%s: MMC init failure (%d)\n", __func__, rc);
