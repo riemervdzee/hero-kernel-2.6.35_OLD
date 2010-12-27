@@ -1,6 +1,6 @@
 /* linux/arch/arm/mach-msm/board-hero.c
- * Copyright (C) 2007-2009 HTC Corporation.
- * Author: Thomas Tsai <thomas_tsai@htc.com>
+ *
+ * Copyright (C) 2008 HTC Corporation.
  *
  * This software is licensed under the terms of the GNU General Public
  * License version 2, as published by the Free Software Foundation, and
@@ -605,17 +605,7 @@ static struct i2c_board_info i2c_devices[] = {
 		I2C_BOARD_INFO("mt9p012", 0x6C >> 1),
 	},
 #endif
-#ifdef CONFIG_MT9T013
-	{
-		I2C_BOARD_INFO("mt9t013", 0x6C),
-	},
-#endif
 #endif/*CONIFIG_MSM_CAMERA*/
-#ifdef CONFIG_SENSORS_MT9T013
-	{
-		I2C_BOARD_INFO("mt9t013", 0x6C >> 1),
-	},
-#endif
 };
 
 #ifdef CONFIG_HTC_HEADSET
@@ -1048,23 +1038,6 @@ static struct msm_camera_device_platform_data msm_camera_device_data = {
 	.ioext.appsz  = MSM_CLK_CTL_SIZE,
 };
 
-#ifdef CONFIG_MT9T013
-static struct msm_camera_sensor_info msm_camera_sensor_mt9t013_data = {
-	.sensor_name    = "mt9t013",
-	.sensor_reset   = 108,
-	.sensor_pwd     = 85,
-	.vcm_pwd        = HERO_GPIO_VCM_PWDN,
-	.pdata          = &msm_camera_device_data,
-};
-
-static struct platform_device msm_camera_sensor_mt9t013 = {
-	.name           = "msm_camera_mt9t013",
-	.dev            = {
-		.platform_data = &msm_camera_sensor_mt9t013_data,
-	},
-};
-#endif
-
 #ifdef CONFIG_MT9P012
 static struct msm_camera_sensor_info msm_camera_sensor_mt9p012_data = {
 	.sensor_name	= "mt9p012",
@@ -1083,30 +1056,13 @@ static struct platform_device msm_camera_sensor_mt9p012 = {
 #endif
 #endif/*CONFIG_MSM_CAMERA*/
 
-#ifdef CONFIG_SENSORS_MT9T013
-static struct msm_camera_legacy_device_platform_data msm_camera_device_mt9t013 = {
-	.sensor_reset	= 108,
-	.sensor_pwd	= 85,
-	.vcm_pwd	= HERO_GPIO_VCM_PWDN,
-	.config_gpio_on = config_hero_camera_on_gpios,
-	.config_gpio_off = config_hero_camera_off_gpios,
-};
-
-static struct platform_device hero_camera = {
-	.name           = "camera",
-	.dev            = {
-		.platform_data = &msm_camera_device_mt9t013,
-	},
-};
-#endif
-
 static struct platform_device *devices[] __initdata = {
 	&msm_device_smd,
 	&msm_device_nand,
 	&msm_device_i2c,
-	&msm_device_uart1,
+//	&msm_device_uart1,
 #if !defined(CONFIG_MSM_SERIAL_DEBUGGER) && !defined(CONFIG_TROUT_H2W)
-	&msm_device_uart3,
+//	&msm_device_uart3,
 #endif
 #ifdef CONFIG_SERIAL_MSM_HS
 	&msm_device_uart_dm1,
@@ -1115,10 +1071,7 @@ static struct platform_device *devices[] __initdata = {
 	&hero_search_button_device,
 //	&hero_reset_keys_device,
 #ifdef CONFIG_HTC_HEADSET
-	&hero_h2w,
-#endif
-#ifdef CONFIG_MT9T013
-	&msm_camera_sensor_mt9t013,
+//	&hero_h2w,
 #endif
 #ifdef CONFIG_MT9P012
 	&msm_camera_sensor_mt9p012,
@@ -1132,9 +1085,6 @@ static struct platform_device *devices[] __initdata = {
 	&hero_pwr_sink,
 #endif
 	&hero_snd,
-#ifdef CONFIG_SENSORS_MT9T013
-	&hero_camera,
-#endif
 };
 
 extern struct sys_timer msm_timer;
@@ -1161,58 +1111,12 @@ static void hero_reset(void)
 }
 
 static uint32_t gpio_table[] = {
-	/* BLUETOOTH */
-#ifdef CONFIG_SERIAL_MSM_HS
-	PCOM_GPIO_CFG(43, 2, GPIO_OUTPUT, GPIO_PULL_UP, GPIO_4MA), /* RTS */
-	PCOM_GPIO_CFG(44, 2, GPIO_OUTPUT, GPIO_PULL_UP, GPIO_4MA), /* CTS */
-	PCOM_GPIO_CFG(45, 2, GPIO_OUTPUT, GPIO_PULL_UP, GPIO_4MA), /* RX */
-	PCOM_GPIO_CFG(46, 3, GPIO_OUTPUT, GPIO_PULL_UP, GPIO_4MA), /* TX */
-#else
-	PCOM_GPIO_CFG(43, 1, GPIO_OUTPUT, GPIO_PULL_UP, GPIO_4MA), /* RTS */
-	PCOM_GPIO_CFG(44, 1, GPIO_OUTPUT, GPIO_PULL_UP, GPIO_4MA), /* CTS */
-	PCOM_GPIO_CFG(45, 1, GPIO_OUTPUT, GPIO_PULL_UP, GPIO_4MA), /* RX */
-	PCOM_GPIO_CFG(46, 1, GPIO_OUTPUT, GPIO_PULL_UP, GPIO_4MA), /* TX */
-#endif
+	PCOM_GPIO_CFG(HERO_GPIO_I2C_CLK, 1, GPIO_INPUT, GPIO_NO_PULL, GPIO_8MA),
+	PCOM_GPIO_CFG(HERO_GPIO_I2C_DAT , 1, GPIO_INPUT, GPIO_NO_PULL, GPIO_4MA),
 };
 
 
 static uint32_t camera_off_gpio_table[] = {
-	/* CAMERA */
-	PCOM_GPIO_CFG(2, 0, GPIO_OUTPUT, GPIO_NO_PULL, GPIO_4MA), /* DAT2 */
-	PCOM_GPIO_CFG(3, 0, GPIO_OUTPUT, GPIO_NO_PULL, GPIO_4MA), /* DAT3 */
-	PCOM_GPIO_CFG(4, 0, GPIO_OUTPUT, GPIO_NO_PULL, GPIO_4MA), /* DAT4 */
-	PCOM_GPIO_CFG(5, 0, GPIO_OUTPUT, GPIO_NO_PULL, GPIO_4MA), /* DAT5 */
-	PCOM_GPIO_CFG(6, 0, GPIO_OUTPUT, GPIO_NO_PULL, GPIO_4MA), /* DAT6 */
-	PCOM_GPIO_CFG(7, 0, GPIO_OUTPUT, GPIO_NO_PULL, GPIO_4MA), /* DAT7 */
-	PCOM_GPIO_CFG(8, 0, GPIO_OUTPUT, GPIO_NO_PULL, GPIO_4MA), /* DAT8 */
-	PCOM_GPIO_CFG(9, 0, GPIO_OUTPUT, GPIO_NO_PULL, GPIO_4MA), /* DAT9 */
-	PCOM_GPIO_CFG(10, 0, GPIO_OUTPUT, GPIO_NO_PULL, GPIO_4MA), /* DAT10 */
-	PCOM_GPIO_CFG(11, 0, GPIO_OUTPUT, GPIO_NO_PULL, GPIO_4MA), /* DAT11 */
-	PCOM_GPIO_CFG(12, 0, GPIO_OUTPUT, GPIO_NO_PULL, GPIO_4MA), /* PCLK */
-	PCOM_GPIO_CFG(13, 0, GPIO_OUTPUT, GPIO_NO_PULL, GPIO_4MA), /* HSYNC_IN */
-	PCOM_GPIO_CFG(14, 0, GPIO_OUTPUT, GPIO_NO_PULL, GPIO_4MA), /* VSYNC_IN */
-	PCOM_GPIO_CFG(15, 0, GPIO_OUTPUT, GPIO_NO_PULL, GPIO_4MA), /* MCLK */
-};
-
-static uint32_t camera_on_gpio_table[] = {
-	/* CAMERA */
-	PCOM_GPIO_CFG(2, 1, GPIO_INPUT, GPIO_PULL_DOWN, GPIO_2MA), /* DAT2 */
-	PCOM_GPIO_CFG(3, 1, GPIO_INPUT, GPIO_PULL_DOWN, GPIO_2MA), /* DAT3 */
-	PCOM_GPIO_CFG(4, 1, GPIO_INPUT, GPIO_PULL_DOWN, GPIO_2MA), /* DAT4 */
-	PCOM_GPIO_CFG(5, 1, GPIO_INPUT, GPIO_PULL_DOWN, GPIO_2MA), /* DAT5 */
-	PCOM_GPIO_CFG(6, 1, GPIO_INPUT, GPIO_PULL_DOWN, GPIO_2MA), /* DAT6 */
-	PCOM_GPIO_CFG(7, 1, GPIO_INPUT, GPIO_PULL_DOWN, GPIO_2MA), /* DAT7 */
-	PCOM_GPIO_CFG(8, 1, GPIO_INPUT, GPIO_PULL_DOWN, GPIO_2MA), /* DAT8 */
-	PCOM_GPIO_CFG(9, 1, GPIO_INPUT, GPIO_PULL_DOWN, GPIO_2MA), /* DAT9 */
-	PCOM_GPIO_CFG(10, 1, GPIO_INPUT, GPIO_PULL_DOWN, GPIO_2MA), /* DAT10 */
-	PCOM_GPIO_CFG(11, 1, GPIO_INPUT, GPIO_PULL_DOWN, GPIO_2MA), /* DAT11 */
-	PCOM_GPIO_CFG(12, 1, GPIO_INPUT, GPIO_PULL_DOWN, GPIO_16MA), /* PCLK */
-	PCOM_GPIO_CFG(13, 1, GPIO_INPUT, GPIO_PULL_DOWN, GPIO_2MA), /* HSYNC_IN */
-	PCOM_GPIO_CFG(14, 1, GPIO_INPUT, GPIO_PULL_DOWN, GPIO_2MA), /* VSYNC_IN */
-	PCOM_GPIO_CFG(15, 1, GPIO_OUTPUT, GPIO_PULL_DOWN, GPIO_16MA), /* MCLK */
-};
-
-static uint32_t camera_off_gpio_12pins_table[] = {
 	/* CAMERA */
 	PCOM_GPIO_CFG(0, 0, GPIO_OUTPUT, GPIO_NO_PULL, GPIO_4MA), /* DAT0 */
 	PCOM_GPIO_CFG(1, 0, GPIO_OUTPUT, GPIO_NO_PULL, GPIO_4MA), /* DAT1 */
@@ -1232,7 +1136,7 @@ static uint32_t camera_off_gpio_12pins_table[] = {
 	PCOM_GPIO_CFG(15, 0, GPIO_OUTPUT, GPIO_NO_PULL, GPIO_4MA), /* MCLK */
 };
 
-static uint32_t camera_on_gpio_12pins_table[] = {
+static uint32_t camera_on_gpio_table[] = {
 	/* CAMERA */
 	PCOM_GPIO_CFG(0, 1, GPIO_INPUT, GPIO_PULL_DOWN, GPIO_2MA), /* DAT0 */
 	PCOM_GPIO_CFG(1, 1, GPIO_INPUT, GPIO_PULL_DOWN, GPIO_2MA), /* DAT1 */
@@ -1264,28 +1168,14 @@ static void config_gpio_table(uint32_t *table, int len)
 
 void config_hero_camera_on_gpios(void)
 {
-	/*Add for judage it's 10 pins or 12 pins platform ----->*/
-	if  (is_12pin_camera()) {
-		config_gpio_table(camera_on_gpio_12pins_table,
-				ARRAY_SIZE(camera_on_gpio_12pins_table));
-	} else {
-		config_gpio_table(camera_on_gpio_table,
-				ARRAY_SIZE(camera_on_gpio_table));
-	}
-	/*End Of Add for judage it's 10 pins or 12 pins platform*/
+	config_gpio_table(camera_on_gpio_table,
+		ARRAY_SIZE(camera_on_gpio_table));
 }
 
 void config_hero_camera_off_gpios(void)
 {
-	/*Add for judage it's 10 pins or 12 pins platform ----->*/
-	if (is_12pin_camera()) {
-		config_gpio_table(camera_off_gpio_12pins_table,
-		ARRAY_SIZE(camera_off_gpio_12pins_table));
-	} else {
-		config_gpio_table(camera_off_gpio_table,
+	config_gpio_table(camera_off_gpio_table,
 		ARRAY_SIZE(camera_off_gpio_table));
-	}
-	/*End Of Add for judage it's 10 pins or 12 pins platform*/
 }
 
 static void __init config_gpios(void)
@@ -1494,7 +1384,7 @@ static void __init hero_map_io(void)
 }
 
 MACHINE_START(HERO, "hero")
-/* Maintainer: Brian Swetland <swetland@google.com> */
+/* Maintainer: Kant Kang <kant_kang@htc.com> */
 #ifdef CONFIG_MSM_DEBUG_UART
 	.phys_io        = MSM_DEBUG_UART_PHYS,
 	.io_pg_offst    = ((MSM_DEBUG_UART_BASE) >> 18) & 0xfffc,
