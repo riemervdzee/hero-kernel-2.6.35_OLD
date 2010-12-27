@@ -85,13 +85,10 @@ static int __init hero_wifi_init(void)
 {
 	int ret;
 
-	if (!machine_is_hero())
-		return 0;
-
 	printk("%s: start\n", __func__);
 
 #ifdef CONFIG_WIFI_MEM_PREALLOC
-	rc = hero_init_wifi_mem();
+	int rc = hero_init_wifi_mem();
 	if (rc) {
 		printk(KERN_CRIT "%s: WiFi memory init failure (%d)\n",
 		       __func__, rc);
