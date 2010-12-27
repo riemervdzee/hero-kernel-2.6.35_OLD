@@ -66,13 +66,6 @@
 //#include <mach/h2w_v1.h>
 #include <mach/microp_i2c.h>
 
-#ifdef CONFIG_WIFI_CONTROL_FUNC
-#ifdef CONFIG_WIFI_MEM_PREALLOC
-extern int hero_init_wifi_mem(void);
-#endif
-extern struct wifi_platform_data hero_wifi_control;
-#endif
-
 #include "proc_comm.h"
 #include "devices.h"
 
@@ -956,18 +949,6 @@ static struct msm_pmem_setting pmem_setting_32 = {
 	.ram_console_size = SMI32_MSM_RAM_CONSOLE_SIZE,
 };
 
-#ifdef CONFIG_WIFI_CONTROL_FUNC
-static struct platform_device hero_wifi = {
-	.name		= "msm_wifi",
-	.id		= 1,
-	.num_resources	= 0,
-	.resource	= NULL,
-	.dev		= {
-		.platform_data = &hero_wifi_control,
-	},
-};
-#endif
-
 #define SND(num, desc) { .name = desc, .id = num }
 static struct snd_endpoint snd_endpoints_list[] = {
 	SND(0, "HANDSET"),
@@ -1077,10 +1058,6 @@ static struct platform_device *devices[] __initdata = {
 	&msm_camera_sensor_mt9p012,
 #endif
 	&hero_rfkill,
-#ifdef CONFIG_WIFI_CONTROL_FUNC
-	&hero_wifi,
-#endif
-
 #ifdef CONFIG_HTC_PWRSINK
 	&hero_pwr_sink,
 #endif
@@ -1254,13 +1231,6 @@ static void __init hero_init(void)
 	if (rc)
 		printk(KERN_CRIT "%s: MMC init failure (%d)\n", __func__, rc);
 
-#ifdef CONFIG_WIFI_MEM_PREALLOC
-	rc = hero_init_wifi_mem();
-	if (rc) {
-		printk(KERN_CRIT "%s: WiFi memory init failure (%d)\n",
-		       __func__, rc);
-	}
-#endif
 	msm_init_pmic_vibrator();
 
 	if(system_rev != 0x80)
