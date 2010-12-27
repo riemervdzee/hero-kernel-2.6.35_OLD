@@ -385,11 +385,13 @@ static irqreturn_t smd_modem_irq_handler(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
+#if defined(CONFIG_QDSP6)
 static irqreturn_t smd_dsp_irq_handler(int irq, void *data)
 {
 	handle_smd_irq(&smd_ch_list_dsp, notify_dsp_smd);
 	return IRQ_HANDLED;
 }
+#endif
 
 static void smd_fake_irq_handler(unsigned long arg)
 {
@@ -507,7 +509,7 @@ static int smd_packet_write(smd_channel_t *ch, const void *_data, int len)
 {
 	unsigned hdr[5];
 
-	if (len < 0)
+	if (len <= 0)
 		return -EINVAL;
 
 	if (smd_stream_write_avail(ch) < (len + SMD_HEADER_SIZE))
@@ -618,13 +620,13 @@ static int smd_alloc_channel(const char *name, uint32_t cid, uint32_t type)
 	ch = kzalloc(sizeof(struct smd_channel), GFP_KERNEL);
 	if (ch == 0) {
 		pr_err("smd_alloc_channel() out of memory\n");
-		return -1;
+		return -EAGAIN;
 	}
 	ch->n = cid;
 
 	if (smd_alloc_channel_for_package_version(ch)) {
 		kfree(ch);
-		return -1;
+		return -EAGAIN;
 	}
 
 	ch->fifo_mask = ch->fifo_size - 1;

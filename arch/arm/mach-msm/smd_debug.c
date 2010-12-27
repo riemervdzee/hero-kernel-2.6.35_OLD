@@ -176,6 +176,10 @@ static int debug_read_alloc_tbl(char *buf, int max)
 	int n, i = 0;
 
 	shared = smem_find(ID_CH_ALLOC_TBL, sizeof(*shared) * 64);
+	if (!shared) {
+		pr_err("smd: cannot find allocation table\n");
+		return 0;
+	}
 
 	for (n = 0; n < 64; n++) {
 		if (shared[n].ref_count == 0)
@@ -221,7 +225,7 @@ static void debug_create(const char *name, mode_t mode,
 	debugfs_create_file(name, mode, dent, fill, &debug_ops);
 }
 
-static int smd_debugfs_init(void)
+static int __init smd_debugfs_init(void)
 {
 	struct dentry *dent;
 
