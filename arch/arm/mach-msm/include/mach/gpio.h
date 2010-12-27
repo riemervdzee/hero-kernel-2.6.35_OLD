@@ -40,4 +40,5 @@ static inline int gpio_to_irq(unsigned gpio)
 	return __gpio_to_irq(gpio);
 }
 
+extern void config_gpio_table(uint32_t *table, int len);
 #endif
