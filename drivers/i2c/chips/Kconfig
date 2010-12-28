@@ -6,6 +6,12 @@
 
 menu "Miscellaneous I2C Chip support"
 
+config MICROP_I2C
+        tristate "MICROP Driver"
+        depends on I2C
+        help
+          HTC Microp-P support.
+
 config SENSORS_MT9T013
 	tristate "MT9T013 Camera Driver"
 	depends on I2C
