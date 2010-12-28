@@ -240,7 +240,7 @@ static struct hero_axis_info hero_y_axis = {
 		.gpio = hero_y_axis_gpios,
 		.flags = GPIOEAF_PRINT_UNKNOWN_DIRECTION
 			/*| GPIOEAF_PRINT_RAW | GPIOEAF_PRINT_EVENT  */,
-		.enable_emc_protect_delay = 1 * NSEC_PER_MSEC,
+//		.enable_emc_protect_delay = 1 * NSEC_PER_MSEC,
 	}
 };
 

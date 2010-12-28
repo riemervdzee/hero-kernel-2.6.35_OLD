@@ -208,8 +208,8 @@ static struct synaptics_i2c_rmi_platform_data hero_ts_data[] = {
 		.snap_top_off = 110 * 0x10000 / 6696,
 		.snap_bottom_on = 100 * 0x10000 / 6696,
 		.snap_bottom_off = 110 * 0x10000 / 6696,
-		.display_width = 320,
-		.display_height = 480,
+		//.display_width = 320,
+		//.display_height = 480,
 		.dup_threshold = 10,
 	},
 	{
@@ -218,8 +218,8 @@ static struct synaptics_i2c_rmi_platform_data hero_ts_data[] = {
 		.inactive_right = ((4674 - 4334) / 2 + 200) * 0x10000 / 4334,
 		.inactive_top = ((6946 - 6696) / 2) * 0x10000 / 6696,
 		.inactive_bottom = ((6946 - 6696) / 2) * 0x10000 / 6696,
-		.display_width = 320,
-		.display_height = 480,
+		//.display_width = 320,
+		//.display_height = 480,
 	}
 };
 
@@ -1340,7 +1340,7 @@ static void __init hero_map_io(void)
 {
 	msm_map_common_io();
 	iotable_init(hero_io_desc, ARRAY_SIZE(hero_io_desc));
-	msm_clock_init();
+	msm_clock_init(msm_clocks_7x01a, msm_num_clocks_7x01a);
 }
 
 MACHINE_START(HERO, "hero")
