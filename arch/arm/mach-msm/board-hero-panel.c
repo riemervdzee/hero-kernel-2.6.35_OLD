@@ -30,7 +30,7 @@
 #include <mach/vreg.h>
 #include <mach/board.h>
 #include <mach/board_htc.h>
-#include <mach/pmic.h>
+//#include <mach/pmic.h>
 
 #include "proc_comm.h"
 #include "board-hero.h"
