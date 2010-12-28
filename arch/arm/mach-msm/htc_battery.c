@@ -598,7 +598,7 @@ EXPORT_SYMBOL(htc_get_usb_accessory_adc_level);
 /* A9 reports USB charging when helf AC cable in and China AC charger. */
 /* notify userspace USB charging first,
 and then usb driver will notify AC while D+/D- Line short. */
-static void usb_status_notifier_func(int online)
+void usb_status_notifier_func(int online)
 {
 #if 1
 	pr_info("batt:online=%d",online);
@@ -633,6 +633,11 @@ static void usb_status_notifier_func(int online)
 	}
 	mutex_unlock(&htc_batt_info.lock);
 #endif
+}
+
+void notify_usb_connected(int online)
+{
+	usb_status_notifier_func( online);
 }
 
 static int htc_get_batt_info(struct battery_info_reply *buffer)
