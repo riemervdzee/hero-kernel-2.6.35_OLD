@@ -970,17 +970,14 @@ static struct platform_device *devices[] __initdata = {
 #ifdef CONFIG_SERIAL_MSM_HS
 //	&msm_device_uart_dm1,
 #endif
-#ifdef CONFIG_HTC_HEADSET
-//	&hero_h2w,
-#endif
 #ifdef CONFIG_MT9P012
-//	&msm_camera_sensor_mt9p012,
+	&msm_camera_sensor_mt9p012,
 #endif
-//	&hero_rfkill,
+	&hero_rfkill,
 #ifdef CONFIG_HTC_PWRSINK
 	&hero_pwr_sink,
 #endif
-//	&hero_snd,
+	&hero_snd,
 };
 
 extern struct sys_timer msm_timer;
@@ -993,13 +990,23 @@ static void __init hero_init_irq(void)
 
 static uint cpld_iset;
 static uint cpld_charger_en;
-static uint cpld_usb_h2w_sw;
+//static uint cpld_usb_h2w_sw;
 static uint opt_disable_uart3;
 
 module_param_named(iset, cpld_iset, uint, 0);
 module_param_named(charger_en, cpld_charger_en, uint, 0);
-module_param_named(usb_h2w_sw, cpld_usb_h2w_sw, uint, 0);
+//module_param_named(usb_h2w_sw, cpld_usb_h2w_sw, uint, 0);
 module_param_named(disable_uart3, opt_disable_uart3, uint, 0);
+
+
+
+static char bt_chip_id[10] = "brfxxxx";
+module_param_string(bt_chip_id, bt_chip_id, sizeof(bt_chip_id), S_IWUSR | S_IRUGO);
+MODULE_PARM_DESC(bt_chip_id, "BT's chip id");
+
+static char bt_fw_version[10] = "v2.0.38";
+module_param_string(bt_fw_version, bt_fw_version, sizeof(bt_fw_version), S_IWUSR | S_IRUGO);
+MODULE_PARM_DESC(bt_fw_version, "BT's fw version");
 
 static void hero_reset(void)
 {
@@ -1141,21 +1148,14 @@ static void __init hero_init(void)
 		if (system_rev >= 4) {
 			microp_data.num_pins = ARRAY_SIZE(microp_pins_skuid_3);
 			microp_data.pin_config = microp_pins_skuid_3;
-			printk(KERN_DEBUG "Using microp_pins_skuid_3");
 		} else if (system_rev == 3) {
 			microp_data.num_pins = ARRAY_SIZE(microp_pins_skuid_2);
 			microp_data.pin_config = microp_pins_skuid_2;
-			printk(KERN_DEBUG "Using microp_pins_skuid_2");
 		} else {
 			microp_data.num_pins = ARRAY_SIZE(microp_pins_skuid_1);
 			microp_data.pin_config = microp_pins_skuid_1;
-			printk(KERN_DEBUG "Using microp_pins_skuid_1");
 		}
 		microp_data.cabc_backlight_enable = 1;
-	}
-	else {
-		// We don't set anything here, as skuid_0 is default
-		printk(KERN_DEBUG "Using microp_pins_skuid_0");
 	}
 
 	i2c_register_board_info(0, i2c_devices, ARRAY_SIZE(i2c_devices));
