@@ -508,11 +508,11 @@ static struct i2c_board_info i2c_devices[] = {
 	//	.platform_data = &microp_data,
 	//	.irq = MSM_GPIO_TO_INT(HERO_GPIO_UP_INT_N)
 	//},
-	//{
-	//	I2C_BOARD_INFO(AKM8973_I2C_NAME, 0x1C),
-	//	.platform_data = &compass_platform_data,
-	//	.irq = MSM_GPIO_TO_INT(HERO_GPIO_COMPASS_INT_N),
-	//},
+	{
+		I2C_BOARD_INFO(AKM8973_I2C_NAME, 0x1C),
+		.platform_data = &compass_platform_data,
+		.irq = MSM_GPIO_TO_INT(HERO_GPIO_COMPASS_INT_N),
+	},
 
 #ifdef CONFIG_MSM_CAMERA
 #ifdef CONFIG_MT9P012
@@ -1102,13 +1102,9 @@ static void __init hero_init(void)
 
 	msm_hw_reset_hook = hero_reset;
 
-	//gpio_direction_output(HERO_TP_LS_EN, 0);
+	gpio_direction_output(HERO_TP_LS_EN, 0);
 
 	msm_acpu_clock_init(&hero_clock_data);
-
-	/* adjust GPIOs based on bootloader request */
-	//printk("hero_init: cpld_usb_hw2_sw = %d\n", cpld_usb_h2w_sw);
-	//gpio_set_value(HERO_GPIO_USB_H2W_SW, cpld_usb_h2w_sw);
 
 #if defined(CONFIG_MSM_SERIAL_DEBUGGER)
 	//if (!opt_disable_uart3)
@@ -1130,15 +1126,16 @@ static void __init hero_init(void)
 	msm_add_usb_devices(hero_phy_reset);
 
 	msm_add_mem_devices(&pmem_setting_32);
+
+	msm_init_pmic_vibrator();
+
 	rc = hero_init_mmc(system_rev);
 	if (rc)
 		printk(KERN_CRIT "%s: MMC init failure (%d)\n", __func__, rc);
 
-	msm_init_pmic_vibrator();
-
 	platform_add_devices(devices, ARRAY_SIZE(devices));
 	
-	//i2c_register_board_info(0, &i2c_bma150, 1);
+	i2c_register_board_info(0, &i2c_bma150, 1);
 
 	if (hero_engineerid() || system_rev > 2) {
 		if (system_rev >= 4) {
