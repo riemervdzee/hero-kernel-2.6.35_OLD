@@ -271,8 +271,7 @@ int hero_wifi_power(int on)
 				  ARRAY_SIZE(wifi_off_gpio_table));
 		htc_pwrsink_set(PWRSINK_WIFI, 0);
 	}
-	gpio_set_value(HERO_GPIO_MAC_32K_EN, on);
-	mdelay(100);
+
 	gpio_set_value(HERO_GPIO_WIFI_EN, on);
 	mdelay(100);
 	if (!on) {
@@ -323,9 +322,9 @@ static int hero_wifi_reset_state;
 void hero_wifi_reset(int on)
 {
 	printk(KERN_DEBUG "%s: %d\n", __func__, on);
-	gpio_set_value(HERO_GPIO_WIFI_PA_RESETX, !on);
+	/* HRRO use power off/on instead wifi reset*/
 	hero_wifi_reset_state = on;
-	mdelay(50);
+	//mdelay(50);
 }
 #ifndef CONFIG_WIFI_CONTROL_FUNC
 EXPORT_SYMBOL(hero_wifi_reset);
