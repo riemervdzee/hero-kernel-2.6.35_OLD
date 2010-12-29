@@ -20,6 +20,11 @@
 #include <linux/interrupt.h>
 #include <asm-generic/gpio.h>
 
+/* Extended API. see /arch/arm/mach-msm/gpio.c for implementation */
+extern void config_gpio_table(uint32_t *table, int len);
+extern int gpio_configure(unsigned int gpio, unsigned long flags);
+extern int gpio_tlmm_config(unsigned config, unsigned disable);
+
 static inline int gpio_get_value(unsigned gpio)
 {
 	return __gpio_get_value(gpio);
@@ -40,5 +45,4 @@ static inline int gpio_to_irq(unsigned gpio)
 	return __gpio_to_irq(gpio);
 }
 
-extern void config_gpio_table(uint32_t *table, int len);
 #endif

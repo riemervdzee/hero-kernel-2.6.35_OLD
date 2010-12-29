@@ -20,6 +20,7 @@
 #include "gpio_chip.h"
 #include "gpio_hw.h"
 
+#include "proc_comm.h"
 #include "smd_private.h"
 
 enum {
@@ -28,7 +29,6 @@ enum {
 static int msm_gpio_debug_mask = 0;
 module_param_named(debug_mask, msm_gpio_debug_mask, int, S_IRUGO | S_IWUSR | S_IWGRP);
 
-#define MSM_GPIO_BROKEN_INT_CLEAR 1
 
 /* private gpio_configure flags */
 #define MSM_GPIOF_ENABLE_INTERRUPT      0x10000000
@@ -42,28 +42,6 @@ static int msm_gpio_read(struct gpio_chip *chip, unsigned n);
 static int msm_gpio_write(struct gpio_chip *chip, unsigned n, unsigned on);
 static int msm_gpio_read_detect_status(struct gpio_chip *chip, unsigned int gpio);
 static int msm_gpio_clear_detect_status(struct gpio_chip *chip, unsigned int gpio);
-
-struct msm_gpio_regs
-{
-	void __iomem *out;
-	void __iomem *in;
-	void __iomem *int_status;
-	void __iomem *int_clear;
-	void __iomem *int_en;
-	void __iomem *int_edge;
-	void __iomem *int_pos;
-	void __iomem *oe;
-};
-
-struct msm_gpio_chip {
-	struct gpio_chip        chip;
-	struct msm_gpio_regs    regs;
-#if MSM_GPIO_BROKEN_INT_CLEAR
-	unsigned                int_status_copy;
-#endif
-	unsigned int            both_edge_detect;
-	unsigned int            int_enable[2]; /* 0: awake, 1: sleep */
-};
 
 struct msm_gpio_chip msm_gpio_chips[] = {
 	{
@@ -605,5 +583,33 @@ static int __init msm_init_gpio(void)
 	set_irq_wake(INT_GPIO_GROUP2, 2);
 	return 0;
 }
+
+int gpio_configure(unsigned int gpio, unsigned long flags)
+{
+	unsigned long irq_flags;
+	struct msm_gpio_chip *msm_chip = get_irq_chip_data((gpio + FIRST_GPIO_IRQ));
+	spin_lock_irqsave(&msm_chip->chip.lock, irq_flags);
+	msm_gpio_configure(&msm_chip->chip, gpio, flags);
+	spin_unlock_irqrestore(&msm_chip->chip.lock, irq_flags);
+	return 0;
+}
+EXPORT_SYMBOL(gpio_configure);
+
+void config_gpio_table(uint32_t *table, int len)
+{
+	int n;
+	unsigned id;
+	for (n = 0; n < len; n++) {
+		id = table[n];
+		msm_proc_comm(PCOM_RPC_GPIO_TLMM_CONFIG_EX, &id, 0);
+	}
+}
+EXPORT_SYMBOL(config_gpio_table);
+
+int gpio_tlmm_config(unsigned config, unsigned disable)
+{
+	return msm_proc_comm(PCOM_RPC_GPIO_TLMM_CONFIG_EX, &config, &disable);
+}
+EXPORT_SYMBOL(gpio_tlmm_config);
 
 postcore_initcall(msm_init_gpio);
