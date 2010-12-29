@@ -49,9 +49,9 @@ obj-$(CONFIG_MACH_SAPPHIRE) += devices_htc.o
 obj-$(CONFIG_MACH_HERO) += board-hero.o
 obj-$(CONFIG_MACH_HERO) += board-hero-keypad.o board-hero-panel.o
 obj-$(CONFIG_MACH_HERO) += board-hero-mmc.o board-hero-wifi.o
-obj-$(CONFIG_MACH_HERO) += board-hero-rfkill.o msm_vibrator.o
+obj-$(CONFIG_MACH_HERO) += msm_vibrator.o
 obj-$(CONFIG_MACH_HERO) += htc_wifi_nvs.o
-## htc_awb_cal.o
+## htc_awb_cal.o board-hero-rfkill.o
 obj-$(CONFIG_MACH_HERO) += devices_htc.o
 obj-$(CONFIG_MACH_MAHIMAHI) += board-mahimahi.o board-mahimahi-panel.o
 obj-$(CONFIG_MACH_MAHIMAHI) += board-mahimahi-keypad.o board-mahimahi-mmc.o

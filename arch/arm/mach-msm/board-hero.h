@@ -204,7 +204,7 @@
 #define HERO_GPIO_COMPASS_RST_N            	(HERO_GPIO_MISC4_BASE + 2)
 //#define HERO_GPIO_USB_PHY_RST_N            	(HERO_GPIO_MISC4_BASE + 5)
 #define HERO_GPIO_WIFI_PA_RESETX           	(HERO_GPIO_MISC4_BASE + 6)
-#define HERO_GPIO_WIFI_EN                  	(HERO_GPIO_MISC4_BASE + 7)
+//#define HERO_GPIO_WIFI_EN                  	(HERO_GPIO_MISC4_BASE + 7)
 
 #define HERO_GPIO_BT_32K_EN                	(HERO_GPIO_MISC5_BASE + 0)
 #define HERO_GPIO_MAC_32K_EN               	(HERO_GPIO_MISC5_BASE + 1)
@@ -318,7 +318,7 @@
 #define HERO_GPIO_MDDI_1V5_EN           (98)
 #define HERO_GPIO_MDDI_RST_N            (99)
 #define HERO_GPIO_USB_PHY_RST_N         (100)
-//#define HERO_GPIO_WIFI_EN               (102)
+#define HERO_GPIO_WIFI_EN               (102)
 #define HERO_CAM_PWDN                   (107)
 #define HERO_TP_LS_EN                   (108)
 #define HERO_GPIO_TP_EN                 (109)

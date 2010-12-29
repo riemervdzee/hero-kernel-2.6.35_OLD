@@ -11,6 +11,7 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
+ * Riemer: Extended GPIO API
  */
 
 #include <asm/io.h>
@@ -387,43 +388,23 @@ static void msm_gpio_irq_ack(unsigned int irq)
 
 static void msm_gpio_irq_mask(unsigned int irq)
 {
-	unsigned long irq_flags;
-	struct msm_gpio_chip *msm_chip = get_irq_chip_data(irq);
-	spin_lock_irqsave(&msm_chip->chip.lock, irq_flags);
-	msm_gpio_configure(&msm_chip->chip, irq - FIRST_GPIO_IRQ, MSM_GPIOF_DISABLE_INTERRUPT);
-	spin_unlock_irqrestore(&msm_chip->chip.lock, irq_flags);
+	irq_configure(irq, MSM_GPIOF_DISABLE_INTERRUPT);
 }
 
 static void msm_gpio_irq_unmask(unsigned int irq)
 {
-	unsigned long irq_flags;
-	struct msm_gpio_chip *msm_chip = get_irq_chip_data(irq);
-	spin_lock_irqsave(&msm_chip->chip.lock, irq_flags);
-	msm_gpio_configure(&msm_chip->chip, irq - FIRST_GPIO_IRQ, MSM_GPIOF_ENABLE_INTERRUPT);
-	spin_unlock_irqrestore(&msm_chip->chip.lock, irq_flags);
+	irq_configure(irq, MSM_GPIOF_ENABLE_INTERRUPT);
 }
 
 static int msm_gpio_irq_set_wake(unsigned int irq, unsigned int on)
 {
-	int ret;
-	unsigned long irq_flags;
-	struct msm_gpio_chip *msm_chip = get_irq_chip_data(irq);
-	spin_lock_irqsave(&msm_chip->chip.lock, irq_flags);
-	ret = msm_gpio_configure(&msm_chip->chip, irq - FIRST_GPIO_IRQ, on ? MSM_GPIOF_ENABLE_WAKE : MSM_GPIOF_DISABLE_WAKE);
-	spin_unlock_irqrestore(&msm_chip->chip.lock, irq_flags);
-	return ret;
+	return irq_configure(irq, on ? MSM_GPIOF_ENABLE_WAKE : MSM_GPIOF_DISABLE_WAKE);
 }
 
 
 static int msm_gpio_irq_set_type(unsigned int irq, unsigned int flow_type)
 {
-	int ret;
-	unsigned long irq_flags;
-	struct msm_gpio_chip *msm_chip = get_irq_chip_data(irq);
-	spin_lock_irqsave(&msm_chip->chip.lock, irq_flags);
-	ret = msm_gpio_configure(&msm_chip->chip, irq - FIRST_GPIO_IRQ, flow_type);
-	spin_unlock_irqrestore(&msm_chip->chip.lock, irq_flags);
-	return ret;
+	return irq_configure(irq, flow_type);
 }
 
 static void msm_gpio_irq_handler(unsigned int irq, struct irq_desc *desc)
@@ -584,14 +565,30 @@ static int __init msm_init_gpio(void)
 	return 0;
 }
 
+/*
+ * Riemer: Extended GPIO API
+ */
+int irq_configure(unsigned int irq, unsigned long flags)
+{
+	int ret;
+	unsigned long irq_flags;
+	struct msm_gpio_chip *msm_chip = get_irq_chip_data(irq);
+	spin_lock_irqsave(&msm_chip->chip.lock, irq_flags);
+	ret = msm_gpio_configure(&msm_chip->chip, irq - FIRST_GPIO_IRQ, flags);
+	spin_unlock_irqrestore(&msm_chip->chip.lock, irq_flags);
+	return ret;
+}
+EXPORT_SYMBOL(irq_configure);
+
 int gpio_configure(unsigned int gpio, unsigned long flags)
 {
+	int ret;
 	unsigned long irq_flags;
 	struct msm_gpio_chip *msm_chip = get_irq_chip_data((gpio + FIRST_GPIO_IRQ));
 	spin_lock_irqsave(&msm_chip->chip.lock, irq_flags);
-	msm_gpio_configure(&msm_chip->chip, gpio, flags);
+	ret = msm_gpio_configure(&msm_chip->chip, gpio, flags);
 	spin_unlock_irqrestore(&msm_chip->chip.lock, irq_flags);
-	return 0;
+	return ret;
 }
 EXPORT_SYMBOL(gpio_configure);
 

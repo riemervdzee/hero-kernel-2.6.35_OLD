@@ -24,6 +24,7 @@
 extern void config_gpio_table(uint32_t *table, int len);
 extern int gpio_configure(unsigned int gpio, unsigned long flags);
 extern int gpio_tlmm_config(unsigned config, unsigned disable);
+extern int irq_configure(unsigned int irq, unsigned long flags);
 
 static inline int gpio_get_value(unsigned gpio)
 {

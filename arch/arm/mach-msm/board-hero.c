@@ -75,53 +75,12 @@ void msm_init_pmic_vibrator(void);
 
 extern int hero_init_mmc(unsigned int);
 
-struct hero_axis_info {
-	struct gpio_event_axis_info info;
-	uint16_t in_state;
-	uint16_t out_state;
-	uint16_t temp_state;
-	uint16_t threshold;
-};
-static bool nav_just_on;
-static int nav_on_jiffies;
-#if	defined(CONFIG_MSM_AMSS_SUPPORT_256MB_EBI1)
 static int smi_sz = 32;
-#else
-static int smi_sz = 64;
-#endif
 static unsigned int hwid = 0;
 static unsigned int skuid = 0;
-static unsigned engineerid = (0x01 << 1);	/* default is 3M sensor */
+static unsigned int engineerid = 0;
 static unsigned int die_sz = 1;
 
-uint16_t hero_axis_map(struct gpio_event_axis_info *info, uint16_t in)
-{
-	struct hero_axis_info *ai = container_of(info, struct hero_axis_info, info);
-	uint16_t out = ai->out_state;
-
-	if (nav_just_on) {
-		if (jiffies == nav_on_jiffies || jiffies == nav_on_jiffies + 1)
-			goto ignore;
-		nav_just_on = 0;
-	}
-	if ((ai->in_state ^ in) & 1)
-		out--;
-	if ((ai->in_state ^ in) & 2)
-		out++;
-	ai->out_state = out;
-ignore:
-	ai->in_state = in;
-	if (ai->out_state - ai->temp_state == ai->threshold) {
-		ai->temp_state++;
-		ai->out_state = ai->temp_state;
-	} else if (ai->temp_state - ai->out_state == ai->threshold) {
-		ai->temp_state--;
-		ai->out_state = ai->temp_state;
-	} else if (abs(ai->out_state - ai->temp_state) > ai->threshold)
-		ai->temp_state = ai->out_state;
-
-	return ai->temp_state;
-}
 
 static int hero_ts_power(int on)
 {
@@ -544,16 +503,16 @@ static struct i2c_board_info i2c_devices[] = {
 		.platform_data = &hero_cypress_ts_data,
 		.irq = MSM_GPIO_TO_INT(HERO_GPIO_TP_ATT_N)
 	},
-	{
-		I2C_BOARD_INFO(MICROP_I2C_NAME, 0xCC >> 1),
-		.platform_data = &microp_data,
-		.irq = MSM_GPIO_TO_INT(HERO_GPIO_UP_INT_N)
-	},
-	{
-		I2C_BOARD_INFO(AKM8973_I2C_NAME, 0x1C),
-		.platform_data = &compass_platform_data,
-		.irq = HERO_GPIO_TO_INT(HERO_GPIO_COMPASS_INT_N),
-	},
+	//{
+	//	I2C_BOARD_INFO(MICROP_I2C_NAME, 0xCC >> 1),
+	//	.platform_data = &microp_data,
+	//	.irq = MSM_GPIO_TO_INT(HERO_GPIO_UP_INT_N)
+	//},
+	//{
+	//	I2C_BOARD_INFO(AKM8973_I2C_NAME, 0x1C),
+	//	.platform_data = &compass_platform_data,
+	//	.irq = MSM_GPIO_TO_INT(HERO_GPIO_COMPASS_INT_N),
+	//},
 
 #ifdef CONFIG_MSM_CAMERA
 #ifdef CONFIG_MT9P012
@@ -985,8 +944,8 @@ static struct msm_camera_device_platform_data msm_camera_device_data = {
 #ifdef CONFIG_MT9P012
 static struct msm_camera_sensor_info msm_camera_sensor_mt9p012_data = {
 	.sensor_name	= "mt9p012",
-	.sensor_reset	= 108,
-	.sensor_pwd		= 85,
+	.sensor_reset	= HERO_GPIO_CAM_RST_N,
+	.sensor_pwd		= HERO_CAM_PWDN,
 	.vcm_pwd		= HERO_GPIO_VCM_PWDN,
 	.pdata			= &msm_camera_device_data,
 };
@@ -1009,19 +968,19 @@ static struct platform_device *devices[] __initdata = {
 //	&msm_device_uart3,
 #endif
 #ifdef CONFIG_SERIAL_MSM_HS
-	&msm_device_uart_dm1,
+//	&msm_device_uart_dm1,
 #endif
 #ifdef CONFIG_HTC_HEADSET
 //	&hero_h2w,
 #endif
 #ifdef CONFIG_MT9P012
-	&msm_camera_sensor_mt9p012,
+//	&msm_camera_sensor_mt9p012,
 #endif
-	&hero_rfkill,
+//	&hero_rfkill,
 #ifdef CONFIG_HTC_PWRSINK
 	&hero_pwr_sink,
 #endif
-	&hero_snd,
+//	&hero_snd,
 };
 
 extern struct sys_timer msm_timer;
@@ -1125,7 +1084,7 @@ static struct msm_acpu_clock_platform_data hero_clock_data = {
 
 #ifdef CONFIG_SERIAL_MSM_HS
 static struct msm_serial_hs_platform_data msm_uart_dm1_pdata = {
-	.rx_wakeup_irq = MSM_GPIO_TO_INT(45),
+	.rx_wakeup_irq = MSM_GPIO_TO_INT(HERO_GPIO_UART1_RX),
 	.inject_rx_on_wakeup = 1,
 	.rx_to_inject = 0x32,
 };
@@ -1143,30 +1102,30 @@ static void __init hero_init(void)
 
 	msm_hw_reset_hook = hero_reset;
 
-	gpio_direction_output(HERO_TP_LS_EN, 0);
+	//gpio_direction_output(HERO_TP_LS_EN, 0);
 
 	msm_acpu_clock_init(&hero_clock_data);
 
 	/* adjust GPIOs based on bootloader request */
-	printk("hero_init: cpld_usb_hw2_sw = %d\n", cpld_usb_h2w_sw);
-	gpio_set_value(HERO_GPIO_USB_H2W_SW, cpld_usb_h2w_sw);
+	//printk("hero_init: cpld_usb_hw2_sw = %d\n", cpld_usb_h2w_sw);
+	//gpio_set_value(HERO_GPIO_USB_H2W_SW, cpld_usb_h2w_sw);
 
 #if defined(CONFIG_MSM_SERIAL_DEBUGGER)
-	if (!opt_disable_uart3)
-		msm_serial_debug_init(MSM_UART3_PHYS, INT_UART3,
-				      &msm_device_uart3.dev, 1,
-				      MSM_GPIO_TO_INT(86));
+	//if (!opt_disable_uart3)
+	//	msm_serial_debug_init(MSM_UART3_PHYS, INT_UART3,
+	//			      &msm_device_uart3.dev, 1,
+	//			      MSM_GPIO_TO_INT(INT_UART3_RX));
 #endif
 
 	/* H2W pins <-> UART3, Bluetooth <-> UART1 */
-	gpio_set_value(HERO_GPIO_H2W_SEL0, 0);
-	gpio_set_value(HERO_GPIO_H2W_SEL1, 1);
+	//gpio_set_value(HERO_GPIO_H2W_SEL0, 0);
+	//gpio_set_value(HERO_GPIO_H2W_SEL1, 1);
 
 	printk(KERN_DEBUG "hero_is_5M_camera=%d\n",
 	       hero_is_5M_camera());
 	printk(KERN_DEBUG "is_12pin_camera=%d\n", is_12pin_camera());
 #ifdef CONFIG_SERIAL_MSM_HS
-	msm_device_uart_dm1.dev.platform_data = &msm_uart_dm1_pdata;
+	//msm_device_uart_dm1.dev.platform_data = &msm_uart_dm1_pdata;
 #endif
 	msm_add_usb_devices(hero_phy_reset);
 
@@ -1179,7 +1138,7 @@ static void __init hero_init(void)
 
 	platform_add_devices(devices, ARRAY_SIZE(devices));
 	
-	i2c_register_board_info(0, &i2c_bma150, 1);
+	//i2c_register_board_info(0, &i2c_bma150, 1);
 
 	if (hero_engineerid() || system_rev > 2) {
 		if (system_rev >= 4) {
@@ -1203,12 +1162,6 @@ static void __init hero_init(void)
 	}
 
 	i2c_register_board_info(0, i2c_devices, ARRAY_SIZE(i2c_devices));
-
-#ifdef CONFIG_HTC_AUDIO_JACK
-	if (hero_get_skuid() == 0x22800) {
-		platform_device_register(&hero_audio_jack);
-	}
-#endif
 }
 
 static struct map_desc hero_io_desc[] __initdata = {
