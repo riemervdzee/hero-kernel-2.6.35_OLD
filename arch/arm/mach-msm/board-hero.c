@@ -1249,7 +1249,7 @@ MACHINE_START(HERO, "hero")
 	.phys_io        = MSM_DEBUG_UART_PHYS,
 	.io_pg_offst    = ((MSM_DEBUG_UART_BASE) >> 18) & 0xfffc,
 #endif
-	.boot_params    = 0x19200100,
+	.boot_params    = MSM_EBI_BASE + 0x100,
 	.fixup          = hero_fixup,
 	.map_io         = hero_map_io,
 	.init_irq       = hero_init_irq,

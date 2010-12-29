@@ -637,8 +637,8 @@ static struct msm_mddi_bridge_platform_data eid_client_data = {
 
 static struct resource resources_msm_fb[] = {
 	{
-		.start = MSM_FB_BASE,
-		.end = MSM_FB_BASE + MSM_FB_SIZE - 1,
+		.start = SMI32_MSM_FB_BASE,
+		.end = SMI32_MSM_FB_BASE + SMI32_MSM_FB_SIZE - 1,
 		.flags = IORESOURCE_MEM,
 	},
 };
@@ -710,16 +710,16 @@ int __init hero_init_panel(void)
 		panel_data->panel_id = panel;
 
 		/* Hero enable CABC criteria:
-		 * engineer id > 0, board > XC */
-//		if (engineer_id || system_rev > 2) {
+		 * engineerid > 0, board > XC */
+		if (hero_engineerid() || system_rev > 2) {
 			panel_data->caps |= MSMFB_CAP_CABC;
-//		} else {
-//			printk(KERN_DEBUG "CABC will not work on older board, "
-//					"engineer_id = %d\n", engineer_id);
-//		}
-//	} else {
-//		printk(KERN_ERR "unknown panel type!\n");
-//		return -EIO;
+		} else {
+			printk(KERN_DEBUG "CABC will not work on older board, "
+					"engineer_id = %d\n", hero_engineerid());
+		}
+	} else {
+		printk(KERN_ERR "unknown panel type!\n");
+		return -EIO;
 	}
 
 	rc = platform_device_register(&msm_device_mdp);
