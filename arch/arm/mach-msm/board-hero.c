@@ -123,43 +123,6 @@ ignore:
 	return ai->temp_state;
 }
 
-/* a new search button to be a wake-up source */
-static struct gpio_event_direct_entry hero_search_button_v1[] = {
-	{ HERO_GPIO_SEARCH_ACT_N, KEY_COMPOSE }, /* CPLD Key Search*/
-};
-
-static struct gpio_event_direct_entry hero_search_button_v2[] = {
-	{ HERO_GPIO_SEARCH_ACT_N, KEY_HOME }, /* CPLD Key Home */
-};
-
-static struct gpio_event_input_info hero_search_button_info = {
-	.info.func = gpio_event_input_func,
-	/* .flags = GPIOEDF_PRINT_KEYS | GPIOEDF_PRINT_KEY_DEBOUNCE, */
-	.flags = 0,
-	.poll_time.tv.nsec = 40 * NSEC_PER_MSEC,
-	.type = EV_KEY,
-	.keymap = hero_search_button_v2,
-	.keymap_size = ARRAY_SIZE(hero_search_button_v2)
-};
-
-static struct gpio_event_info *hero_search_info[] = {
-	&hero_search_button_info.info
-};
-
-static struct gpio_event_platform_data hero_search_button_data = {
-	.name = "hero-nav-button",
-	.info = hero_search_info,
-	.info_count = ARRAY_SIZE(hero_search_info),
-};
-
-static struct platform_device hero_search_button_device = {
-	.name = GPIO_EVENT_DEV_NAME,
-	.id = 1,
-	.dev = {
-		.platform_data = &hero_search_button_data,
-	},
-};
-
 static int hero_ts_power(int on)
 {
 	printk(KERN_INFO "hero_ts_power:%d\n", on);
@@ -1048,9 +1011,6 @@ static struct platform_device *devices[] __initdata = {
 #ifdef CONFIG_SERIAL_MSM_HS
 	&msm_device_uart_dm1,
 #endif
-//	&hero_nav_device,
-	&hero_search_button_device,
-//	&hero_reset_keys_device,
 #ifdef CONFIG_HTC_HEADSET
 //	&hero_h2w,
 #endif
@@ -1183,6 +1143,8 @@ static void __init hero_init(void)
 
 	msm_hw_reset_hook = hero_reset;
 
+	gpio_direction_output(HERO_TP_LS_EN, 0);
+
 	msm_acpu_clock_init(&hero_clock_data);
 
 	/* adjust GPIOs based on bootloader request */
@@ -1196,17 +1158,9 @@ static void __init hero_init(void)
 				      MSM_GPIO_TO_INT(86));
 #endif
 
-	/* gpio_configure(108, IRQF_TRIGGER_LOW); */
-
 	/* H2W pins <-> UART3, Bluetooth <-> UART1 */
 	gpio_set_value(HERO_GPIO_H2W_SEL0, 0);
 	gpio_set_value(HERO_GPIO_H2W_SEL1, 1);
-	/* put the AF VCM in powerdown mode to avoid noise */
-	if (hero_is_5M_camera())
-		hero_gpio_write(NULL, HERO_GPIO_VCM_PWDN, 0);
-	else
-		hero_gpio_write(NULL, HERO_GPIO_VCM_PWDN, 1);
-	mdelay(100);
 
 	printk(KERN_DEBUG "hero_is_5M_camera=%d\n",
 	       hero_is_5M_camera());
@@ -1223,10 +1177,6 @@ static void __init hero_init(void)
 
 	msm_init_pmic_vibrator();
 
-	if(system_rev != 0x80)
-		hero_search_button_info.keymap = hero_search_button_v1;
-
-	gpio_request( HERO_TP_LS_EN, "tp_ls_en");
 	platform_add_devices(devices, ARRAY_SIZE(devices));
 	
 	i2c_register_board_info(0, &i2c_bma150, 1);
