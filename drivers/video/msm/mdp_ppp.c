@@ -15,12 +15,8 @@
 #include <linux/fb.h>
 #include <linux/file.h>
 #include <linux/delay.h>
-#include <linux/major.h>
-#include <linux/msm_hw3d.h>
 #include <linux/msm_mdp.h>
-#include <linux/mutex.h>
 #include <linux/android_pmem.h>
-#include <linux/wait.h>
 #include <mach/msm_fb.h>
 
 #include "mdp_hw.h"
@@ -82,9 +78,6 @@ static uint32_t src_op_chroma[] = {
 static uint32_t bg_op_chroma[] = {
 	PPP_ARRAY1(CHROMA_SAMP, BG)
 };
-
-static DECLARE_WAIT_QUEUE_HEAD(mdp_ppp_waitqueue);
-DEFINE_MUTEX(mdp_mutex);
 
 static uint32_t get_luma_offset(struct mdp_img *img,
 				struct mdp_rect *rect, uint32_t bpp)
@@ -311,7 +304,7 @@ static void blit_blend(struct mdp_blit_req *req, struct ppp_regs *regs)
 	set_blend_region(&req->dst, &req->dst_rect, regs);
 }
 
-static int blit_scale(struct mdp_info *mdp, struct mdp_blit_req *req,
+static int blit_scale(const struct mdp_info *mdp, struct mdp_blit_req *req,
 		      struct ppp_regs *regs)
 {
 	struct mdp_rect dst_rect;
@@ -332,7 +325,7 @@ static int blit_scale(struct mdp_info *mdp, struct mdp_blit_req *req,
 	}
 
 	if (mdp_ppp_cfg_scale(mdp, regs, &req->src_rect, &dst_rect,
-				req->src.format, req->dst.format)) {
+			      req->src.format, req->dst.format)) {
 		DLOG("crap, bad scale\n");
 		return -1;
 	}
@@ -341,7 +334,7 @@ static int blit_scale(struct mdp_info *mdp, struct mdp_blit_req *req,
 	return 0;
 }
 
-static void blit_blur(struct mdp_info *mdp, struct mdp_blit_req *req,
+static void blit_blur(const struct mdp_info *mdp, struct mdp_blit_req *req,
 		      struct ppp_regs *regs)
 {
 	int ret;
@@ -441,13 +434,6 @@ static uint32_t get_chroma_base(struct mdp_img *img, uint32_t base,
 	return addr;
 }
 
-int mdp_get_bytes_per_pixel(int format)
-{
-	if (format < 0 || format >= MDP_IMGTYPE_LIMIT)
-		return -1;
-	return bytes_per_pixel[format];
-}
-
 #if PPP_DUMP_BLITS
 #define mdp_writel_dbg(mdp, val, reg) do { \
 		pr_info("%s: writing 0x%08x=0x%08x\n", __func__, (reg), (val));\
@@ -538,7 +524,7 @@ static void mdp_dump_blit(struct mdp_blit_req *req)
 }
 #endif
 
-static int process_blit(struct mdp_info *mdp, struct mdp_blit_req *req,
+int mdp_ppp_blit(const struct mdp_info *mdp, struct mdp_blit_req *req,
 		 struct file *src_file, unsigned long src_start, unsigned long src_len,
 		 struct file *dst_file, unsigned long dst_start, unsigned long dst_len)
 {
@@ -650,6 +636,13 @@ static int process_blit(struct mdp_info *mdp, struct mdp_blit_req *req,
 	return 0;
 }
 
+int mdp_get_bytes_per_pixel(int format)
+{
+	if (format < 0 || format >= MDP_IMGTYPE_LIMIT)
+		return -1;
+	return bytes_per_pixel[format];
+}
+
 #define mdp_dump_register(mdp, reg) \
 	printk(# reg ": %08x\n", mdp_readl((mdp), (reg)))
 
@@ -666,153 +659,3 @@ void mdp_ppp_dump_debug(const struct mdp_info *mdp)
 	mdp_dump_register(mdp, MDP_INTR_STATUS);
 	mdp_dump_register(mdp, MDP_INTR_ENABLE);
 }
-
-static int mdp_ppp_wait(struct mdp_info *mdp)
-{
-	int ret;
-
-	ret = mdp_wait(mdp, DL0_ROI_DONE, &mdp_ppp_waitqueue);
-	if (ret)
-		mdp_ppp_dump_debug(mdp);
-	return ret;
-}
-
-static int get_img(struct mdp_img *img, struct fb_info *info,
-		   unsigned long *start, unsigned long *len,
-		   struct file** filep)
-{
-	int put_needed, ret = 0;
-	struct file *file;
-	unsigned long vstart;
-
-	if (!get_pmem_file(img->memory_id, start, &vstart, len, filep))
-		return 0;
-	else if (!get_msm_hw3d_file(img->memory_id, &img->offset, start, len,
-				    filep))
-		return 0;
-
-	file = fget_light(img->memory_id, &put_needed);
-	if (file == NULL)
-		return -1;
-
-	if (MAJOR(file->f_dentry->d_inode->i_rdev) == FB_MAJOR) {
-		*start = info->fix.smem_start;
-		*len = info->fix.smem_len;
-		ret = 0;
-	} else
-		ret = -1;
-	fput_light(file, put_needed);
-
-	return ret;
-}
-
-static void put_img(struct file *file)
-{
-	if (file) {
-		if (is_pmem_file(file))
-			put_pmem_file(file);
-		else if (is_msm_hw3d_file(file))
-			put_msm_hw3d_file(file);
-	}
-}
-
-static void dump_req(struct mdp_blit_req *req,
-	unsigned long src_start, unsigned long src_len,
-	unsigned long dst_start, unsigned long dst_len)
-{
-	pr_err("flags: 0x%x\n",         req->flags);
-	pr_err("src_start:  0x%08lx\n", src_start);
-	pr_err("src_len:    0x%08lx\n", src_len);
-	pr_err("src.offset: 0x%x\n",    req->src.offset);
-	pr_err("src.format: 0x%x\n",    req->src.format);
-	pr_err("src.width:  %d\n",      req->src.width);
-	pr_err("src.height: %d\n",      req->src.height);
-	pr_err("src_rect.x: %d\n",      req->src_rect.x);
-	pr_err("src_rect.y: %d\n",      req->src_rect.y);
-	pr_err("src_rect.w: %d\n",      req->src_rect.w);
-	pr_err("src_rect.h: %d\n",      req->src_rect.h);
-
-	pr_err("dst_start:  0x%08lx\n", dst_start);
-	pr_err("dst_len:    0x%08lx\n", dst_len);
-	pr_err("dst.offset: 0x%x\n",    req->dst.offset);
-	pr_err("dst.format: 0x%x\n",    req->dst.format);
-	pr_err("dst.width:  %d\n",      req->dst.width);
-	pr_err("dst.height: %d\n",      req->dst.height);
-	pr_err("dst_rect.x: %d\n",      req->dst_rect.x);
-	pr_err("dst_rect.y: %d\n",      req->dst_rect.y);
-	pr_err("dst_rect.w: %d\n",      req->dst_rect.w);
-	pr_err("dst_rect.h: %d\n",      req->dst_rect.h);
-}
-
-int mdp_ppp_blit_and_wait(struct mdp_info *mdp, struct mdp_blit_req *req,
-		struct file *src_file, unsigned long src_start, unsigned long src_len,
-		struct file *dst_file, unsigned long dst_start, unsigned long dst_len)
-{
-	int ret;
-	mdp->enable_irq(mdp, DL0_ROI_DONE);
-	ret = process_blit(mdp, req, src_file, src_start, src_len,
-			   dst_file, dst_start, dst_len);
-	if (unlikely(ret)) {
-		mdp->disable_irq(mdp, DL0_ROI_DONE);
-		return ret;
-	}
-	ret = mdp_ppp_wait(mdp);
-	if (unlikely(ret)) {
-		printk(KERN_ERR "%s: failed!\n", __func__);
-		pr_err("original request:\n");
-		dump_req(mdp->req, src_start, src_len, dst_start, dst_len);
-		pr_err("dead request:\n");
-		dump_req(req, src_start, src_len, dst_start, dst_len);
-		BUG();
-		return ret;
-	}
-	return 0;
-}
-
-int mdp_ppp_blit(struct mdp_info *mdp, struct fb_info *fb,
-		 struct mdp_blit_req *req)
-{
-	int ret;
-	unsigned long src_start = 0, src_len = 0, dst_start = 0, dst_len = 0;
-	struct file *src_file = 0, *dst_file = 0;
-
-	ret = mdp_ppp_validate_blit(mdp, req);
-	if (ret)
-		return ret;
-
-	/* do this first so that if this fails, the caller can always
-	 * safely call put_img */
-	if (unlikely(get_img(&req->src, fb, &src_start, &src_len, &src_file))) {
-		printk(KERN_ERR "mdp_ppp: could not retrieve src image from "
-				"memory\n");
-		return -EINVAL;
-	}
-
-	if (unlikely(get_img(&req->dst, fb, &dst_start, &dst_len, &dst_file))) {
-		printk(KERN_ERR "mdp_ppp: could not retrieve dst image from "
-				"memory\n");
-		put_img(src_file);
-		return -EINVAL;
-	}
-	mutex_lock(&mdp_mutex);
-
-	/* transp_masking unimplemented */
-	req->transp_mask = MDP_TRANSP_NOP;
-	mdp->req = req;
-
-	ret = mdp_ppp_do_blit(mdp, req, src_file, src_start, src_len,
-			      dst_file, dst_start, dst_len);
-
-	put_img(src_file);
-	put_img(dst_file);
-	mutex_unlock(&mdp_mutex);
-	return ret;
-}
-
-void mdp_ppp_handle_isr(struct mdp_info *mdp, uint32_t mask)
-{
-	if (mask & DL0_ROI_DONE)
-		wake_up(&mdp_ppp_waitqueue);
-}
-
-
