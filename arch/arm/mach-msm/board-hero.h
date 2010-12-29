@@ -45,6 +45,16 @@
 #define SMI32_MSM_PMEM_CAMERA_BASE	0x27000000
 #define SMI32_MSM_PMEM_CAMERA_SIZE	0x01000000
 
+/*
+** CPLD GPIO
+**
+** Hero Altera CPLD can keep the registers value and
+** doesn't need a shadow to backup.
+**/
+#define HERO_CPLD_BASE   0xFA000000	/* VA */
+#define HERO_CPLD_START  0x98000000	/* PA */
+#define HERO_CPLD_SIZE   SZ_4K
+
 /****************
  * UNDER REVIEW *
  ****************/
@@ -74,16 +84,6 @@
 #define HERO_GPIO_H2W_CLK		(87)
 
 #define HERO_GPIO_AUDIO_JACK	(90)
-
-/*
-** CPLD GPIO
-**
-** Hero Altera CPLD can keep the registers value and
-** doesn't need a shadow to backup.
-**/
-#define HERO_CPLD_BASE   0xFA000000	/* VA */
-#define HERO_CPLD_START  0x98000000	/* PA */
-#define HERO_CPLD_SIZE   SZ_4K
 
 #define HERO_GPIO_START (128)				/* Pseudo GPIO number */
 
@@ -151,14 +151,6 @@
 /**************
  * END REVIEW *
  **************/
-
-/*
-** CPLD INT Start
-*/
-#define HERO_INT_START 					(NR_MSM_IRQS + NR_GPIO_IRQS)	/* pseudo number for CPLD INT */
-/* Using INT status/Bank0 for GPIO to INT */
-#define HERO_GPIO_TO_INT(n)				((n-HERO_GPIO_INT_B0_BASE) + HERO_INT_START)
-#define HERO_INT_END 					(HERO_GPIO_TO_INT(HERO_GPIO_END))
 
 #define HERO_POWER_KEY                  (20)
 #define HERO_GPIO_PS_HOLD               (25)

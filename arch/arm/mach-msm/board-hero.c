@@ -489,7 +489,7 @@ static struct bma150_platform_data gsensor_platform_data = {
 static struct i2c_board_info i2c_bma150 = {
 	I2C_BOARD_INFO(BMA150_I2C_NAME, 0x38),
 	.platform_data = &gsensor_platform_data,
-	.irq = HERO_GPIO_TO_INT(HERO_GPIO_GSENSOR_INT_N),
+	.irq = MSM_GPIO_TO_INT(HERO_GPIO_GSENSOR_INT_N),
 };
 
 static struct i2c_board_info i2c_devices[] = {

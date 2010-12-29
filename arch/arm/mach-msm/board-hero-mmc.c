@@ -367,7 +367,7 @@ int __init hero_init_mmc(unsigned int sys_rev)
 
 	set_irq_wake(MSM_GPIO_TO_INT(HERO_GPIO_SDMC_CD_N), 1);
 
-	msm_add_sdcc(2, &hero_sdslot_data, HERO_GPIO_TO_INT(HERO_GPIO_SDMC_CD_N),
+	msm_add_sdcc(2, &hero_sdslot_data, MSM_GPIO_TO_INT(HERO_GPIO_SDMC_CD_N),
 		IORESOURCE_IRQ_LOWEDGE | IORESOURCE_IRQ_HIGHEDGE); /* r porting 29 */
 
 done:
