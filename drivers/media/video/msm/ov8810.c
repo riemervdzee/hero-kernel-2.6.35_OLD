@@ -114,8 +114,8 @@ const int ov8810_ver_qtr_blk_lines_array[] = {44, 44, 365};
 /* Registers*/
 /* PLL Registers */
 #define REG_PRE_PLL_CLK_DIV		0x3011 /*0x0305*/
-#define REG_PLL_MULTIPLIER		0x3010	
-#define REG_VT_CLK_DIV			0x300E	/*[7:4]VT_SYS_DIV, [3-0]VT_PIX_DIV*/	
+#define REG_PLL_MULTIPLIER		0x3010
+#define REG_VT_CLK_DIV			0x300E	/*[7:4]VT_SYS_DIV, [3-0]VT_PIX_DIV*/
 #define REG_OP_CLK_DIV			0x300F	/*[7:4]OP_SYS_DIV, [3-0]OP_PIX_DIV*/
 
 /* ISP Enable Control */
@@ -1576,8 +1576,6 @@ static int32_t initialize_ov8810_registers(void)
 	int32_t i, array_length;
 	int32_t rc = 0;
 
-	struct msm_camera_sensor_info *sdata = ov8810_pdev->dev.platform_data;
-
 	mdelay(5);
 	ov8810_i2c_write_b(
 		ov8810_client->addr,
@@ -1602,7 +1600,6 @@ static int32_t initialize_ov8810_registers(void)
 	}
 
 	/*use calibrated LSC table*/
-  if (!sdata->sensor_lc_disable) { /* 0902 disable old LSC method */
 	if (HTC_update_ov8810_lsc_registers()) {
 		pr_info("[LSC calibration] use calibrated LSC table done!\n");
 	} else {/*use default LSC table*/
@@ -1616,11 +1613,6 @@ static int32_t initialize_ov8810_registers(void)
 		}
 		pr_info("[LSC calibration] use default LSC table done\n");
 	}
-  } else {
-	  /* add streaming on */
-	  ov8810_i2c_write_b(ov8810_client->addr,
-		  OV8810_REG_MODE_SELECT, OV8810_MODE_SELECT_STREAM);
-  }
 	return rc;
 } /* end of initialize_ov8810_ov8m0vc_registers. */
 
@@ -1993,7 +1985,8 @@ static int ov8810_probe_read_id(const struct msm_camera_sensor_info *data)
 	if (IS_ERR(vreg_af_actuator))
 		return PTR_ERR(vreg_af_actuator);
 
-	pr_info("ov8810_probe_init_sensor finishes\n");
+	data->camera_set_source(MAIN_SOURCE);
+	pr_info(" ov8810_probe_init_sensor finishes\n");
 	return rc;
 }
 
@@ -2047,15 +2040,8 @@ static int ov8810_sensor_open_init(struct msm_camera_sensor_info *data)
 	pr_info("doing clk switch (ov8810)\n");
 	if(data->camera_clk_switch != NULL)
 		data->camera_clk_switch();
-	
-	/* enable mclk first */
-	msm_camio_clk_rate_set(OV8810_DEFAULT_CLOCK_RATE);
-	msleep(20);
 
-	msm_camio_camif_pad_reg_reset();
-	msleep(20);
-
-	/*PWD and RST config*/
+	/*PWD config*/
 	pr_info("%s, GPIO(%d) sensor_pwd 0\n", __func__, data->sensor_pwd);
 	rc = gpio_request(data->sensor_pwd, "ov8810");
 	if (!rc)
@@ -2063,16 +2049,20 @@ static int ov8810_sensor_open_init(struct msm_camera_sensor_info *data)
 	else
 		pr_err("GPIO (%d) request faile\n", data->sensor_pwd);
 	gpio_free(data->sensor_pwd);
-	msleep(5);
+	mdelay(3);
 
+	/* enable mclk first */
+	msm_camio_clk_rate_set(OV8810_DEFAULT_CLOCK_RATE);
+	msm_camio_camif_pad_reg_reset();
+	msleep(3);
+	/*Pull reset*/
 	rc = gpio_request(data->sensor_reset, "ov8810");
 	if (!rc)
 		gpio_direction_output(data->sensor_reset, 1);
 	else
 		pr_err("GPIO (%d) request faile\n", data->sensor_reset);
 	gpio_free(data->sensor_reset);
-	msleep(1);
-
+	msleep(20);
 	/*read sensor id*/
 	rc = ov8810_probe_read_id(data);
 
@@ -2081,7 +2071,7 @@ static int ov8810_sensor_open_init(struct msm_camera_sensor_info *data)
 	pr_info("%s, initialize_ov8810_registers: %d\n", __func__, __LINE__);
 	if (rc < 0)
 		goto init_fail;
-	#if 0 /*move to probe up sensor*/
+	#if 1 /*move to probe up sensor*/
       /* Initialize Sensor registers */
 	rc = initialize_ov8810_registers();
 	if (rc < 0)
@@ -2102,7 +2092,7 @@ static int ov8810_sensor_open_init(struct msm_camera_sensor_info *data)
 	/* enable AF actuator */
 	rc = vreg_enable(vreg_af_actuator);
 	if (!rc) {
-		
+
 		rc = vreg_set_level(vreg_af_actuator, 2800); /*2v8*/
 		if (rc)
 		{
@@ -2112,7 +2102,7 @@ static int ov8810_sensor_open_init(struct msm_camera_sensor_info *data)
 		}
 	else {
 		pr_err("vreg_af_actuator vreg_enable failed!\n");
-		goto init_fail;	
+		goto init_fail;
 	}
 
 	msleep(20);
@@ -2208,6 +2198,9 @@ static int ov8810_probe_init_done(const struct msm_camera_sensor_info *data)
 	gpio_direction_output(data->sensor_pwd, 1);
 	gpio_free(data->sensor_pwd);
 	mdelay(1);
+	gpio_request(data->sensor_reset, "ov8810");
+	gpio_direction_output(data->sensor_reset, 0);
+	gpio_free(data->sensor_reset);
 	return 0;
 }
 
@@ -2594,27 +2587,26 @@ static int ov8810_sensor_release(void)
 	int rc = -EBADF;
 
 	down(&ov8810_sem);
-	msleep(35);
-
-	if (ov8810_ctrl) {
-		gpio_request(ov8810_ctrl->sensordata->sensor_pwd, "ov8810");
-		gpio_direction_output(ov8810_ctrl->sensordata->sensor_pwd, 1);
-		gpio_free(ov8810_ctrl->sensordata->sensor_pwd);
-	}
+	/*Pull hi PWD*/
+	gpio_request(ov8810_ctrl->sensordata->sensor_pwd, "ov8810");
+	gpio_direction_output(ov8810_ctrl->sensordata->sensor_pwd, 1);
+	gpio_free(ov8810_ctrl->sensordata->sensor_pwd);
+	/*Pull low RST*/
+	gpio_request(ov8810_ctrl->sensordata->sensor_reset, "ov8810");
+	gpio_direction_output(ov8810_ctrl->sensordata->sensor_reset, 0);
+	gpio_free(ov8810_ctrl->sensordata->sensor_reset);
 
 	pr_info("vreg_af_actuator vreg_disable\n");
 	vreg_disable(vreg_af_actuator);
-
 	msleep(20);
-
 	pr_info("%s, %d\n", __func__, __LINE__);
-
+	/*MCLK off*/
 	msm_camio_probe_off(ov8810_pdev);
 	if (ov8810_ctrl) {
 		kfree(ov8810_ctrl);
 		ov8810_ctrl = NULL;
 	}
-
+	mdelay(3);
 	allow_suspend();
 	pr_info("ov8810_release completed\n");
 	up(&ov8810_sem);
@@ -2673,7 +2665,6 @@ static int ov8810_sensor_probe(struct msm_camera_sensor_info *info,
 
 	if (info->camera_main_set_probe != NULL)
 		info->camera_main_set_probe(true);
-
 	init_suspend();
 	s->s_init = ov8810_sensor_open_init;
 	s->s_release = ov8810_sensor_release;
@@ -2712,7 +2703,7 @@ static int ov8810_vreg_enable(struct platform_device *pdev)
 	return rc;
 }
 
-#if 0
+
 static int ov8810_vreg_disable(struct platform_device *pdev)
 {
 	struct msm_camera_sensor_info *sdata = pdev->dev.platform_data;
@@ -2725,34 +2716,19 @@ static int ov8810_vreg_disable(struct platform_device *pdev)
 	rc = sdata->camera_power_off();
 	return rc;
 }
-#endif
+
 
 static int __ov8810_probe(struct platform_device *pdev)
 {
-	int rc;
 	struct msm_camera_sensor_info *sdata = pdev->dev.platform_data;
 	printk("__ov8810_probe\n");
 	ov8810_pdev = pdev;
-
 	if (sdata->camera_main_get_probe != NULL) {
 		if (sdata->camera_main_get_probe()) {
 			pr_info("__ov8810_probe camera main get probed already.\n");
 			return 0;
 		}
 	}
-
-	rc = gpio_request(sdata->sensor_pwd, "ov8810");
-	if (!rc)
-		gpio_direction_output(sdata->sensor_pwd, 1);
-	else
-		pr_err("GPIO (%d) request faile\n", sdata->sensor_pwd);
-	gpio_free(sdata->sensor_pwd);
-	udelay(200);
-
-	rc = ov8810_vreg_enable(pdev);
-	if (rc < 0)
-		pr_err("__ov8810_probe fail sensor power on error\n");
-
 	return msm_camera_drv_start(pdev, ov8810_sensor_probe);
 }
 

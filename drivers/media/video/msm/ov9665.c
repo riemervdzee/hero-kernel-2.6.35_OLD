@@ -18,10 +18,10 @@
 
 #include <linux/delay.h>
 #include <linux/types.h>
-#include <linux/slab.h>
 #include <linux/i2c.h>
 #include <linux/uaccess.h>
 #include <linux/miscdevice.h>
+#include <linux/slab.h>
 #include <media/msm_camera.h>
 #include <mach/gpio.h>
 #include "ov9665.h"
@@ -54,6 +54,9 @@ static DECLARE_WAIT_QUEUE_HEAD(ov9665_wait_queue);
 DECLARE_MUTEX(ov9665_sem);
 
 static int sensor_probe_node = 0;
+
+static enum wb_mode current_wb = CAMERA_AWB_AUTO;
+static int ov9665_set_wb(enum wb_mode wb_value);
 
 #define MAX_I2C_RETRIES 20
 static int i2c_transfer_retry(struct i2c_adapter *adap,
@@ -229,7 +232,14 @@ static int ov9665_pwd(const struct msm_camera_sensor_info *info){
 	else
 		pr_err("GPIO(%d) request faile",info->sensor_pwd);
 	gpio_free(info->sensor_pwd);
-	
+	/*for 2nd camera 2nd source*/
+	/*main camera pwd pull down*/
+	rc = gpio_request(105, "ov9665");
+	if (!rc)
+		gpio_direction_output(105, 0);
+	else
+		pr_err("GPIO(105) request faile");
+	gpio_free(105);
 	return rc;
 }
 
@@ -242,7 +252,7 @@ static int ov9665_reset(const struct msm_camera_sensor_info *dev)
 		rc = gpio_direction_output(dev->sensor_reset, 1);
 	else
 		pr_err("GPIO(%d) request faile",dev->sensor_reset);
-	
+
 	gpio_free(dev->sensor_reset);
 	return rc;
 }
@@ -298,6 +308,7 @@ static int ov9665_set_sensor_mode(int mode)
 		ov9665_i2c_write(ov9665_client->addr, 0x0d, 0x90, BYTE_LEN);
 		/*enable 3A*/
 		ov9665_i2c_write(ov9665_client->addr, 0x13, 0xe7, BYTE_LEN);
+		ov9665_set_wb(current_wb);
 		/*VGA 30fps*/
 		ov9665_i2c_write(ov9665_client->addr, 0x11, 0x80, BYTE_LEN);
 		//ov9665_i2c_write(ov9665_client->addr, 0x09, 0x01, BYTE_LEN);
@@ -564,6 +575,7 @@ static int ov9665_set_wb(enum wb_mode wb_value)
 	default:
 		break;
 	}
+	current_wb = wb_value;
 	return 0;
 }
 
@@ -743,7 +755,7 @@ static int ov9665_sensor_init(const struct msm_camera_sensor_info *data)
 			      REG_OV9665_MODEL_ID_H, &model_id_h);
 	if (rc < 0)
 		goto init_probe_fail;
-	
+
 	rc = ov9665_i2c_read(ov9665_client->addr,
 			      REG_OV9665_MODEL_ID_L, &model_id_l);
 	if (rc < 0)
@@ -756,7 +768,7 @@ static int ov9665_sensor_init(const struct msm_camera_sensor_info *data)
 		goto init_probe_fail;
 	}
 
-	
+
 	return rc;
 init_probe_fail:
 	return rc;
@@ -790,14 +802,21 @@ int ov9665_sensor_open_init(struct msm_camera_sensor_info *data)
 		pr_info("GPIO(%d) request faile",data->sensor_pwd);
 	gpio_free(data->sensor_pwd);
 	mdelay(3);
-
 	/* Input MCLK = 24MHz */
 	msm_camio_clk_rate_set(24000000);
 	mdelay(5);
 
+	/* Config reset */
+	rc = gpio_request(data->sensor_reset, "ov9665");
+	if (!rc)
+		gpio_direction_output(data->sensor_reset, 1);
+	else
+		pr_info("GPIO(%d) request faile", data->sensor_reset);
+	gpio_free(data->sensor_reset);
+	mdelay(20);
 	msm_camio_camif_pad_reg_reset();
 
-    rc = ov9665_i2c_write_table(&ov9665_regs.plltbl[0],
+	rc = ov9665_i2c_write_table(&ov9665_regs.plltbl[0],
 				     ov9665_regs.plltbl_size);
 
 	/*read ID*/
@@ -816,10 +835,8 @@ init_done:
 	return rc;
 
 init_fail:
-	if (ov9665_ctrl) {
-		kfree(ov9665_ctrl);
-		ov9665_ctrl = NULL;
-	}
+	/* remove free ov9665_ctrl to prevent kernel panic in sensor release */
+	pr_info("ov9665_sensor_open_init failed\n");
 	return rc;
 }
 
@@ -894,6 +911,19 @@ int ov9665_sensor_release(void)
 		pr_info("GPIO(%d) request faile",
 			ov9665_ctrl->sensordata->sensor_pwd);
 	gpio_free(ov9665_ctrl->sensordata->sensor_pwd);
+
+	if (ov9665_ctrl->sensordata->camera_get_source() == SECOND_SOURCE) {
+		rc = gpio_request(
+			ov9665_ctrl->sensordata->sensor_reset, "ov9665");
+		if (!rc)
+			gpio_direction_output(
+			ov9665_ctrl->sensordata->sensor_reset, 0);
+		else
+			pr_info("GPIO(%d) request faile",
+				ov9665_ctrl->sensordata->sensor_reset);
+		gpio_free(ov9665_ctrl->sensordata->sensor_reset);
+	}
+
 
 	if (ov9665_ctrl) {
 		kfree(ov9665_ctrl);
@@ -1059,9 +1089,9 @@ static int ov9665_sensor_probe(struct msm_camera_sensor_info *info,
 	pr_info("ov9665: ov9665_sensor_probe switch clk\n");
 	if(info->camera_clk_switch != NULL)
 		info->camera_clk_switch();
-	
-	/* Config power down */
 
+
+	/* Config power down */
 	if(ov9665_pwd(info)<0)
 		goto probe_fail;
 	mdelay(3);
@@ -1087,6 +1117,8 @@ static int ov9665_sensor_probe(struct msm_camera_sensor_info *info,
 	rc = ov9665_reg_init();
 	if (rc < 0)
 		goto probe_fail;
+	if (info->camera_main_set_probe != NULL)
+		info->camera_main_set_probe(true);
 
 	s->s_init = ov9665_sensor_open_init;
 	s->s_release = ov9665_sensor_release;
@@ -1108,6 +1140,15 @@ probe_fail:
 
 static int __ov9665_probe(struct platform_device *pdev)
 {
+	int rc;
+	struct msm_camera_sensor_info *sdata = pdev->dev.platform_data;
+
+	if (sdata->camera_main_get_probe != NULL) {
+		if (sdata->camera_main_get_probe()) {
+			pr_info("__s5k6aafx_probe camera main get probed already.\n");
+			return 0;
+		}
+	}
 	return msm_camera_drv_start(pdev, ov9665_sensor_probe);
 }
 

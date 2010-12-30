@@ -432,7 +432,8 @@ struct msm_snapshot_pp_status {
 #define CFG_GET_EXP_FOR_LED		37
 #define CFG_UPDATE_AEC_FOR_LED		38
 #define CFG_SET_FRONT_CAMERA_MODE	39
-#define CFG_MAX        			40
+#define CFG_SET_QCT_LSC_RAW_CAPTURE 40 /* 20101011 QCT mesh LSC Calibration */
+#define CFG_MAX        			41
 
 #define MOVE_NEAR	0
 #define MOVE_FAR	1

@@ -1,25 +1,25 @@
 comment "Qualcomm MSM Camera And Video"
 
 menuconfig MSM_CAMERA
-        bool "Qualcomm MSM camera and video capture support"
-        depends on ARCH_MSM
-        help
-          Say Y here to enable selecting the video adapters for
-          Qualcomm msm camera and video encoding
+	bool "Qualcomm MSM camera and video capture support"
+	depends on ARCH_MSM
+	help
+	  Say Y here to enable selecting the video adapters for
+	  Qualcomm msm camera and video encoding
 
 config 720P_CAMERA
-        bool "Qualcomm MSM camera with 720P video support"
-        depends on MSM_CAMERA
-        help
-          720P video support
+	bool "Qualcomm MSM camera with 720P video support"
+	depends on MSM_CAMERA
+	help
+	  720P video support
 
 config MSM_CAMERA_V4L2
-        bool "Video For Linux interface to MSM camera"
-        depends on MSM_CAMERA && VIDEO_V4L2 && EXPERIMENTAL
-        help
-          Say Y here to enable the V4L2 interface for the MSM camera.
-          Not everything works through this interface and it has not
-          been thoroughly tested.
+	bool "Video For Linux interface to MSM camera"
+	depends on MSM_CAMERA && VIDEO_V4L2 && EXPERIMENTAL
+	help
+	  Say Y here to enable the V4L2 interface for the MSM camera.
+	  Not everything works through this interface and it has not
+	  been thoroughly tested.
 
 config MSM_CAMERA_DEBUG
 	bool "Qualcomm MSM camera debugging with printk"
@@ -36,7 +36,7 @@ config MT9T013
 
 config MT9D112
 	bool "Sensor mt9d112 (YUV 2M)"
-	depends on MSM_CAMERA 
+	depends on MSM_CAMERA
 	---help---
 	  MICRON 2M YUV Sensor
 
@@ -58,6 +58,20 @@ config S5K3E2FX
 	---help---
 	  Samsung 5M with Autofocus
 
+config S5K4E1GX
+	bool "Sensor s5k4e1gx (Samsung 5M)"
+	depends on MSM_CAMERA
+	default n
+	---help---
+	  Samsung 5M with Autofocus
+
+config S5K6AAFX
+	bool "Sensor s5k6aafx (Samsung 1.3M)"
+	depends on MSM_CAMERA
+	default n
+	---help---
+	  Samsung 1.3M without Autofocus
+
 config OV8810
 	bool "Sensor ov8810"
 	depends on MSM_CAMERA
@@ -71,3 +85,11 @@ config OV9665
 	default n
 	---help---
 	  OmniVision 3M YUV Sensor
+
+config S5K3H1GX
+	bool "Sensor s5k3h1gx"
+	depends on MSM_CAMERA
+	default n
+	---help---
+	  Samsung 8M 3H1 MIPI AF Sensor
+

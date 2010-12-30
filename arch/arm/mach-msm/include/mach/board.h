@@ -128,6 +128,11 @@ struct camera_flash_cfg {
 	uint8_t postpone_led_mode;
 };
 
+enum msm_camera_source{
+	MAIN_SOURCE,
+	SECOND_SOURCE,
+};
+
 struct msm_camera_sensor_info {
 	const char *sensor_name;
 	int sensor_reset;
@@ -142,6 +147,8 @@ struct msm_camera_sensor_info {
 	int analog_pwd1_gpio;
 	int (*camera_power_on)(void);
 	int (*camera_power_off)(void);
+	void(*camera_set_source)(enum msm_camera_source);
+	enum msm_camera_source(*camera_get_source)(void);
 	int (*camera_main_get_probe)(void);
 	void (*camera_main_set_probe)(int);
 	int mclk;
