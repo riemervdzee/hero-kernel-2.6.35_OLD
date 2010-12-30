@@ -22,7 +22,6 @@
 #include <linux/syscalls.h>
 #include <linux/slab.h>
 
-
 #define KEYRESET_DELAY 3*HZ
 struct keyreset_state {
 	struct input_handler input_handler;
@@ -93,12 +92,12 @@ static void keyreset_event(struct input_handle *handle, unsigned int type,
 		pr_info("keyboard reset\n");
 		schedule_delayed_work(&restart_work, KEYRESET_DELAY);
 		restart_requested = 1;
-        } else if (restart_requested == 1) { 
-		if (cancel_delayed_work(&restart_work)) { 
-			pr_info("%s: cancel restart work\n", __func__); 
-			restart_requested = 0; 
-		} else 
-			pr_info("%s: cancel failed\n", __func__); 
+	} else if (restart_requested == 1) {
+		if (cancel_delayed_work(&restart_work)) {
+			pr_info("%s: cancel restart work\n", __func__);
+			restart_requested = 0;
+		} else
+			pr_info("%s: cancel failed\n", __func__);
 	}
 done:
 	spin_unlock_irqrestore(&state->lock, flags);

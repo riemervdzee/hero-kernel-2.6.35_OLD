@@ -27,8 +27,8 @@
 
 #define KEYCHORD_NAME		"keychord"
 #define BUFFER_SIZE			16
-#define MATCH_COUNT    			3
-#define KEYCHORD_TIMEOUT  		5*HZ
+#define MATCH_COUNT		3
+#define KEYCHORD_TIMEOUT	5*HZ
 
 MODULE_AUTHOR("Mike Lockwood <lockwood@android.com>");
 MODULE_DESCRIPTION("Key chord input driver");
@@ -62,19 +62,19 @@ struct keychord_device {
 	unsigned char		head;
 	unsigned char		tail;
 	__u16			buff[BUFFER_SIZE];
-	struct delayed_work     keychord_work;
-	int8_t      		keychord_match_count;
+	struct delayed_work	keychord_work;
+	int8_t			keychord_match_count;
 };
 
-static void keychord_timeout(struct work_struct *work) 
-{ 
-  struct keychord_device *kdev = 
-    container_of(work, struct keychord_device, keychord_work.work); 
- 
-  pr_info("%s: match_count=%d\n", __func__, kdev->keychord_match_count); 
-  if (kdev->keychord_match_count) 
-    kdev->keychord_match_count = 0; 
-} 
+static void keychord_timeout(struct work_struct *work)
+{
+	struct keychord_device *kdev =
+		container_of(work, struct keychord_device, keychord_work.work);
+
+	pr_info("%s: match_count=%d\n", __func__, kdev->keychord_match_count);
+	if (kdev->keychord_match_count)
+		kdev->keychord_match_count = 0;
+}
 
 static int check_keychord(struct keychord_device *kdev,
 		struct input_keychord *keychord)
@@ -89,18 +89,18 @@ static int check_keychord(struct keychord_device *kdev,
 			return 0;
 	}
 
-  if (kdev->keychord_match_count++ == 0) 
-    schedule_delayed_work(&kdev->keychord_work, KEYCHORD_TIMEOUT); 
- 
-  if (kdev->keychord_match_count == MATCH_COUNT) { 
-    if (cancel_delayed_work(&kdev->keychord_work)) { 
-      kdev->keychord_match_count = 0; 
-      return 1; 
-    } else 
-      pr_info("%s: timeout already started\n", __func__); 
-  } 
- 
-  return 0; 
+	if (kdev->keychord_match_count++ == 0)
+		schedule_delayed_work(&kdev->keychord_work, KEYCHORD_TIMEOUT);
+
+	if (kdev->keychord_match_count == MATCH_COUNT) {
+		if (cancel_delayed_work(&kdev->keychord_work)) {
+			kdev->keychord_match_count = 0;
+			return 1;
+		} else
+			pr_info("%s: timeout already started\n", __func__);
+	}
+
+	return 0;
 }
 
 static void keychord_event(struct input_handle *handle, unsigned int type,
