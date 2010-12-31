@@ -1,7 +1,7 @@
 #
 # Automatically generated make config: don't edit
-# Linux kernel version: 2.6.35.8
-# Thu Nov 25 01:11:14 2010
+# Linux kernel version: 2.6.35.9
+# Fri Dec 31 10:19:50 2010
 #
 CONFIG_ARM=y
 CONFIG_SYS_SUPPORTS_APM_EMULATION=y
@@ -1022,6 +1022,7 @@ CONFIG_WLAN=y
 CONFIG_BCM4329=m
 CONFIG_BCM4329_FW_PATH="/system/etc/firmware/fw_bcm4329.bin"
 CONFIG_BCM4329_NVRAM_PATH="/proc/calibration"
+CONFIG_BCM4329_ENABLE_CSCAN=y
 # CONFIG_HOSTAP is not set
 # CONFIG_TIWLAN1251 is not set
 
@@ -1320,8 +1321,11 @@ CONFIG_720P_CAMERA=y
 # CONFIG_MT9D112 is not set
 # CONFIG_MT9P012 is not set
 CONFIG_S5K3E2FX=y
+# CONFIG_S5K4E1GX is not set
+# CONFIG_S5K6AAFX is not set
 # CONFIG_OV8810 is not set
 # CONFIG_OV9665 is not set
+# CONFIG_S5K3H1GX is not set
 # CONFIG_DAB is not set
 
 #
@@ -1442,7 +1446,7 @@ CONFIG_USB_ANDROID=y
 CONFIG_USB_ANDROID_ADB=y
 # CONFIG_USB_ANDROID_DIAG is not set
 CONFIG_USB_ANDROID_MASS_STORAGE=y
-# CONFIG_USB_ANDROID_MTP is not set
+CONFIG_USB_ANDROID_MTP=y
 CONFIG_USB_ANDROID_RNDIS=y
 CONFIG_USB_ANDROID_RNDIS_WCEIS=y
 # CONFIG_USB_CDC_COMPOSITE is not set
