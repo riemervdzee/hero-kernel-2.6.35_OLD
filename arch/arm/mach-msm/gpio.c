@@ -664,6 +664,18 @@ static int __init msm_init_gpio(void)
 
 postcore_initcall(msm_init_gpio);
 
+int gpio_configure(unsigned int gpio, unsigned long flags)
+{
+	int ret;
+	unsigned long irq_flags;
+	struct msm_gpio_chip *msm_chip = get_irq_chip_data((gpio + FIRST_GPIO_IRQ));
+	spin_lock_irqsave(&msm_chip->chip.lock, irq_flags);
+	ret = msm_gpio_configure(&msm_chip->chip, gpio, flags);
+	spin_unlock_irqrestore(&msm_chip->chip.lock, irq_flags);
+	return ret;
+}
+EXPORT_SYMBOL(gpio_configure);
+
 int gpio_tlmm_config(unsigned config, unsigned disable)
 {
 	return msm_proc_comm(PCOM_RPC_GPIO_TLMM_CONFIG_EX, &config, &disable);
