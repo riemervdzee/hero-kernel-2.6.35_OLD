@@ -111,11 +111,24 @@ config MSM_LEGACY_7X00A_AMSS
 
 config MSM_AMSS_VERSION
 	int
+	default 1320 if MSM_AMSS_VERSION_1320
+	default 1330 if MSM_AMSS_VERSION_1330
+	default 1340 if MSM_AMSS_VERSION_1340
+	default 1355 if MSM_AMSS_VERSION_1355
+    default 3200 if MSM_AMSS_VERSION_3200
+	default 4001 if MSM_AMSS_VERSION_4001
+	default 4110 if MSM_AMSS_VERSION_4110
+	default 4320 if MSM_AMSS_VERSION_4320
+	default 4410 if MSM_AMSS_VERSION_4410
+	default 4275 if MSM_AMSS_VERSION_4725
+	default 4735 if MSM_AMSS_VERSION_4735
 	default 6210 if MSM_AMSS_VERSION_6210
 	default 6220 if MSM_AMSS_VERSION_6220
 	default 6225 if MSM_AMSS_VERSION_6225
+	default 6335 if MSM_AMSS_VERSION_6335
+	default 6340 if MSM_AMSS_VERSION_6340
 	default 6350 if MSM_AMSS_VERSION_6350
-        default 3200 if MSM_AMSS_VERSION_3200
+	default 6355 if MSM_AMSS_VERSION_6355
 
 choice
 	prompt "AMSS modem firmware version"
@@ -135,11 +148,22 @@ choice
 		bool "6.2.20 + New ADSP"
 		select MSM_LEGACY_7X00A_AMSS
 
+	config MSM_AMSS_VERSION_6335
+		bool "6.3.35"
+
+	config MSM_AMSS_VERSION_6340
+		bool "6.3.40"
+
 	config MSM_AMSS_VERSION_6350
 		bool "6.3.50"
-         
-         config MSM_AMSS_VERSION_3200
- 	        bool "3.2.00"
+		select MSM_ADSP_PKG2
+
+	config MSM_AMSS_VERSION_6355
+		bool "6.3.55"
+		select MSM_ADSP_PKG2
+
+	config MSM_AMSS_VERSION_3200
+		bool "3.2.00"
 endchoice
 
 menu "Qualcomm MSM Board Type"

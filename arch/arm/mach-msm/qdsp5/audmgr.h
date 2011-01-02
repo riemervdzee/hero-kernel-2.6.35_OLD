@@ -17,7 +17,7 @@
 #ifndef _ARCH_ARM_MACH_MSM_AUDMGR_H
 #define _ARCH_ARM_MACH_MSM_AUDMGR_H
 
-#if CONFIG_MSM_AMSS_VERSION==6350
+#if CONFIG_MSM_AMSS_VERSION >= 6350
 #include "audmgr_new.h"
 #else
 

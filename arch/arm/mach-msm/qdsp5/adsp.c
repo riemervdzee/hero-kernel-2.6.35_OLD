@@ -48,9 +48,8 @@ static inline void allow_suspend(void)
 
 #include <linux/io.h>
 #include <mach/msm_iomap.h>
+#include <mach/msm_rpc_version.h>
 #include "adsp.h"
-
-#define INT_ADSP INT_ADSP_A9_A11
 
 static struct adsp_info adsp_info;
 static struct msm_rpc_endpoint *rpc_cb_server_client;

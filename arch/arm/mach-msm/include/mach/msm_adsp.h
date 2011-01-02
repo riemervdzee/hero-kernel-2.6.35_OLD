@@ -76,7 +76,7 @@ int msm_adsp_write(struct msm_adsp_module *module,
 #define QDSP_vfeCommandQueue              25
 #define QDSP_vfeCommandScaleQueue         26
 #define QDSP_vfeCommandTableQueue         27
-#define QDSP_MAX_NUM_QUEUES               28
+#define QDSP_QUEUE_MAX                    28
 #else
 /* Command Queue Indexes */
 #define QDSP_lpmCommandQueue              0
