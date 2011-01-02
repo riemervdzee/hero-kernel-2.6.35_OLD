@@ -37,6 +37,8 @@
 #include <mach/msm_iomap.h>
 #include <asm/mach/mmc.h>
 
+#include <mach/msm_rpc_version.h>
+
 #if 0
 struct platform_device *devices[] __initdata = {
 	&msm_device_nand,
@@ -328,13 +330,6 @@ void __init msm_add_mem_devices(struct msm_pmem_setting *setting)
 		platform_device_register(&ram_console_device);
 	}
 }
-
-#define PM_LIBPROG      0x30000061
-#if (CONFIG_MSM_AMSS_VERSION == 6220) || (CONFIG_MSM_AMSS_VERSION == 6225)
-#define PM_LIBVERS      0xfb837d0b
-#else
-#define PM_LIBVERS      0x10001
-#endif
 
 #if 0
 static struct platform_device *msm_serial_devices[] __initdata = {
