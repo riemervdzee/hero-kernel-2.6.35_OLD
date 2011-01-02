@@ -13,6 +13,7 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.	 See the
  * GNU General Public License for more details.
  *
+ * Riemer: added (naughty hack) support for qdsp for the hero
  */
 #include <linux/module.h>
 #include <linux/kernel.h>
@@ -295,14 +296,35 @@ int msm_rpcrouter_create_server_cdev(struct rr_server *server)
  */
 int msm_rpcrouter_create_server_pdev(struct rr_server *server)
 {
-	sprintf(server->pdev_name, "rs%.8x:%.8x",
-		server->prog,
+	uint32_t dev_vers;
+
 #if !defined(CONFIG_MSM_LEGACY_7X00A_AMSS)
-		(server->vers & RPC_VERSION_MODE_MASK) ? server->vers :
-		(server->vers & RPC_VERSION_MAJOR_MASK));
+	// Riemer:
+	// To fix qdsp on hero, we need to have an exclude list
+	// These are then passed directly to the sprintf
+	// Without any masking going on
+	switch( server->prog)
+	{
+		case 0x3000000a:
+		case 0x3000000b:
+			dev_vers = server->vers;
+			//printk(KERN_DEBUG "Found an exclude device\n");
+			break;
+		// Normal treatment
+		default:
+			dev_vers = 
+				(server->vers & RPC_VERSION_MODE_MASK) ? server->vers :
+				(server->vers & RPC_VERSION_MAJOR_MASK);
+			break;
+	}
 #else
-		server->vers);
+		dev_vers = server->vers;
 #endif
+
+	sprintf(server->pdev_name, "rs%.8x:%.8x",
+		server->prog, dev_vers);
+
+	//printk(KERN_DEBUG "Registered device: %s\n", server->pdev_name);
 
 	server->p_device.base.id = -1;
 	server->p_device.base.name = server->pdev_name;
