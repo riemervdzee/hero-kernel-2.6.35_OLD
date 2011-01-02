@@ -860,6 +860,7 @@ static void __init hero_init(void)
 
 	msm_hw_reset_hook = hero_reset;
 
+	gpio_request(HERO_TP_LS_EN, "tp_ls_en");
 	gpio_direction_output(HERO_TP_LS_EN, 0);
 
 	msm_acpu_clock_init(&hero_clock_data);
