@@ -1,7 +1,7 @@
 #
 # Automatically generated make config: don't edit
 # Linux kernel version: 2.6.35.9
-# Sun Jan  2 17:02:23 2011
+# Sun Jan  2 19:44:08 2011
 #
 CONFIG_ARM=y
 CONFIG_SYS_SUPPORTS_APM_EMULATION=y
@@ -1177,6 +1177,7 @@ CONFIG_I2C_MSM=y
 # Miscellaneous I2C Chip support
 #
 CONFIG_MICROP_I2C=y
+CONFIG_SENSORS_BMA150=y
 CONFIG_SENSORS_MT9T013=y
 # CONFIG_I2C_DEBUG_CORE is not set
 # CONFIG_I2C_DEBUG_ALGO is not set

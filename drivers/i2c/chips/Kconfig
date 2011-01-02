@@ -12,6 +12,12 @@ config MICROP_I2C
         help
           HTC Microp-P support.
 
+config SENSORS_BMA150
+        tristate "BMA150 G-sensor Driver"
+        depends on I2C
+        help
+         BMA150 G-sensor Driver implemented by HTC.
+
 config SENSORS_MT9T013
 	tristate "MT9T013 Camera Driver"
 	depends on I2C
