@@ -59,6 +59,7 @@
 #include <mach/msm_serial_hs.h>
 #include <mach/htc_pwrsink.h>
 #include <mach/microp_i2c.h>
+#include <mach/htc_battery.h>
 
 #include "proc_comm.h"
 #include "devices.h"
@@ -68,6 +69,27 @@
 static unsigned int hwid = 0;
 static unsigned int skuid = 0;
 static unsigned int engineerid = 0;
+
+extern ssize_t htc_battery_show_batt_attr(struct device *dev,
+					 struct device_attribute *attr,
+					 char *buf);
+static struct htc_battery_platform_data htc_battery_pdev_data = {
+	.func_show_batt_attr = htc_battery_show_batt_attr,
+/*	.gpio_mbat_in = HERO_GPIO_MBAT_IN,*/
+/*	.gpio_mchg_en_n = HERO_GPIO_MCHG_EN_N,*/
+/*	.gpio_iset = HERO_GPIO_ISET,*/
+	.guage_driver = GUAGE_MODEM,
+	.charger = LINEAR_CHARGER,
+	.m2a_cable_detect = 1,
+};
+
+static struct platform_device htc_battery_pdev = {
+	.name = "htc_battery",
+	.id = -1,
+	.dev	= {
+		.platform_data = &htc_battery_pdev_data,
+	},
+};
 
 unsigned int hero_get_hwid(void)
 {
@@ -726,6 +748,7 @@ static struct platform_device *devices[] __initdata = {
 #ifdef CONFIG_MT9P012
 	&msm_camera_sensor_mt9p012,
 #endif
+	&htc_battery_pdev,
 	&hero_rfkill,
 #ifdef CONFIG_HTC_PWRSINK
 	&hero_pwr_sink,
