@@ -905,7 +905,7 @@ static int htc_set_smem_cable_type(u32 cable_type)
 	return 0;
 }
 #endif
-static ssize_t htc_battery_show_batt_attr(struct device *dev,
+ssize_t htc_battery_show_batt_attr(struct device *dev,
 					 struct device_attribute *attr,
 					 char *buf)
 {
@@ -1740,7 +1740,7 @@ static int __init htc_battery_init(void)
 	platform_driver_register(&htc_battery_core_driver);
 	batt_register_client(&batt_notify);
 	/* Jay, The msm_fb need to consult htc_battery for power policy */
-	display_notifier(htc_power_policy, NOTIFY_POWER);
+	//display_notifier(htc_power_policy, NOTIFY_POWER);
 	return 0;
 }
 
