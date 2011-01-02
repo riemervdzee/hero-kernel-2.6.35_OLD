@@ -1,7 +1,7 @@
 #
 # Automatically generated make config: don't edit
 # Linux kernel version: 2.6.35.9
-# Sun Jan  2 21:43:55 2011
+# Sun Jan  2 23:14:38 2011
 #
 CONFIG_ARM=y
 CONFIG_SYS_SUPPORTS_APM_EMULATION=y
@@ -1425,9 +1425,6 @@ CONFIG_USB_ANDROID_RNDIS_WCEIS=y
 # CONFIG_USB_G_MULTI is not set
 # CONFIG_USB_G_HID is not set
 # CONFIG_USB_G_WEBCAM is not set
-# CONFIG_USB_ACCESSORY_DETECT is not set
-# CONFIG_DOCK_ACCESSORY_DETECT is not set
-# CONFIG_USB_BYPASS_VBUS_NOTIFY is not set
 
 #
 # OTG and related infrastructure
