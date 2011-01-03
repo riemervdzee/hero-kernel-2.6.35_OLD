@@ -1656,7 +1656,7 @@ static int __init htc_battery_init(void)
 	wake_lock_init(&vbus_wake_lock, WAKE_LOCK_SUSPEND, "vbus_present");
 	mutex_init(&htc_batt_info.lock);
 	mutex_init(&htc_batt_info.rpc_lock);
-	//usb_register_notifier(&usb_status_notifier);
+	usb_register_notifier(&usb_status_notifier);
 	platform_driver_register(&htc_battery_driver);
 	batt_register_client(&batt_notify);
 	/* Jay, The msm_fb need to consult htc_battery for power policy */
