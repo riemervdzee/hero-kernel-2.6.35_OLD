@@ -110,7 +110,7 @@ int adsp_init_info(struct adsp_info *info)
 		&info->init_info_ptr->task_to_module_tbl[img_num][0];
 	info->max_task_id = 30;
 	info->max_module_id = QDSP_MODULE_MAX - 1;
-	info->max_queue_id = QDSP_MAX_NUM_QUEUES;
+	info->max_queue_id = QDSP_QUEUE_MAX;
 	info->max_image_id = 2;
 	info->queue_offset = qdsp_queue_offset_table;
 	info->task_to_module = qdsp_task_to_module;
