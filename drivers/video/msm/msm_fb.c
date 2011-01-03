@@ -1012,7 +1012,9 @@ static void setup_fb_info(struct msmfb_info *msmfb)
 	fb_info->var.blue.msb_right = 0;
 
 	mdp->set_output_format(mdp, fb_info->var.bits_per_pixel);
+#if !defined(CONFIG_MACH_HERO)
 	mdp->set_panel_size(mdp, msmfb->xres, msmfb->yres);
+#endif
 
 	r = fb_alloc_cmap(&fb_info->cmap, 16, 0);
 	fb_info->pseudo_palette = PP;
