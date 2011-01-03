@@ -1,7 +1,7 @@
 #
 # Automatically generated make config: don't edit
 # Linux kernel version: 2.6.35.9
-# Mon Jan  3 20:15:01 2011
+# Mon Jan  3 21:13:01 2011
 #
 CONFIG_ARM=y
 CONFIG_SYS_SUPPORTS_APM_EMULATION=y
@@ -1295,6 +1295,7 @@ CONFIG_MSM_CAMERA=y
 # CONFIG_MT9T013 is not set
 # CONFIG_MT9D112 is not set
 CONFIG_MT9P012=y
+# CONFIG_MSM_CAMERA_AF_FOXCONN is not set
 # CONFIG_S5K3E2FX is not set
 # CONFIG_S5K4E1GX is not set
 # CONFIG_S5K6AAFX is not set
