@@ -885,6 +885,7 @@ static void __init hero_init(void)
 
 	gpio_request(HERO_TP_LS_EN, "tp_ls_en");
 	gpio_direction_output(HERO_TP_LS_EN, 0);
+	gpio_request(HERO_GPIO_VCM_PWDN, "hero_gpio_vcm_pwdn");
 
 	msm_acpu_clock_init(&hero_clock_data);
 
