@@ -66,7 +66,7 @@ int __init parse_tag_skuid(const struct tag * tags);
 int __init parse_tag_engineerid(const struct tag * tags);
 int __init parse_tag_monodie(const struct tag * tags);
 
-void notify_usb_connected(int online);
+void usb_status_notifier_func(int online);
 
 char *board_serialno(void);
 

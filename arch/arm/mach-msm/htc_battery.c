@@ -182,7 +182,7 @@ static struct power_supply htc_power_supplies[] = {
 };
 
 static int update_batt_info(void);
-static void usb_status_notifier_func(int online);
+void usb_status_notifier_func(int online);
 //static int g_usb_online;
 static struct t_usb_status_notifier usb_status_notifier = {
 	.name = "htc_battery",
@@ -559,7 +559,7 @@ static int htc_cable_status_update(int status)
 /* A9 reports USB charging when helf AC cable in and China AC charger. */
 /* notify userspace USB charging first,
 and then usb driver will notify AC while D+/D- Line short. */
-static void usb_status_notifier_func(int online)
+void usb_status_notifier_func(int online)
 {
 #if 1
 	pr_info("batt:online=%d",online);
