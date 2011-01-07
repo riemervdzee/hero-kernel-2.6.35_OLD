@@ -9,7 +9,10 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
-*/
+ */
+
+#define DEBUG
+
 #include <linux/kernel.h>
 #include <linux/slab.h>
 #include <linux/init.h>
@@ -99,58 +102,10 @@
 #define I2C_WRITE_RETRY_TIMES                   10
 #define MICROP_I2C_WRITE_BLOCK_SIZE             21
 
-static struct wake_lock microp_i2c_wakelock;
-static struct work_struct gate_work;
-static struct work_struct notifier_work;
-static struct delayed_work notifier_delay_work;
-static struct delayed_work auto_bl_delay_work;
-static struct delayed_work fade_work;
-static struct delayed_work hpin_work;
-static struct led_classdev *ldev_lcd_backlight;
-static struct led_classdev *ldev_vkey_backlight;
-static int microp_i2c_is_backlight_on;
-static int cabc_backlight_enabled;
-static int remote_adc_read_channel;
-static unsigned long ls_power_on_jiffy;
-static int ls_enable_num;
-static int is_35mm_hpin;
 
-static atomic_t als_intr_enabled = ATOMIC_INIT(0);
-static atomic_t als_intr_enable_flag = ATOMIC_INIT(0);
-
-DEFINE_MUTEX(microp_i2c_api_lock);
-static int lightsensor_opened;
-
-static void microp_i2c_gate_work_func(struct work_struct *work);
-static int microp_i2c_auto_backlight_set_interrupt_mode(struct i2c_client *client, uint8_t enabled);
-static void microp_i2c_fade_work_func(struct work_struct *work);
-static void microp_i2c_hpin_work_func(struct work_struct *work);
-static void microp_lcd_backlight_gate_set(struct led_classdev *led_cdev,
-			       enum led_brightness brightness);
-static void microp_lcd_backlight_notifier_set(struct led_classdev *led_cdev,
-			       enum led_brightness brightness);
-static int lightsensor_open(struct inode *inode, struct file *file);
-static int lightsensor_release(struct inode *inode, struct file *file);
-static long lightsensor_ioctl(struct file *file, unsigned int cmd,
-		unsigned long arg);
-static int microp_i2c_config_microp(struct i2c_client *client);
-
-
-
-static struct led_classdev ldev_lcd_backlight_gate = {
-	.name = LCD_BACKLIGHT_GATE,
-	.brightness_set = microp_lcd_backlight_gate_set,
-	.brightness = 255,
-	.default_trigger = LCD_BACKLIGHT_GATE,
-};
-
-
-static struct led_classdev ldev_lcd_backlight_notifier = {
-	.name = "lcd_notifier",
-	.brightness_set = microp_lcd_backlight_notifier_set,
-	.brightness = 0,
-	.default_trigger = LCD_BACKLIGHT_GATE,
-};
+/*-----------------------------------------
+   Struct declarations
+ -----------------------------------------*/
 
 struct microp_led_data {
 	struct led_classdev ldev;
@@ -192,6 +147,66 @@ struct microp_i2c_client_data {
 	atomic_t suspended_now;
 };
 
+
+/*-----------------------------------------
+   Prototypes;
+   Just some, to get things compiling
+ -----------------------------------------*/
+
+static int microp_i2c_auto_backlight_set_interrupt_mode(struct i2c_client *client, uint8_t enabled);
+static void microp_lcd_backlight_gate_set(struct led_classdev *led_cdev,
+			       enum led_brightness brightness);
+static void microp_lcd_backlight_notifier_set(struct led_classdev *led_cdev,
+			       enum led_brightness brightness);
+static int lightsensor_open(struct inode *inode, struct file *file);
+static int lightsensor_release(struct inode *inode, struct file *file);
+static long lightsensor_ioctl(struct file *file, unsigned int cmd,
+		unsigned long arg);
+static int microp_i2c_config_microp(struct i2c_client *client);
+
+
+/*-----------------------------------------
+   Global variables
+ -----------------------------------------*/
+
+static int microp_i2c_is_backlight_on;
+static int cabc_backlight_enabled;
+static int remote_adc_read_channel;
+static unsigned long ls_power_on_jiffy;
+static int ls_enable_num;
+static int is_35mm_hpin;
+
+static atomic_t als_intr_enabled = ATOMIC_INIT(0);
+static atomic_t als_intr_enable_flag = ATOMIC_INIT(0);
+
+DEFINE_MUTEX(microp_i2c_api_lock);
+static int lightsensor_opened;
+
+static struct i2c_client *private_microp_client;
+static struct wake_lock microp_i2c_wakelock;
+static struct work_struct gate_work;
+static struct work_struct notifier_work;
+static struct delayed_work notifier_delay_work;
+static struct delayed_work auto_bl_delay_work;
+static struct delayed_work fade_work;
+static struct delayed_work hpin_work;
+static struct led_classdev *ldev_lcd_backlight;
+static struct led_classdev *ldev_vkey_backlight;
+
+static struct led_classdev ldev_lcd_backlight_gate = {
+	.name = LCD_BACKLIGHT_GATE,
+	.brightness_set = microp_lcd_backlight_gate_set,
+	.brightness = 255,
+	.default_trigger = LCD_BACKLIGHT_GATE,
+};
+
+static struct led_classdev ldev_lcd_backlight_notifier = {
+	.name = "lcd_notifier",
+	.brightness_set = microp_lcd_backlight_notifier_set,
+	.brightness = 0,
+	.default_trigger = LCD_BACKLIGHT_GATE,
+};
+
 static struct file_operations lightsensor_fops = {
 	.owner = THIS_MODULE,
 	.open = lightsensor_open,
@@ -205,7 +220,14 @@ static struct miscdevice lightsensor_misc = {
 	.fops = &lightsensor_fops
 };
 
-static struct i2c_client *private_microp_client;
+static struct led_trigger light_sensor_trigger = {
+	.name     = "light-sensor-trigger",
+};
+
+
+/*-----------------------------------------
+   Test functions
+ -----------------------------------------*/
 
 inline int microp_i2c_is_led(uint8_t config)
 {
@@ -364,6 +386,11 @@ int microp_i2c_is_supported(uint8_t func, uint16_t version)
 
 	return is_supported;
 }
+
+
+/*-----------------------------------------
+   General functions
+ -----------------------------------------*/
 
 static char *hex2string(uint8_t *data, int len)
 {
@@ -623,56 +650,11 @@ static void microp_i2c_clear_led_data(struct i2c_client *client)
 	}
 }
 
-static int microp_i2c_auto_backlight_set_interrupt_mode(struct i2c_client *client,
-			uint8_t enabled)
-{
-	struct microp_i2c_platform_data *pdata;
-	struct microp_i2c_client_data *cdata;
-	uint8_t data[2] = {0, 0};
-	int ret = 0;
-	unsigned long delay_time, jiffy_now;
 
-	pdata = client->dev.platform_data;
-	cdata = i2c_get_clientdata(client);
+/*-----------------------------------------
+   APIs for drivers (bma150, h2w)
+ -----------------------------------------*/
 
-	if (!microp_i2c_is_supported(FUNC_MICROP_EN_SPI_AUTO_BACKLIGHT,
-			cdata->version)) {
-		dev_warn(&client->dev, "%s: the version not support: 0x%X\n",
-			__func__, cdata->version);
-		return -EINVAL;
-	}
-
-	if (enabled)
-		data[0] |= 0x4;
-	else
-		data[0] &= ~0x4;
-
-	if (cdata->enable_reset_button)
-		data[0] |= 0x8;
-
-	if (pdata->ls_power)
-		cancel_delayed_work(&auto_bl_delay_work);
-
-	if (!enabled || !pdata->ls_power) {
-		dev_info(&client->dev,  "%s: %d\n", __func__, enabled);
-		ret = i2c_write_block(client, MICROP_I2C_CMD_MISC1, data, 1);
-		if (ret != 0)
-			dev_err(&client->dev,
-				"%s: setting MICROP_I2C_CMD_MISC1 fail\n",
-				__func__);
-	} else {
-		jiffy_now = jiffies;
-		if (time_after_eq(jiffy_now, ls_power_on_jiffy + LS_DELAY))
-			delay_time = 0;
-		else
-			delay_time = ls_power_on_jiffy + LS_DELAY - jiffy_now;
-		queue_delayed_work(cdata->microp_queue,
-				&auto_bl_delay_work, delay_time);
-	}
-	return ret;
-}
-
-/* APIs for drivers */
 int get_adc_value(uint8_t pin, int *value)
 {
 	uint8_t buffer[3];
@@ -1021,167 +1003,25 @@ static void microp_unplug_mic(void *argu)
 	return;
 }
 
-
-/* DEVICE_ATTR */
-static ssize_t microp_i2c_reset_show(struct device *dev,
-				  struct device_attribute *attr, char *buf)
-{
-	buf[0] = 0;
-	return 0;
-}
-
-static ssize_t microp_i2c_reset_store(struct device *dev,
-				   struct device_attribute *attr,
-				   const char *buf, size_t count)
+int microp_i2c_set_pin_mode(uint8_t pin, uint8_t mode, void *dev_id)
 {
 	struct i2c_client *client;
-	struct microp_i2c_client_data *cdata;
-	int val;
+	uint8_t data[2];
 
-	val = -1;
-	sscanf(buf, "%u", &val);
-	if (val != 1)
-		return -EINVAL;
+	client = to_i2c_client(dev_id);
 
-	client = to_i2c_client(dev);
-	cdata = i2c_get_clientdata(client);
+	data[0] = pin;
+	data[1] = mode;
 
-	microp_i2c_reset_microp(client);
-	microp_i2c_clear_led_data(client);
-	microp_i2c_config_microp(client);
-
-	return count;
+	return i2c_write_block(client, MICROP_I2C_CMD_PIN_MODE, data, 2);
 }
 
-static DEVICE_ATTR(reset, 0644, microp_i2c_reset_show,
-	microp_i2c_reset_store);
+EXPORT_SYMBOL(microp_i2c_set_pin_mode);
 
-static ssize_t microp_i2c_version_show(struct device *dev,
-				  struct device_attribute *attr, char *buf)
-{
-	struct microp_i2c_client_data *cdata;
 
-	cdata = i2c_get_clientdata(to_i2c_client(dev));
-
-	return sprintf(buf, "%04X\n", cdata->version);
-}
-
-static ssize_t microp_i2c_version_store(struct device *dev,
-				   struct device_attribute *attr,
-				   const char *buf, size_t count)
-{
-	return -EINVAL;
-}
-
-static DEVICE_ATTR(version, 0644, microp_i2c_version_show,
-	microp_i2c_version_store);
-
-static ssize_t microp_i2c_status_show(struct device *dev,
-				  struct device_attribute *attr, char *buf)
-{
-	struct i2c_client *client;
-	struct microp_i2c_client_data *cdata;
-	uint8_t data[6];
-	int ret;
-
-	client = to_i2c_client(dev);
-	cdata = i2c_get_clientdata(client);
-
-	if (i2c_read_block(client, MICROP_I2C_CMD_READ_PIN, data, 6)) {
-		buf[0] = 0;
-		ret = 0;
-	} else
-		ret = sprintf(buf,
-			"PIND %02X, PINB %02X, PINC %02X, ADC[%d] => level %d\n",
-			data[0], data[1], data[2], (data[4] << 8 | data[5]), data[3]);
-
-	return ret;
-}
-
-static ssize_t microp_i2c_status_store(struct device *dev,
-				   struct device_attribute *attr,
-				   const char *buf, size_t count)
-{
-	return -EINVAL;
-}
-
-static DEVICE_ATTR(status, 0644, microp_i2c_status_show,
-	microp_i2c_status_store);
-
-static int microp_jogball_setting_func(struct i2c_client *client,
-	struct microp_led_data *ldata)
-{
-	struct microp_i2c_client_data *cdata;
-	uint8_t data[3];
-	uint8_t brightness_func;
-	int ret = 0;
-
-	cdata = i2c_get_clientdata(client);
-
-	memset(data, 0x0, sizeof(data));
-	data[0] = ldata->pin_config->pin;
-	brightness_func = ldata->ldev.brightness;
-
-	if (!brightness_func) { /* disable */
-		data[1] = 0x00;
-		ret = i2c_write_block(client, MICROP_I2C_CMD_PIN_MODE, data, 2);
-		if (ret < 0) {
-			dev_err(&client->dev, "%s failed on set disable\n", __func__);
-			goto fail_exit;
-		}
-	} else {
-		data[1] = 0x00;
-		data[2] = 0x01;
-		ret = i2c_write_block(client, MICROP_I2C_CMD_PIN_PWM, data, 3);
-		if (ret < 0) {
-			dev_err(&client->dev, "%s failed on set flash quickly mode\n", __func__);
-			goto fail_exit;
-		}
-
-		/* setting mode: flash: 3, breathing: 7 */
-		if (brightness_func == 3)
-			data[1] = 0x05;
-		else
-			data[1] = 0x06;
-		ret = i2c_write_block(client, MICROP_I2C_CMD_PIN_PWM, data, 2);
-		if (ret < 0) {
-			dev_err(&client->dev, "%s failed on set jogball mode: 0x%2.2X\n", __func__, data[1]);
-			goto fail_exit;
-		}
-
-		/* setting breathing timeout */
-		if (brightness_func == 7) {
-			data[1] = 0x0A; /* 10 min */
-			data[2] = 0x00;
-			ret = i2c_write_block(client, MICROP_I2C_CMD_PIN_OFF, data, 3);
-			if (ret < 0) {
-				dev_err(&client->dev, "%s failed on set breathing timeout\n", __func__);
-				goto fail_exit;
-			}
-		}
-	}
-fail_exit:
-
-	return ret;
-}
-
-static void microp_jogball_brightness_set(struct led_classdev *led_cdev,
-			       enum led_brightness brightness)
-{
-	struct microp_led_data *ldata;
-	struct i2c_client *client;
-
-	ldata = container_of(led_cdev, struct microp_led_data, ldev);
-	client = to_i2c_client(led_cdev->dev->parent);
-	mutex_lock(&ldata->pin_mutex);
-	if (brightness == 0 || brightness == 3 || brightness == 7) {
-		ldata->ldev.brightness = brightness;
-		if (microp_jogball_setting_func(client, ldata) < 0)
-			dev_err(&client->dev, "%s: setting jogball function fail\n", __func__);
-	} else
-		dev_warn(&client->dev, "%s: unknown value: %d\n", __func__, brightness);
-	mutex_unlock(&ldata->pin_mutex);
-}
+/*-----------------------------------------
+   Led
+ -----------------------------------------*/
 
 static enum led_brightness microp_led_brightness_get(struct led_classdev *led_cdev)
 {
@@ -1274,6 +1114,461 @@ static void microp_led_brightness_set(struct led_classdev *led_cdev,
 	mutex_unlock(&ldata->pin_mutex);
 
 }
+
+
+/*-----------------------------------------
+   Jogball
+ -----------------------------------------*/
+
+static int microp_jogball_setting_func(struct i2c_client *client,
+	struct microp_led_data *ldata)
+{
+	struct microp_i2c_client_data *cdata;
+	uint8_t data[3];
+	uint8_t brightness_func;
+	int ret = 0;
+
+	cdata = i2c_get_clientdata(client);
+
+	memset(data, 0x0, sizeof(data));
+	data[0] = ldata->pin_config->pin;
+	brightness_func = ldata->ldev.brightness;
+
+	if (!brightness_func) { /* disable */
+		data[1] = 0x00;
+		ret = i2c_write_block(client, MICROP_I2C_CMD_PIN_MODE, data, 2);
+		if (ret < 0) {
+			dev_err(&client->dev, "%s failed on set disable\n", __func__);
+			goto fail_exit;
+		}
+	} else {
+		data[1] = 0x00;
+		data[2] = 0x01;
+		ret = i2c_write_block(client, MICROP_I2C_CMD_PIN_PWM, data, 3);
+		if (ret < 0) {
+			dev_err(&client->dev, "%s failed on set flash quickly mode\n", __func__);
+			goto fail_exit;
+		}
+
+		/* setting mode: flash: 3, breathing: 7 */
+		if (brightness_func == 3)
+			data[1] = 0x05;
+		else
+			data[1] = 0x06;
+		ret = i2c_write_block(client, MICROP_I2C_CMD_PIN_PWM, data, 2);
+		if (ret < 0) {
+			dev_err(&client->dev, "%s failed on set jogball mode: 0x%2.2X\n", __func__, data[1]);
+			goto fail_exit;
+		}
+
+		/* setting breathing timeout */
+		if (brightness_func == 7) {
+			data[1] = 0x0A; /* 10 min */
+			data[2] = 0x00;
+			ret = i2c_write_block(client, MICROP_I2C_CMD_PIN_OFF, data, 3);
+			if (ret < 0) {
+				dev_err(&client->dev, "%s failed on set breathing timeout\n", __func__);
+				goto fail_exit;
+			}
+		}
+	}
+fail_exit:
+
+	return ret;
+}
+
+static void microp_jogball_brightness_set(struct led_classdev *led_cdev,
+			       enum led_brightness brightness)
+{
+	struct microp_led_data *ldata;
+	struct i2c_client *client;
+
+	ldata = container_of(led_cdev, struct microp_led_data, ldev);
+	client = to_i2c_client(led_cdev->dev->parent);
+	mutex_lock(&ldata->pin_mutex);
+	if (brightness == 0 || brightness == 3 || brightness == 7) {
+		ldata->ldev.brightness = brightness;
+		if (microp_jogball_setting_func(client, ldata) < 0)
+			dev_err(&client->dev, "%s: setting jogball function fail\n", __func__);
+	} else
+		dev_warn(&client->dev, "%s: unknown value: %d\n", __func__, brightness);
+	mutex_unlock(&ldata->pin_mutex);
+}
+
+
+/*-----------------------------------------
+   Lightsensor
+ -----------------------------------------*/
+
+static int lightsensor_enable(void)
+{
+	struct i2c_client *client;
+	struct microp_i2c_client_data *cdata;
+	int ret;
+
+	client = private_microp_client;
+	cdata = i2c_get_clientdata(client);
+
+	pr_info("%s\n", __func__);
+	atomic_set(&als_intr_enable_flag, 1);
+	if (atomic_read(&cdata->suspended_now)) {
+		atomic_set(&als_intr_enabled, 1);
+		pr_err("%s: microp is suspended\n", __func__);
+		return 0;
+	}
+
+	ret = microp_i2c_auto_backlight_set_interrupt_mode(client, 1) ;
+	if (ret < 0)
+		pr_err("%s: set auto light sensor fail\n", __func__);
+	else {
+		atomic_set(&als_intr_enabled, 1);
+		/* report an invalid value first to ensure we trigger an event
+		 * when adc_level is zero.
+		 */
+		input_report_abs(cdata->ls_input_dev, ABS_MISC, -1);
+		input_sync(cdata->ls_input_dev);
+	}
+	return 0;
+}
+
+static int lightsensor_disable(void)
+{
+	/* update trigger data when done */
+	struct i2c_client *client;
+	struct microp_i2c_client_data *cdata;
+	int ret;
+
+	client = private_microp_client;
+	cdata = i2c_get_clientdata(client);
+
+	pr_info("%s\n", __func__);
+	atomic_set(&als_intr_enable_flag, 0);
+	if (atomic_read(&cdata->suspended_now)) {
+		atomic_set(&als_intr_enabled, 0);
+		pr_err("%s: microp is suspended\n", __func__);
+		return 0;
+	}
+
+	ret = microp_i2c_auto_backlight_set_interrupt_mode(client, 0) ;
+	if (ret < 0)
+		pr_err("%s: disable auto light sensor fail\n",
+		       __func__);
+	else
+		atomic_set(&als_intr_enabled, 0);
+	return 0;
+}
+
+static int lightsensor_open(struct inode *inode, struct file *file)
+{
+	int rc = 0;
+	pr_debug("%s\n", __func__);
+	mutex_lock(&microp_i2c_api_lock);
+	if (lightsensor_opened) {
+		pr_err("%s: already opened\n", __func__);
+		rc = -EBUSY;
+	}
+	lightsensor_opened = 1;
+	mutex_unlock(&microp_i2c_api_lock);
+	return rc;
+}
+
+static int lightsensor_release(struct inode *inode, struct file *file)
+{
+	pr_debug("%s\n", __func__);
+	mutex_lock(&microp_i2c_api_lock);
+	lightsensor_opened = 0;
+	mutex_unlock(&microp_i2c_api_lock);
+	return 0;
+}
+
+static long lightsensor_ioctl(struct file *file, unsigned int cmd,
+		unsigned long arg)
+{
+	int rc, val;
+	struct i2c_client *client;
+	struct microp_i2c_client_data *cdata;
+
+	mutex_lock(&microp_i2c_api_lock);
+
+	client = private_microp_client;
+	cdata = i2c_get_clientdata(client);
+
+	pr_debug("%s cmd %d\n", __func__, _IOC_NR(cmd));
+
+	switch (cmd) {
+	case LIGHTSENSOR_IOCTL_ENABLE:
+		if (get_user(val, (unsigned long __user *)arg)) {
+			rc = -EFAULT;
+			break;
+		}
+		rc = val ? lightsensor_enable() : lightsensor_disable();
+		break;
+	case LIGHTSENSOR_IOCTL_GET_ENABLED:
+		val = atomic_read(&als_intr_enabled);
+		pr_debug("%s enabled %d\n", __func__, val);
+		rc = put_user(val, (unsigned long __user *)arg);
+		break;
+	default:
+		pr_err("%s: invalid cmd %d\n", __func__, _IOC_NR(cmd));
+		rc = -EINVAL;
+	}
+
+	mutex_unlock(&microp_i2c_api_lock);
+	return rc;
+}
+
+static void light_sensor_activate(struct led_classdev *led_cdev)
+{
+	struct complete_data {
+		int done;
+	} *data;
+	struct i2c_client *client;
+	struct microp_i2c_client_data *cdata;
+	client = private_microp_client;
+	cdata = i2c_get_clientdata(client);
+	data = (struct complete_data *)led_cdev->trigger_data;
+
+	if (!microp_i2c_is_supported(FUNC_MICROP_EN_SPI_AUTO_BACKLIGHT, cdata->version) &&
+		!cabc_backlight_enabled)
+		return;
+
+	if (atomic_read(&cdata->suspended_now)) {
+		dev_err(&client->dev, "%s: abort, uP is going to suspend after #\n", __func__);
+		data->done = 0;
+		return;
+	}
+
+	if (microp_i2c_auto_backlight_set_interrupt_mode(client, 1) < 0) {
+		dev_err(&client->dev, "%s: set_interrupt_mode fail\n", __func__);
+		data->done = 0;
+	} else {
+		data->done = 1;
+		atomic_set(&als_intr_enabled, 1);
+	}
+}
+
+static void light_sensor_deactivate(struct led_classdev *led_cdev)
+{
+	/* update trigger data when done */
+	struct i2c_client *client;
+	struct complete_data {
+		int done;
+	} *data;
+	struct microp_i2c_client_data *cdata;
+	data = (struct complete_data *)led_cdev->trigger_data;
+	client = private_microp_client;
+	cdata = i2c_get_clientdata(client);
+
+	if (!microp_i2c_is_supported(FUNC_MICROP_EN_SPI_AUTO_BACKLIGHT, cdata->version) &&
+		!cabc_backlight_enabled)
+		return;
+
+	if (atomic_read(&cdata->suspended_now)) {
+		dev_err(&client->dev, "%s: abort, uP is going to suspend after #\n", __func__);
+		data->done = 0;
+		return;
+	}
+
+	if (microp_i2c_auto_backlight_set_interrupt_mode(client, 0) < 0) {
+		dev_err(&client->dev, "%s: set_interrupt_mode fail\n", __func__);
+		data->done = 0;
+	} else {
+		data->done = 1;
+		atomic_set(&als_intr_enabled, 0);
+	}
+}
+
+
+/*-----------------------------------------
+   Lcd-backlight
+ -----------------------------------------*/
+
+static int microp_i2c_auto_backlight_set_interrupt_mode(struct i2c_client *client,
+			uint8_t enabled)
+{
+	struct microp_i2c_platform_data *pdata;
+	struct microp_i2c_client_data *cdata;
+	uint8_t data[2] = {0, 0};
+	int ret = 0;
+	unsigned long delay_time, jiffy_now;
+
+	pdata = client->dev.platform_data;
+	cdata = i2c_get_clientdata(client);
+
+	if (!microp_i2c_is_supported(FUNC_MICROP_EN_SPI_AUTO_BACKLIGHT,
+			cdata->version)) {
+		dev_warn(&client->dev, "%s: the version not support: 0x%X\n",
+			__func__, cdata->version);
+		return -EINVAL;
+	}
+
+	if (enabled)
+		data[0] |= 0x4;
+	else
+		data[0] &= ~0x4;
+
+	if (cdata->enable_reset_button)
+		data[0] |= 0x8;
+
+	if (pdata->ls_power)
+		cancel_delayed_work(&auto_bl_delay_work);
+
+	if (!enabled || !pdata->ls_power) {
+		dev_info(&client->dev,  "%s: %d\n", __func__, enabled);
+		ret = i2c_write_block(client, MICROP_I2C_CMD_MISC1, data, 1);
+		if (ret != 0)
+			dev_err(&client->dev,
+				"%s: setting MICROP_I2C_CMD_MISC1 fail\n",
+				__func__);
+	} else {
+		jiffy_now = jiffies;
+		if (time_after_eq(jiffy_now, ls_power_on_jiffy + LS_DELAY))
+			delay_time = 0;
+		else
+			delay_time = ls_power_on_jiffy + LS_DELAY - jiffy_now;
+		queue_delayed_work(cdata->microp_queue,
+				&auto_bl_delay_work, delay_time);
+	}
+	return ret;
+}
+
+static void microp_lcd_backlight_gate_set(struct led_classdev *led_cdev,
+			       enum led_brightness brightness)
+{
+	int on;
+	struct microp_led_data *ldata;
+	struct i2c_client *client;
+	struct microp_i2c_client_data *cdata;
+
+	ldata = container_of(ldev_lcd_backlight, struct microp_led_data, ldev);
+	client = to_i2c_client(ldev_lcd_backlight->dev->parent);
+	cdata = i2c_get_clientdata(client);
+
+	led_cdev->brightness = brightness;
+
+	on = (brightness != 0) ? 1 : 0;
+
+	if (microp_i2c_is_backlight_on == on)
+		goto exit;
+
+	wake_lock(&microp_i2c_wakelock);
+
+	microp_i2c_is_backlight_on = on;
+	schedule_work(&gate_work);
+
+exit:
+	return;
+}
+
+static void microp_lcd_backlight_notifier_set(struct led_classdev *led_cdev,
+			       enum led_brightness brightness)
+{
+	struct i2c_client *client;
+	struct microp_i2c_client_data *cdata;
+	struct microp_led_data *ldata;
+
+	client = private_microp_client;
+	cdata = i2c_get_clientdata(client);
+	ldata = container_of(ldev_vkey_backlight, struct microp_led_data, ldev);
+
+	led_cdev->brightness = ldata->ldev.brightness = brightness;
+	ldata->mode = (brightness != 0) ? 1 : 0;
+
+	queue_work(cdata->microp_queue, &notifier_work);
+
+	return;
+}
+
+
+/*-----------------------------------------
+   Device attributes;
+   With these android manipulates LEDs
+ -----------------------------------------*/
+
+static ssize_t microp_i2c_reset_show(struct device *dev,
+				  struct device_attribute *attr, char *buf)
+{
+	buf[0] = 0;
+	return 0;
+}
+
+static ssize_t microp_i2c_reset_store(struct device *dev,
+				   struct device_attribute *attr,
+				   const char *buf, size_t count)
+{
+	struct i2c_client *client;
+	struct microp_i2c_client_data *cdata;
+	int val;
+
+	val = -1;
+	sscanf(buf, "%u", &val);
+	if (val != 1)
+		return -EINVAL;
+
+	client = to_i2c_client(dev);
+	cdata = i2c_get_clientdata(client);
+
+	microp_i2c_reset_microp(client);
+	microp_i2c_clear_led_data(client);
+	microp_i2c_config_microp(client);
+
+	return count;
+}
+
+static DEVICE_ATTR(reset, 0644, microp_i2c_reset_show,
+	microp_i2c_reset_store);
+
+static ssize_t microp_i2c_version_show(struct device *dev,
+				  struct device_attribute *attr, char *buf)
+{
+	struct microp_i2c_client_data *cdata;
+
+	cdata = i2c_get_clientdata(to_i2c_client(dev));
+
+	return sprintf(buf, "%04X\n", cdata->version);
+}
+
+static ssize_t microp_i2c_version_store(struct device *dev,
+				   struct device_attribute *attr,
+				   const char *buf, size_t count)
+{
+	return -EINVAL;
+}
+
+static DEVICE_ATTR(version, 0644, microp_i2c_version_show,
+	microp_i2c_version_store);
+
+static ssize_t microp_i2c_status_show(struct device *dev,
+				  struct device_attribute *attr, char *buf)
+{
+	struct i2c_client *client;
+	struct microp_i2c_client_data *cdata;
+	uint8_t data[6];
+	int ret;
+
+	client = to_i2c_client(dev);
+	cdata = i2c_get_clientdata(client);
+
+	if (i2c_read_block(client, MICROP_I2C_CMD_READ_PIN, data, 6)) {
+		buf[0] = 0;
+		ret = 0;
+	} else
+		ret = sprintf(buf,
+			"PIND %02X, PINB %02X, PINC %02X, ADC[%d] => level %d\n",
+			data[0], data[1], data[2], (data[4] << 8 | data[5]), data[3]);
+
+	return ret;
+}
+
+static ssize_t microp_i2c_status_store(struct device *dev,
+				   struct device_attribute *attr,
+				   const char *buf, size_t count)
+{
+	return -EINVAL;
+}
+
+static DEVICE_ATTR(status, 0644, microp_i2c_status_show,
+	microp_i2c_status_store);
 
 static ssize_t microp_i2c_led_auto_brightness_show(
 				struct device *dev, struct device_attribute *attr, char *buf)
@@ -1654,11 +1949,6 @@ static ssize_t show_adc_value(struct device *dev, struct device_attribute *attr,
 static DEVICE_ATTR(adc_value, 0444, show_adc_value, NULL);
 #endif
 
-
-static struct led_trigger light_sensor_trigger = {
-	.name     = "light-sensor-trigger",
-};
-
 static void microp_auto_backlight_function(void)
 {
 	struct i2c_client *client;
@@ -1692,6 +1982,24 @@ static void microp_auto_backlight_function(void)
 		input_sync(cdata->ls_input_dev);
 	}
 }
+
+static irqreturn_t microp_i2c_intr_irq_handler(int irq, void *dev_id)
+{
+	struct i2c_client *client;
+	struct microp_i2c_client_data *cdata;
+
+	client = to_i2c_client(dev_id);
+	cdata = i2c_get_clientdata(client);
+
+	disable_irq(client->irq);
+	queue_work(cdata->microp_queue, &cdata->work.work);
+	return IRQ_HANDLED;
+}
+
+
+/*-----------------------------------------
+   Work functions
+ -----------------------------------------*/
 
 static void microp_i2c_hpin_work_func(struct work_struct *work)
 {
@@ -1744,240 +2052,6 @@ static void microp_i2c_intr_work_func(struct work_struct *work)
 	enable_irq(client->irq);
 }
 
-static irqreturn_t microp_i2c_intr_irq_handler(int irq, void *dev_id)
-{
-	struct i2c_client *client;
-	struct microp_i2c_client_data *cdata;
-
-	client = to_i2c_client(dev_id);
-	cdata = i2c_get_clientdata(client);
-
-	disable_irq(client->irq);
-	queue_work(cdata->microp_queue, &cdata->work.work);
-	return IRQ_HANDLED;
-}
-
-int microp_i2c_set_pin_mode(uint8_t pin, uint8_t mode, void *dev_id)
-{
-	struct i2c_client *client;
-	uint8_t data[2];
-
-	client = to_i2c_client(dev_id);
-
-	data[0] = pin;
-	data[1] = mode;
-
-	return i2c_write_block(client, MICROP_I2C_CMD_PIN_MODE, data, 2);
-}
-
-EXPORT_SYMBOL(microp_i2c_set_pin_mode);
-
-static int lightsensor_enable(void)
-{
-	struct i2c_client *client;
-	struct microp_i2c_client_data *cdata;
-	int ret;
-
-	client = private_microp_client;
-	cdata = i2c_get_clientdata(client);
-
-	pr_info("%s\n", __func__);
-	atomic_set(&als_intr_enable_flag, 1);
-	if (atomic_read(&cdata->suspended_now)) {
-		atomic_set(&als_intr_enabled, 1);
-		pr_err("%s: microp is suspended\n", __func__);
-		return 0;
-	}
-
-	ret = microp_i2c_auto_backlight_set_interrupt_mode(client, 1) ;
-	if (ret < 0)
-		pr_err("%s: set auto light sensor fail\n", __func__);
-	else {
-		atomic_set(&als_intr_enabled, 1);
-		/* report an invalid value first to ensure we trigger an event
-		 * when adc_level is zero.
-		 */
-		input_report_abs(cdata->ls_input_dev, ABS_MISC, -1);
-		input_sync(cdata->ls_input_dev);
-	}
-	return 0;
-}
-
-static int lightsensor_disable(void)
-{
-	/* update trigger data when done */
-	struct i2c_client *client;
-	struct microp_i2c_client_data *cdata;
-	int ret;
-
-	client = private_microp_client;
-	cdata = i2c_get_clientdata(client);
-
-	pr_info("%s\n", __func__);
-	atomic_set(&als_intr_enable_flag, 0);
-	if (atomic_read(&cdata->suspended_now)) {
-		atomic_set(&als_intr_enabled, 0);
-		pr_err("%s: microp is suspended\n", __func__);
-		return 0;
-	}
-
-	ret = microp_i2c_auto_backlight_set_interrupt_mode(client, 0) ;
-	if (ret < 0)
-		pr_err("%s: disable auto light sensor fail\n",
-		       __func__);
-	else
-		atomic_set(&als_intr_enabled, 0);
-	return 0;
-}
-
-static int lightsensor_open(struct inode *inode, struct file *file)
-{
-	int rc = 0;
-	pr_debug("%s\n", __func__);
-	mutex_lock(&microp_i2c_api_lock);
-	if (lightsensor_opened) {
-		pr_err("%s: already opened\n", __func__);
-		rc = -EBUSY;
-	}
-	lightsensor_opened = 1;
-	mutex_unlock(&microp_i2c_api_lock);
-	return rc;
-}
-
-static int lightsensor_release(struct inode *inode, struct file *file)
-{
-	pr_debug("%s\n", __func__);
-	mutex_lock(&microp_i2c_api_lock);
-	lightsensor_opened = 0;
-	mutex_unlock(&microp_i2c_api_lock);
-	return 0;
-}
-
-static long lightsensor_ioctl(struct file *file, unsigned int cmd,
-		unsigned long arg)
-{
-	int rc, val;
-	struct i2c_client *client;
-	struct microp_i2c_client_data *cdata;
-
-	mutex_lock(&microp_i2c_api_lock);
-
-	client = private_microp_client;
-	cdata = i2c_get_clientdata(client);
-
-	pr_debug("%s cmd %d\n", __func__, _IOC_NR(cmd));
-
-	switch (cmd) {
-	case LIGHTSENSOR_IOCTL_ENABLE:
-		if (get_user(val, (unsigned long __user *)arg)) {
-			rc = -EFAULT;
-			break;
-		}
-		rc = val ? lightsensor_enable() : lightsensor_disable();
-		break;
-	case LIGHTSENSOR_IOCTL_GET_ENABLED:
-		val = atomic_read(&als_intr_enabled);
-		pr_debug("%s enabled %d\n", __func__, val);
-		rc = put_user(val, (unsigned long __user *)arg);
-		break;
-	default:
-		pr_err("%s: invalid cmd %d\n", __func__, _IOC_NR(cmd));
-		rc = -EINVAL;
-	}
-
-	mutex_unlock(&microp_i2c_api_lock);
-	return rc;
-}
-
-static void light_sensor_activate(struct led_classdev *led_cdev)
-{
-	struct complete_data {
-		int done;
-	} *data;
-	struct i2c_client *client;
-	struct microp_i2c_client_data *cdata;
-	client = private_microp_client;
-	cdata = i2c_get_clientdata(client);
-	data = (struct complete_data *)led_cdev->trigger_data;
-
-	if (!microp_i2c_is_supported(FUNC_MICROP_EN_SPI_AUTO_BACKLIGHT, cdata->version) &&
-		!cabc_backlight_enabled)
-		return;
-
-	if (atomic_read(&cdata->suspended_now)) {
-		dev_err(&client->dev, "%s: abort, uP is going to suspend after #\n", __func__);
-		data->done = 0;
-		return;
-	}
-
-	if (microp_i2c_auto_backlight_set_interrupt_mode(client, 1) < 0) {
-		dev_err(&client->dev, "%s: set_interrupt_mode fail\n", __func__);
-		data->done = 0;
-	} else {
-		data->done = 1;
-		atomic_set(&als_intr_enabled, 1);
-	}
-}
-
-static void light_sensor_deactivate(struct led_classdev *led_cdev)
-{
-	/* update trigger data when done */
-	struct i2c_client *client;
-	struct complete_data {
-		int done;
-	} *data;
-	struct microp_i2c_client_data *cdata;
-	data = (struct complete_data *)led_cdev->trigger_data;
-	client = private_microp_client;
-	cdata = i2c_get_clientdata(client);
-
-	if (!microp_i2c_is_supported(FUNC_MICROP_EN_SPI_AUTO_BACKLIGHT, cdata->version) &&
-		!cabc_backlight_enabled)
-		return;
-
-	if (atomic_read(&cdata->suspended_now)) {
-		dev_err(&client->dev, "%s: abort, uP is going to suspend after #\n", __func__);
-		data->done = 0;
-		return;
-	}
-
-	if (microp_i2c_auto_backlight_set_interrupt_mode(client, 0) < 0) {
-		dev_err(&client->dev, "%s: set_interrupt_mode fail\n", __func__);
-		data->done = 0;
-	} else {
-		data->done = 1;
-		atomic_set(&als_intr_enabled, 0);
-	}
-}
-
-static void microp_lcd_backlight_gate_set(struct led_classdev *led_cdev,
-			       enum led_brightness brightness)
-{
-	int on;
-	struct microp_led_data *ldata;
-	struct i2c_client *client;
-	struct microp_i2c_client_data *cdata;
-
-	ldata = container_of(ldev_lcd_backlight, struct microp_led_data, ldev);
-	client = to_i2c_client(ldev_lcd_backlight->dev->parent);
-	cdata = i2c_get_clientdata(client);
-
-	led_cdev->brightness = brightness;
-
-	on = (brightness != 0) ? 1 : 0;
-
-	if (microp_i2c_is_backlight_on == on)
-		goto exit;
-
-	wake_lock(&microp_i2c_wakelock);
-
-	microp_i2c_is_backlight_on = on;
-	schedule_work(&gate_work);
-
-exit:
-	return;
-}
-
 static void microp_i2c_gate_work_func(struct work_struct *work)
 {
 	struct microp_led_data *ldata;
@@ -1997,25 +2071,6 @@ static void microp_i2c_gate_work_func(struct work_struct *work)
 		schedule_delayed_work(&fade_work, FADE_DELAY);
 
 	wake_unlock(&microp_i2c_wakelock);
-}
-
-static void microp_lcd_backlight_notifier_set(struct led_classdev *led_cdev,
-			       enum led_brightness brightness)
-{
-	struct i2c_client *client;
-	struct microp_i2c_client_data *cdata;
-	struct microp_led_data *ldata;
-
-	client = private_microp_client;
-	cdata = i2c_get_clientdata(client);
-	ldata = container_of(ldev_vkey_backlight, struct microp_led_data, ldev);
-
-	led_cdev->brightness = ldata->ldev.brightness = brightness;
-	ldata->mode = (brightness != 0) ? 1 : 0;
-
-	queue_work(cdata->microp_queue, &notifier_work);
-
-	return;
 }
 
 static void microp_i2c_notifier_work_func(struct work_struct *work)
@@ -2114,6 +2169,11 @@ static void microp_i2c_auto_bl_work_func(struct work_struct *work)
 		dev_err(&client->dev,
 			"%s: setting MICROP_I2C_CMD_MISC1 fail\n", __func__);
 }
+
+
+/*-----------------------------------------
+   Initialisator function
+ -----------------------------------------*/
 
 static int microp_i2c_config_microp(struct i2c_client *client)
 {
@@ -2340,6 +2400,11 @@ exit:
 	return ret;
 }
 
+
+/*-----------------------------------------
+   Resume and suspend functions
+ -----------------------------------------*/
+
 #ifdef CONFIG_HAS_EARLYSUSPEND
 static void microp_early_suspend(struct early_suspend *h)
 {
@@ -2462,8 +2527,13 @@ static int microp_i2c_resume(struct i2c_client *client)
 }
 #endif
 
-static int microp_i2c_probe(struct i2c_client *client
-	, const struct i2c_device_id *id)
+
+/*-----------------------------------------
+   Probe and removal of driver
+ -----------------------------------------*/
+
+static int microp_i2c_probe(struct i2c_client *client,
+		const struct i2c_device_id *id)
 {
 	struct microp_i2c_platform_data *pdata;
 	struct microp_i2c_client_data *cdata;
