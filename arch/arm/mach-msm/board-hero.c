@@ -271,7 +271,8 @@ static struct microp_pin_config microp_pins_skuid_1[] = {
 		.name	= "35mm_adc",
 		.pin	= 25,
 		.adc_pin = 7,
-		.config = MICROP_PIN_CONFIG_ADC_READ,
+		//.config = MICROP_PIN_CONFIG_ADC_READ,
+		.config = MICROP_PIN_CONFIG_OTHER,
 	},
 	{
 		.name   = "microp_intrrupt",
@@ -334,7 +335,8 @@ static struct microp_pin_config microp_pins_skuid_2[] = {
 		.name	= "35mm_adc",
 		.pin	= 25,
 		.adc_pin = 7,
-		.config = MICROP_PIN_CONFIG_ADC_READ,
+		//.config = MICROP_PIN_CONFIG_ADC_READ,
+		.config = MICROP_PIN_CONFIG_OTHER,
 	},
 	{
 		.name   = "microp_intrrupt",
@@ -390,7 +392,8 @@ static struct microp_pin_config microp_pins_skuid_3[] = {
 	{
 		.name = "microp_11pin_mic",
 		.pin = 16,
-		.config = MICROP_PIN_CONFIG_MIC,
+		//.config = MICROP_PIN_CONFIG_MIC,
+		.config = MICROP_PIN_CONFIG_OTHER,
 		.init_value = 1,
 	},
 	{
@@ -403,7 +406,8 @@ static struct microp_pin_config microp_pins_skuid_3[] = {
 		.name	= "35mm_adc",
 		.pin	= 25,
 		.adc_pin = 7,
-		.config = MICROP_PIN_CONFIG_ADC_READ,
+		//.config = MICROP_PIN_CONFIG_ADC_READ,
+		.config = MICROP_PIN_CONFIG_OTHER,
 	},
 	{
 		.name   = "microp_intrrupt",
@@ -517,11 +521,11 @@ static struct i2c_board_info i2c_devices[] = {
 		.platform_data = &hero_cypress_ts_data,
 		.irq = MSM_GPIO_TO_INT(HERO_GPIO_TP_ATT_N)
 	},
-	//{
-	//	I2C_BOARD_INFO(MICROP_I2C_NAME, 0xCC >> 1),
-	//	.platform_data = &microp_data,
-	//	.irq = MSM_GPIO_TO_INT(HERO_GPIO_UP_INT_N)
-	//},
+	{
+		I2C_BOARD_INFO(MICROP_I2C_NAME, 0xCC >> 1),
+		.platform_data = &microp_data,
+		.irq = MSM_GPIO_TO_INT(HERO_GPIO_UP_INT_N)
+	},
 	{
 		I2C_BOARD_INFO(AKM8973_I2C_NAME, 0x1C),
 		.platform_data = &compass_platform_data,
