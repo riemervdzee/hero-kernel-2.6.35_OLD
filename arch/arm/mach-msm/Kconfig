@@ -278,6 +278,13 @@ config MACH_HERO
 	default y
 	bool "Hero"
 
+config MACH_HEROC
+	depends on ARCH_MSM7X00A
+	default n
+	bool "HeroC"
+	help
+	  Support for HeroC (PDA phone).
+
 config MACH_MAHIMAHI
 	depends on ARCH_QSD8X50
 	default y

@@ -56,8 +56,14 @@ obj-$(CONFIG_MACH_HERO) += board-hero-keypad.o board-hero-panel.o
 obj-$(CONFIG_MACH_HERO) += board-hero-mmc.o board-hero-wifi.o
 obj-$(CONFIG_MACH_HERO) += board-hero-rfkill.o msm_vibrator.o
 obj-$(CONFIG_MACH_HERO) += htc_wifi_nvs.o
+obj-$(CONFIG_MACH_HEROC) += board-heroc.o 
+obj-$(CONFIG_MACH_HEROC) += board-heroc-panel.o board-heroc-keypad.o
+obj-$(CONFIG_MACH_HEROC) += board-heroc-rfkill.o msm_vibrator.o
+obj-$(CONFIG_MACH_HEROC) += board-heroc-mmc.o board-heroc-wifi.o htc_wifi_nvs.o
+
 ## htc_awb_cal.o
 obj-$(CONFIG_MACH_HERO) += devices_htc.o
+obj-$(CONFIG_MACH_HEROC) += devices_htc.o
 obj-$(CONFIG_MACH_MAHIMAHI) += board-mahimahi.o board-mahimahi-panel.o
 obj-$(CONFIG_MACH_MAHIMAHI) += board-mahimahi-keypad.o board-mahimahi-mmc.o
 obj-$(CONFIG_MACH_MAHIMAHI) += board-mahimahi-rfkill.o htc_wifi_nvs.o htc_awb_cal.o
