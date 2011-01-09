@@ -338,6 +338,15 @@ config HTC_AUDIO_JACK
 	  Provides support for detecting audio jack, such as 3.5mm
 	  earphone, on the android platform.
 
+config HTC_HEADSET_V1
+	tristate "HTC 2 Wire detection driver"
+	depends on MICROP_I2C
+	default n
+	help
+	  Provides support for detecting HTC 2 wire devices, such as wired
+	  headset, on the trout platform. Can be used with the msm serial
+	  debugger, but not with serial console.
+
 config HTC_35MM_JACK
 	bool "HTC 3.5mm headset jack"
 	default n
