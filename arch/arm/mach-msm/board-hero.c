@@ -24,8 +24,6 @@
 #include <linux/synaptics_i2c_rmi.h>
 #include <linux/cy8c_tmg_ts.h>
 #include <linux/akm8973.h>
-#include <mach/htc_headset.h>
-#include <mach/audio_jack.h>
 #include <linux/sysdev.h>
 #include <linux/android_pmem.h>
 #include <linux/bma150.h>
@@ -58,8 +56,11 @@
 #include <mach/msm_serial_debugger.h>
 #include <mach/msm_serial_hs.h>
 #include <mach/htc_pwrsink.h>
+#include <mach/msm_fb.h>
+#include <mach/h2w_v1.h>
 #include <mach/microp_i2c.h>
 #include <mach/htc_battery.h>
+#include <mach/drv_callback.h>
 
 #include "proc_comm.h"
 #include "devices.h"
@@ -271,8 +272,7 @@ static struct microp_pin_config microp_pins_skuid_1[] = {
 		.name	= "35mm_adc",
 		.pin	= 25,
 		.adc_pin = 7,
-		//.config = MICROP_PIN_CONFIG_ADC_READ,
-		.config = MICROP_PIN_CONFIG_OTHER,
+		.config = MICROP_PIN_CONFIG_ADC_READ,
 	},
 	{
 		.name   = "microp_intrrupt",
@@ -335,8 +335,7 @@ static struct microp_pin_config microp_pins_skuid_2[] = {
 		.name	= "35mm_adc",
 		.pin	= 25,
 		.adc_pin = 7,
-		//.config = MICROP_PIN_CONFIG_ADC_READ,
-		.config = MICROP_PIN_CONFIG_OTHER,
+		.config = MICROP_PIN_CONFIG_ADC_READ,
 	},
 	{
 		.name   = "microp_intrrupt",
@@ -392,8 +391,7 @@ static struct microp_pin_config microp_pins_skuid_3[] = {
 	{
 		.name = "microp_11pin_mic",
 		.pin = 16,
-		//.config = MICROP_PIN_CONFIG_MIC,
-		.config = MICROP_PIN_CONFIG_OTHER,
+		.config = MICROP_PIN_CONFIG_MIC,
 		.init_value = 1,
 	},
 	{
@@ -406,8 +404,7 @@ static struct microp_pin_config microp_pins_skuid_3[] = {
 		.name	= "35mm_adc",
 		.pin	= 25,
 		.adc_pin = 7,
-		//.config = MICROP_PIN_CONFIG_ADC_READ,
-		.config = MICROP_PIN_CONFIG_OTHER,
+		.config = MICROP_PIN_CONFIG_ADC_READ,
 	},
 	{
 		.name   = "microp_intrrupt",
@@ -664,6 +661,209 @@ static struct platform_device hero_pwr_sink = {
 		.platform_data = &hero_pwrsink_data,
 	},
 };
+/* Switch between UART3 and GPIO */
+static uint32_t uart3_on_gpio_table[] = {
+	/* RX */
+	PCOM_GPIO_CFG(HERO_GPIO_UART3_RX, 1, GPIO_INPUT, GPIO_NO_PULL, 0),
+	/* TX */
+	PCOM_GPIO_CFG(HERO_GPIO_UART3_TX, 1, GPIO_OUTPUT, GPIO_NO_PULL, 0),
+};
+
+/* default TX,RX to GPI */
+static uint32_t uart3_off_gpio_table[] = {
+	/* RX, H2W DATA */
+	PCOM_GPIO_CFG(HERO_GPIO_H2W_DATA, 0,
+		      GPIO_INPUT, GPIO_NO_PULL, GPIO_2MA),
+	/* TX, H2W CLK */
+	PCOM_GPIO_CFG(HERO_GPIO_H2W_CLK, 0,
+		      GPIO_INPUT, GPIO_NO_PULL, GPIO_2MA),
+};
+
+static int hero_h2w_path = H2W_GPIO;
+
+static void h2w_configure(int route)
+{
+	printk(KERN_INFO "H2W route = %d \n", route);
+	switch (route) {
+	case H2W_UART3:
+		msm_proc_comm(PCOM_RPC_GPIO_TLMM_CONFIG_EX,
+			      uart3_on_gpio_table+0, 0);
+		msm_proc_comm(PCOM_RPC_GPIO_TLMM_CONFIG_EX,
+			      uart3_on_gpio_table+1, 0);
+		hero_h2w_path = H2W_UART3;
+		printk(KERN_INFO "H2W -> UART3\n");
+		break;
+	case H2W_GPIO:
+		msm_proc_comm(PCOM_RPC_GPIO_TLMM_CONFIG_EX,
+			      uart3_off_gpio_table+0, 0);
+		msm_proc_comm(PCOM_RPC_GPIO_TLMM_CONFIG_EX,
+			      uart3_off_gpio_table+1, 0);
+		hero_h2w_path = H2W_GPIO;
+		printk(KERN_INFO "H2W -> GPIO\n");
+		break;
+	}
+}
+
+static void h2w_defconfig(void)
+{
+	h2w_configure(H2W_GPIO);
+}
+
+static void set_h2w_dat(int n)
+{
+	gpio_set_value(HERO_GPIO_H2W_DATA, n);
+}
+
+static void set_h2w_clk(int n)
+{
+	gpio_set_value(HERO_GPIO_H2W_CLK, n);
+}
+
+static void set_h2w_dat_dir(int n)
+{
+	if (n == 0) /* input */
+		gpio_direction_input(HERO_GPIO_H2W_DATA);
+	else
+		gpio_configure(HERO_GPIO_H2W_DATA, GPIOF_DRIVE_OUTPUT);
+}
+
+static void set_h2w_clk_dir(int n)
+{
+	if (n == 0) /* input */
+		gpio_direction_input(HERO_GPIO_H2W_CLK);
+	else
+		gpio_configure(HERO_GPIO_H2W_CLK, GPIOF_DRIVE_OUTPUT);
+}
+
+static int get_h2w_dat(void)
+{
+	return gpio_get_value(HERO_GPIO_H2W_DATA);
+}
+
+static int get_h2w_clk(void)
+{
+	return gpio_get_value(HERO_GPIO_H2W_CLK);
+}
+
+#ifdef CONFIG_HTC_HEADSET_V1
+static int set_h2w_path(const char *val, struct kernel_param *kp)
+{
+	int ret = -EINVAL;
+	int enable;
+
+	ret = param_set_int(val, kp);
+	if (ret)
+		return ret;
+
+	switch (hero_h2w_path) {
+	case H2W_GPIO:
+		enable = 1;
+		cnf_driver_event("H2W_enable_irq", &enable);
+		break;
+	case H2W_UART3:
+		enable = 0;
+		cnf_driver_event("H2W_enable_irq", &enable);
+		break;
+	default:
+		hero_h2w_path = -1;
+		return -EINVAL;
+	}
+
+	h2w_configure(hero_h2w_path);
+	return ret;
+}
+
+module_param_call(h2w_path, set_h2w_path, param_get_int,
+		&hero_h2w_path, S_IWUSR | S_IRUGO);
+
+#endif
+static struct h2w_platform_data hero_h2w_data = {
+	.h2w_power		= HERO_GPIO_EXT_3V_EN,
+	.cable_in1		= HERO_GPIO_CABLE_IN1_XAXB,
+	.cable_in2		= HERO_GPIO_CABLE_IN2,
+	.h2w_clk		= HERO_GPIO_H2W_CLK,
+	.h2w_data		= HERO_GPIO_H2W_DATA,
+	.headset_mic_35mm	= HERO_GPIO_HEADSET_MIC,
+/*	.ext_mic_sel		= HERO_GPIO_AUD_EXTMIC_SEL, */
+	.debug_uart 		= H2W_UART3,
+	.config 		= h2w_configure,
+	.defconfig 		= h2w_defconfig,
+	.set_dat		= set_h2w_dat,
+	.set_clk		= set_h2w_clk,
+	.set_dat_dir		= set_h2w_dat_dir,
+	.set_clk_dir		= set_h2w_clk_dir,
+	.get_dat		= get_h2w_dat,
+	.get_clk		= get_h2w_clk,
+	.headset_mic_sel	= hero_headset_mic_select,
+	.flags	= HTC_11PIN_HEADSET_SUPPORT | HTC_H2W_SUPPORT,
+};
+
+static struct h2w_platform_data hero_h2w_data_xc = {
+	.h2w_power		= HERO_GPIO_EXT_3V_EN,
+	.cable_in1		= HERO_GPIO_CABLE_IN1,
+	.cable_in2		= HERO_GPIO_CABLE_IN2,
+	.h2w_clk		= HERO_GPIO_H2W_CLK,
+	.h2w_data		= HERO_GPIO_H2W_DATA,
+	.headset_mic_35mm	= HERO_GPIO_HEADSET_MIC,
+	.ext_mic_sel		= HERO_GPIO_AUD_EXTMIC_SEL,
+	.debug_uart 		= H2W_UART3,
+	.config 		= h2w_configure,
+	.defconfig 		= h2w_defconfig,
+	.set_dat		= set_h2w_dat,
+	.set_clk		= set_h2w_clk,
+	.set_dat_dir		= set_h2w_dat_dir,
+	.set_clk_dir		= set_h2w_clk_dir,
+	.get_dat		= get_h2w_dat,
+	.get_clk		= get_h2w_clk,
+	.flags	= HTC_11PIN_HEADSET_SUPPORT | HTC_H2W_SUPPORT,
+/*	.headset_mic_sel	= hero_headset_mic_select, */
+};
+
+static struct h2w_platform_data hero_h2w_data_xe = {
+	.h2w_power		= HERO_GPIO_EXT_3V_EN,
+	.cable_in1		= HERO_GPIO_CABLE_IN1,
+	.cable_in2		= HERO_GPIO_CABLE_IN2,
+	.h2w_clk		= HERO_GPIO_H2W_CLK,
+	.h2w_data		= HERO_GPIO_H2W_DATA,
+	.headset_mic_35mm	= HERO_GPIO_HEADSET_MIC,
+	.ext_mic_sel		= HERO_GPIO_AUD_EXTMIC_SEL,
+	.debug_uart 		= H2W_UART3,
+	.config 		= h2w_configure,
+	.defconfig 		= h2w_defconfig,
+	.set_dat		= set_h2w_dat,
+	.set_clk		= set_h2w_clk,
+	.set_dat_dir		= set_h2w_dat_dir,
+	.set_clk_dir		= set_h2w_clk_dir,
+	.get_dat		= get_h2w_dat,
+	.get_clk		= get_h2w_clk,
+/*	.headset_mic_sel	= hero_headset_mic_select, */
+	.flags	= _35MM_MIC_DET_L2H | HTC_11PIN_HEADSET_SUPPORT |
+				HTC_H2W_SUPPORT,
+};
+
+static struct platform_device hero_h2w = {
+	.name		= "h2w",
+	.id			= -1,
+	.dev		= {
+		.platform_data	= &hero_h2w_data,
+	},
+};
+
+static struct platform_device hero_h2w_xc = {
+	.name		= "h2w",
+	.id			= -1,
+	.dev		= {
+		.platform_data	= &hero_h2w_data_xc,
+	},
+};
+
+static struct platform_device hero_h2w_xe = {
+	.name		= "h2w",
+	.id			= -1,
+	.dev		= {
+		.platform_data	= &hero_h2w_data_xe,
+	},
+};
 
 static struct platform_device hero_rfkill = {
 	.name = "hero_rfkill",
@@ -890,6 +1090,9 @@ static void __init hero_init(void)
 	gpio_request(HERO_TP_LS_EN, "tp_ls_en");
 	gpio_direction_output(HERO_TP_LS_EN, 0);
 	gpio_request(HERO_GPIO_VCM_PWDN, "hero_gpio_vcm_pwdn");
+	gpio_request(HERO_GPIO_EXT_3V_EN, "hero_gpio_ext_3v_en");
+	gpio_request(HERO_GPIO_CABLE_IN2, "hero_gpio_cable_in2");
+	gpio_request(HERO_GPIO_AUD_EXTMIC_SEL, "hero_gpio_aud_extmic_sel");
 
 	msm_acpu_clock_init(&hero_clock_data);
 
@@ -914,7 +1117,21 @@ static void __init hero_init(void)
 		printk(KERN_CRIT "%s: MMC init failure (%d)\n", __func__, rc);
 
 	platform_add_devices(devices, ARRAY_SIZE(devices));
-	
+
+	if (system_rev == 0 || system_rev == 1) {
+		 platform_device_register(&hero_h2w);
+
+		for (rc = 0; rc < ARRAY_SIZE(i2c_devices); rc++) {
+			if (!strcmp(i2c_devices[rc].type, MICROP_I2C_NAME))
+				i2c_devices[rc].irq = MSM_GPIO_TO_INT(HERO_GPIO_UP_INT_N_XAXB);
+			if (!strcmp(i2c_devices[rc].type, AKM8973_I2C_NAME))
+				i2c_devices[rc].irq = MSM_GPIO_TO_INT(HERO_GPIO_COMPASS_INT_N_XAXB);
+		}
+	} else if (system_rev == 2 || system_rev == 3) /*XC and XD*/
+		platform_device_register(&hero_h2w_xc);
+	else /*above XE*/
+		platform_device_register(&hero_h2w_xe);
+
 	i2c_register_board_info(0, &i2c_bma150, 1);
 
 	if (hero_engineerid() || system_rev > 2) {
