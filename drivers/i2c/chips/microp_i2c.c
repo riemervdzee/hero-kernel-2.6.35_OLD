@@ -411,6 +411,7 @@ static int i2c_read_block(struct i2c_client *client, uint8_t addr,
 	uint8_t *data, int length)
 {
 	int retry;
+	int ret;
 	struct i2c_msg msgs[] = {
 	{
 		.addr = client->addr,
@@ -426,21 +427,20 @@ static int i2c_read_block(struct i2c_client *client, uint8_t addr,
 	}
 	};
 
-	for (retry = 1; retry <= I2C_READ_RETRY_TIMES; retry++) {
-		if (i2c_transfer(client->adapter, msgs, 2) == 2)
-			break;
-		mdelay(10);
+	mdelay(1);
+	for (retry = 0; retry <= I2C_READ_RETRY_TIMES; retry++) {
+		ret = i2c_transfer(client->adapter, msgs, 2);
+		if (ret == 2) {
+			dev_dbg(&client->dev, "R [%02X] = %s\n", addr,
+					hex2string(data, length));
+			return 0;
+		}
+		msleep(10);
 	}
 
-	dev_dbg(&client->dev, "R [%02X] = %s\n", addr, hex2string(data, length));
-
-	if (retry > I2C_READ_RETRY_TIMES) {
-		dev_err(&client->dev, "i2c_read_block retry over %d\n",
+	dev_err(&client->dev, "i2c_read_block retry over %d\n",
 			I2C_READ_RETRY_TIMES);
-		return -EIO;
-	}
-
-	return 0;
+	return -EIO;
 }
 
 static int i2c_write_block(struct i2c_client *client, uint8_t addr,
@@ -448,7 +448,7 @@ static int i2c_write_block(struct i2c_client *client, uint8_t addr,
 {
 	int retry;
 	uint8_t buf[MICROP_I2C_WRITE_BLOCK_SIZE];
-	int i;
+	int ret;
 
 	struct i2c_msg msg[] = {
 	{
@@ -459,7 +459,8 @@ static int i2c_write_block(struct i2c_client *client, uint8_t addr,
 	}
 	};
 
-	dev_dbg(&client->dev, "W [%02X] = %s\n", addr, hex2string(data, length));
+	dev_dbg(&client->dev, "W [%02X] = %s\n", addr,
+			hex2string(data, length));
 
 	if (length + 1 > MICROP_I2C_WRITE_BLOCK_SIZE) {
 		dev_err(&client->dev, "i2c_write_block length too long\n");
@@ -467,21 +468,18 @@ static int i2c_write_block(struct i2c_client *client, uint8_t addr,
 	}
 
 	buf[0] = addr;
-	for (i = 0; i < length; i++)
-		buf[i+1] = data[i];
+	memcpy((void *)&buf[1], (void *)data, length);
 
-	for (retry = 1; retry <= I2C_WRITE_RETRY_TIMES; retry++) {
-		if (i2c_transfer(client->adapter, msg, 1) == 1)
-			break;
-		mdelay(10);
+	mdelay(1);
+	for (retry = 0; retry <= I2C_WRITE_RETRY_TIMES; retry++) {
+		ret = i2c_transfer(client->adapter, msg, 1);
+		if (ret == 1)
+			return 0;
+		msleep(10);
 	}
-	if (retry > I2C_WRITE_RETRY_TIMES) {
-		dev_err(&client->dev, "i2c_write_block retry over %d\n",
+	dev_err(&client->dev, "i2c_write_block retry over %d\n",
 			I2C_WRITE_RETRY_TIMES);
-		return -EIO;
-	}
-
-	return 0;
+	return -EIO;
 }
 
 static int microp_i2c_write_pin_mode(struct i2c_client *client,
@@ -648,6 +646,19 @@ static void microp_i2c_clear_led_data(struct i2c_client *client)
 
 		mutex_unlock(&cdata->led_data[i].pin_mutex);
 	}
+}
+
+static irqreturn_t microp_i2c_intr_irq_handler(int irq, void *dev_id)
+{
+	struct i2c_client *client;
+	struct microp_i2c_client_data *cdata;
+
+	client = to_i2c_client(dev_id);
+	cdata = i2c_get_clientdata(client);
+
+	disable_irq(client->irq);
+	queue_work(cdata->microp_queue, &cdata->work.work);
+	return IRQ_HANDLED;
 }
 
 
@@ -1479,6 +1490,40 @@ static void microp_lcd_backlight_notifier_set(struct led_classdev *led_cdev,
 	return;
 }
 
+static void microp_auto_backlight_function(void)
+{
+	struct i2c_client *client;
+	uint8_t buffer[1], buffer_tmp[6];
+	struct microp_led_data *ldata;
+	struct microp_i2c_client_data *cdata;
+
+	client = private_microp_client;
+	cdata = i2c_get_clientdata(client);
+
+	ldata = container_of(ldev_lcd_backlight, struct microp_led_data, ldev);
+
+	/* Wait for Framework event polling ready */
+	if (ls_enable_num == 0) {
+		ls_enable_num = 1;
+		msleep(300);
+	}
+
+	memset(buffer, 0x0, sizeof(buffer));
+	memset(buffer_tmp, 0x0, sizeof(buffer_tmp));
+	if (i2c_read_block(client, MICROP_I2C_CMD_READ_PIN, buffer_tmp, 6) < 0)
+		dev_err(&client->dev, "%s: read adc fail\n", __func__);
+	else if (buffer_tmp[3] > 9)
+		dev_warn(&client->dev, "%s: get wrong value: 0x%X/0x%X \n", __func__,
+			buffer_tmp[3], 9);
+	else {
+		printk(KERN_DEBUG "ALS value: 0x%X, level: %d #\n",
+			(buffer_tmp[4] << 8 | buffer_tmp[5]), buffer_tmp[3]);
+		led_trigger_event(&light_sensor_trigger, buffer_tmp[3]);
+		input_report_abs(cdata->ls_input_dev, ABS_MISC, (int)buffer_tmp[3]);
+		input_sync(cdata->ls_input_dev);
+	}
+}
+
 
 /*-----------------------------------------
    Device attributes;
@@ -1930,7 +1975,7 @@ static ssize_t show_adc_value(struct device *dev, struct device_attribute *attr,
 		char *buf)
 {
 	int ret = 0, value_tmp = 0;
-	struct microp_pin_config *dev_config = dev->p;
+	struct microp_pin_config *dev_config = dev->platform_data;
 	struct i2c_client *client;
 
 	client = to_i2c_client(dev);
@@ -1948,53 +1993,6 @@ static ssize_t show_adc_value(struct device *dev, struct device_attribute *attr,
 }
 static DEVICE_ATTR(adc_value, 0444, show_adc_value, NULL);
 #endif
-
-static void microp_auto_backlight_function(void)
-{
-	struct i2c_client *client;
-	uint8_t buffer[1], buffer_tmp[6];
-	struct microp_led_data *ldata;
-	struct microp_i2c_client_data *cdata;
-
-	client = private_microp_client;
-	cdata = i2c_get_clientdata(client);
-
-	ldata = container_of(ldev_lcd_backlight, struct microp_led_data, ldev);
-
-	/* Wait for Framework event polling ready */
-	if (ls_enable_num == 0) {
-		ls_enable_num = 1;
-		msleep(300);
-	}
-
-	memset(buffer, 0x0, sizeof(buffer));
-	memset(buffer_tmp, 0x0, sizeof(buffer_tmp));
-	if (i2c_read_block(client, MICROP_I2C_CMD_READ_PIN, buffer_tmp, 6) < 0)
-		dev_err(&client->dev, "%s: read adc fail\n", __func__);
-	else if (buffer_tmp[3] > 9)
-		dev_warn(&client->dev, "%s: get wrong value: 0x%X/0x%X \n", __func__,
-			buffer_tmp[3], 9);
-	else {
-		printk(KERN_DEBUG "ALS value: 0x%X, level: %d #\n",
-			(buffer_tmp[4] << 8 | buffer_tmp[5]), buffer_tmp[3]);
-		led_trigger_event(&light_sensor_trigger, buffer_tmp[3]);
-		input_report_abs(cdata->ls_input_dev, ABS_MISC, (int)buffer_tmp[3]);
-		input_sync(cdata->ls_input_dev);
-	}
-}
-
-static irqreturn_t microp_i2c_intr_irq_handler(int irq, void *dev_id)
-{
-	struct i2c_client *client;
-	struct microp_i2c_client_data *cdata;
-
-	client = to_i2c_client(dev_id);
-	cdata = i2c_get_clientdata(client);
-
-	disable_irq(client->irq);
-	queue_work(cdata->microp_queue, &cdata->work.work);
-	return IRQ_HANDLED;
-}
 
 
 /*-----------------------------------------
@@ -2806,7 +2804,7 @@ static int microp_i2c_probe(struct i2c_client *client,
 				pdata->pin_config[i].name) {
 				dev_set_name(&cdata->adc_device[j],pdata->pin_config[i].name);
 				cdata->adc_device[j].parent = &client->dev;
-				cdata->adc_device[j].p = &pdata->pin_config[i];
+				cdata->adc_device[j].platform_data = &pdata->pin_config[i];
 				remote_adc_read_channel = pdata->pin_config[i].adc_pin;
 				if (device_register(&cdata->adc_device[j]) != 0) {
 					dev_err(&client->dev, "%s: can't register device_register\n", __func__);
