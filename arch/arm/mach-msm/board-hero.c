@@ -1104,7 +1104,12 @@ static void __init hero_init(void)
 
 #ifdef CONFIG_SERIAL_MSM_HS
 	msm_device_uart_dm1.dev.platform_data = &msm_uart_dm1_pdata;
+	msm_add_serial_devices(MSM_SERIAL_UART1DM);
+#else
+	msm_add_serial_devices(MSM_SERIAL_UART1);
 #endif
+
+	msm_add_serial_devices(MSM_SERIAL_UART3);
 
 	msm_add_usb_devices(hero_phy_reset);
 

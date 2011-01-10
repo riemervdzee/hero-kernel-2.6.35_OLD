@@ -331,7 +331,6 @@ void __init msm_add_mem_devices(struct msm_pmem_setting *setting)
 	}
 }
 
-#if 0
 static struct platform_device *msm_serial_devices[] __initdata = {
 	&msm_device_uart1,
 	&msm_device_uart2,
@@ -349,4 +348,3 @@ int __init msm_add_serial_devices(unsigned num)
 
 	return platform_device_register(msm_serial_devices[num]);
 }
-#endif
