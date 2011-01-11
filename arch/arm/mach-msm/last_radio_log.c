@@ -60,7 +60,11 @@ void msm_init_last_radio_log(struct module *owner)
 		return;
 	}
 
+#ifdef CONFIG_ARCH_QSD8X50
 	radio_log_base = smem_item(SMEM_CLKREGIM_BSP, &radio_log_size);
+#else
+	radio_log_base = NULL;
+#endif
 	if (!radio_log_base) {
 		pr_err("%s: could not retrieve SMEM_CLKREGIM_BSP\n", __func__);
 		return;
