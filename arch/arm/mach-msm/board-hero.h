@@ -45,16 +45,6 @@
 #define SMI32_MSM_PMEM_CAMERA_BASE	0x27000000
 #define SMI32_MSM_PMEM_CAMERA_SIZE	0x01000000
 
-/*
-** CPLD GPIO
-**
-** Hero Altera CPLD can keep the registers value and
-** doesn't need a shadow to backup.
-**/
-#define HERO_CPLD_BASE   0xFA000000	/* VA */
-#define HERO_CPLD_START  0x98000000	/* PA */
-#define HERO_CPLD_SIZE   SZ_4K
-
 #define HERO_POWER_KEY                  (20)
 #define HERO_GPIO_PS_HOLD               (25)
 #define HERO_GPIO_MDDI_1V8_EN           (26)
