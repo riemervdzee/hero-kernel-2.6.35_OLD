@@ -59,6 +59,8 @@ static uint32_t hero_bt_off_table[] = {
 	PCOM_GPIO_CFG(HERO_GPIO_WB_SHUT_DOWN_N, 0, GPIO_OUTPUT, GPIO_PULL_DOWN, GPIO_8MA),		/* BT_ENABLE */
 };
 
+// TODO Could probably be removed
+#if 0
 static uint32_t hero_bt_disable_active_table[] = {
 	PCOM_GPIO_CFG(HERO_GPIO_UART1_RTS, 2, GPIO_OUTPUT, GPIO_NO_PULL, GPIO_8MA),	/* BT_RTS */
 	PCOM_GPIO_CFG(HERO_GPIO_UART1_CTS, 2, GPIO_INPUT, GPIO_NO_PULL, GPIO_8MA),	/* BT_CTS */
@@ -72,6 +74,7 @@ static uint32_t hero_bt_disable_sleep_table[] = {
 	PCOM_GPIO_CFG(HERO_GPIO_UART1_RX, 0, GPIO_INPUT, GPIO_PULL_UP, GPIO_8MA),		/* I(PU) */
 	PCOM_GPIO_CFG(HERO_GPIO_UART1_TX, 0, GPIO_OUTPUT, GPIO_NO_PULL, GPIO_8MA),	/* O(H) */
 };
+#endif
 
 static void config_bt_table(uint32_t *table, int len)
 {
@@ -88,7 +91,7 @@ static void hero_config_bt_init(void)
 	hero_bt_status = 0;
 	config_bt_table(hero_bt_init_table, ARRAY_SIZE(hero_bt_init_table));
 	mdelay(5);
-	gpio_configure(HERO_GPIO_WB_SHUT_DOWN_N, GPIOF_DRIVE_OUTPUT | GPIOF_OUTPUT_LOW);
+	gpio_direction_output(HERO_GPIO_WB_SHUT_DOWN_N, 0);
 }
 
 static void hero_config_bt_on(void)
@@ -96,14 +99,11 @@ static void hero_config_bt_on(void)
 	config_bt_table(hero_bt_on_table, ARRAY_SIZE(hero_bt_on_table));
 	mdelay(2);
 
-	gpio_configure(HERO_GPIO_WB_SHUT_DOWN_N,
-			GPIOF_DRIVE_OUTPUT | GPIOF_OUTPUT_HIGH);
+	gpio_direction_output(HERO_GPIO_WB_SHUT_DOWN_N, 1);
 	mdelay(15);
-	gpio_configure(HERO_GPIO_WB_SHUT_DOWN_N,
-			GPIOF_DRIVE_OUTPUT | GPIOF_OUTPUT_LOW);
+	gpio_direction_output(HERO_GPIO_WB_SHUT_DOWN_N, 0);
 	mdelay(1);
-	gpio_configure(HERO_GPIO_WB_SHUT_DOWN_N,
-			GPIOF_DRIVE_OUTPUT | GPIOF_OUTPUT_HIGH);
+	gpio_direction_output(HERO_GPIO_WB_SHUT_DOWN_N, 1);
 	mdelay(1);
 
 	hero_bt_fastclock_power(1);
@@ -113,13 +113,15 @@ static void hero_config_bt_on(void)
 
 static void hero_config_bt_off(void)
 {
-	gpio_configure(HERO_GPIO_WB_SHUT_DOWN_N, GPIOF_DRIVE_OUTPUT | GPIOF_OUTPUT_LOW);
+	gpio_direction_output(HERO_GPIO_WB_SHUT_DOWN_N, 0);
 	hero_bt_fastclock_power(0);
 	config_bt_table(hero_bt_off_table, ARRAY_SIZE(hero_bt_off_table));
 	mdelay(5);
 	hero_bt_status = 0;
 }
 
+// TODO Could probably be removed
+#if 0
 void hero_config_bt_disable_active(void)
 {	
 	config_bt_table(hero_bt_disable_active_table, ARRAY_SIZE(hero_bt_disable_active_table));
@@ -137,14 +139,15 @@ int hero_is_bluetooth_off(void)
 {
 	return !hero_bt_status;	//ON:1, OFF:0
 }
+#endif
 
 static int bluetooth_set_power(void *data, bool blocked)
 {
-	if (!blocked) {
+	if (!blocked)
 		hero_config_bt_on();
-	} else {
+	else 
 		hero_config_bt_off();
-	}
+	
 	return 0;
 }
 
@@ -156,6 +159,10 @@ static int hero_rfkill_probe(struct platform_device *pdev)
 {
 	int rc = 0;
 	bool default_state = true;  /* off */
+
+	//TODO test whether the lower gpio_request is required or not
+	//rc = gpio_request(HERO_GPIO_BT_32K_EN, "hero_bt_32_en");
+	rc = gpio_request(HERO_GPIO_WB_SHUT_DOWN_N, "hero_gpio_wb_shut_down_n");
 
 	hero_config_bt_init();	/* bt gpio initial config */
 
@@ -180,6 +187,10 @@ static int hero_rfkill_remove(struct platform_device *dev)
 {
 	rfkill_unregister(bt_rfk);
 	rfkill_destroy(bt_rfk);
+
+	//TODO test whether the lower gpio_free is required or not
+	//gpio_free(HERO_GPIO_BT_32K_EN);
+	gpio_free(HERO_GPIO_WB_SHUT_DOWN_N);
 
 	return 0;
 }
