@@ -17,57 +17,52 @@
 #include <linux/input.h>
 #include <linux/interrupt.h>
 #include <linux/i2c.h>
+// i2c-msm
 #include <linux/irq.h>
 #include <linux/leds.h>
 #include <linux/switch.h>
 #include <linux/synaptics_i2c_rmi.h>
 #include <linux/cy8c_tmg_ts.h>
 #include <linux/akm8973.h>
-#include <mach/htc_headset.h>
-#include <mach/audio_jack.h>
 #include <mach/tpa6130.h>
-#include <linux/sysdev.h>
-#include <linux/android_pmem.h>
 #include <linux/bma150.h>
-
+#include <linux/sysdev.h>
 #include <linux/delay.h>
-
 #include <asm/gpio.h>
-#include <mach/hardware.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
+#include <asm/mach/mmc.h>
 #include <asm/mach/flash.h>
 #include <asm/system.h>
-#include <mach/system.h>
-#include <mach/vreg.h>
-
 #include <asm/io.h>
-#include <asm/delay.h>
 #include <asm/setup.h>
-
+#include <asm/delay.h>
 #include <linux/gpio_event.h>
 #include <linux/mtd/nand.h>
 #include <linux/mtd/partitions.h>
-
-#include <asm/mach/mmc.h>
 #include <linux/mmc/sdio_ids.h>
-
-#include <mach/msm_fb.h>
-#include "devices.h"
-#include <mach/audio_jack.h>
-#include <mach/perflock.h>
-#include <mach/drv_callback.h>
-
+#include <mach/system.h>
+#include <mach/vreg.h>
+#include <mach/hardware.h>
 #include <mach/board.h>
-#include <mach/board_htc.h>
-#include <mach/msm_serial_debugger.h>
 #include <mach/msm_serial_hs.h>
-#include <mach/htc_pwrsink.h>
+#include <mach/msm_fb.h>
+#include "proc_comm.h"
+#include "devices.h"
+// h2w_v1.h
+#include <mach/htc_headset.h>
+#include <mach/audio_jack.h>
 #include <mach/microp_i2c.h>
 #include <mach/htc_battery.h>
+#include <mach/htc_pwrsink.h>
+#include <mach/perflock.h>
+#include <mach/drv_callback.h>
+#include <mach/board_htc.h>
+#include <mach/msm_serial_debugger.h>
+// msm_hsusb
+#include <linux/android_pmem.h>
 
-#include "proc_comm.h"
 #include "board-heroc.h"
 #include "board-heroc-camsensor.h"
 #include "gpio_chip.h"
