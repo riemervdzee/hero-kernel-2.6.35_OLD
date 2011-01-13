@@ -286,6 +286,11 @@ static struct msm_mddi_bridge_platform_data eid_client_data = {
 		.height = 68,
 		.output_format = 0,
 	},
+	.panel_conf = {
+                .panel_id = PANEL_EID_24pin,
+                .caps = 0x0,
+                .pwm = pwm_eid,
+        },
 };
 
 static struct resource resources_msm_fb[] = {
