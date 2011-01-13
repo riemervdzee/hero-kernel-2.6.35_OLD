@@ -864,15 +864,6 @@ static void __init heroc_init(void)
 }
 
 
-static struct map_desc heroc_io_desc[] __initdata = {
-	{
-		.virtual = HEROC_CPLD_BASE,
-		.pfn     = __phys_to_pfn(HEROC_CPLD_START),
-		.length  = HEROC_CPLD_SIZE,
-		.type    = MT_DEVICE_NONSHARED
-	}
-};
-
 static void __init heroc_fixup(struct machine_desc *desc, struct tag *tags,
 			      char **cmdline, struct meminfo *mi)
 {
@@ -886,7 +877,6 @@ static void __init heroc_fixup(struct machine_desc *desc, struct tag *tags,
 static void __init heroc_map_io(void)
 {
 	msm_map_common_io();
-	iotable_init(heroc_io_desc, ARRAY_SIZE(heroc_io_desc));
 	msm_clock_init(msm_clocks_7x01a, msm_num_clocks_7x01a);
 }
 
