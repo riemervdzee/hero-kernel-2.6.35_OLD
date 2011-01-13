@@ -1,7 +1,7 @@
 #
 # Automatically generated make config: don't edit
 # Linux kernel version: 2.6.35.10
-# Sun Jan  9 12:51:18 2011
+# Thu Jan 13 12:55:48 2011
 #
 CONFIG_ARM=y
 CONFIG_SYS_SUPPORTS_APM_EMULATION=y
@@ -30,6 +30,7 @@ CONFIG_CONSTRUCTORS=y
 #
 # General setup
 #
+# CONFIG_SCHED_BFS is not set
 CONFIG_EXPERIMENTAL=y
 CONFIG_BROKEN_ON_SMP=y
 CONFIG_LOCK_KERNEL=y

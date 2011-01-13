@@ -523,6 +523,7 @@ static void msmfb_suspend(struct early_suspend *h)
 	struct msm_panel_data *panel = msmfb->panel;
 	/* suspend the panel */
 #ifdef CONFIG_FB_MSM_OVERLAY
+#warning got overlay
 	/*check whether overlay done*/
 	wait_event_interruptible_timeout(
 		overlay_event.event_wait,
