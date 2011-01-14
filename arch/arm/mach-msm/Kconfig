@@ -285,6 +285,38 @@ config MACH_HEROC
 	help
 	  Support for HeroC (PDA phone).
 
+menu "HeroC specific devices"
+	depends on MACH_HEROC
+
+config HEROC_SERIAL
+	depends on MACH_HEROC
+	default n
+	bool "Serial Support"
+	help
+	  Support for serial
+
+config HEROC_CAMERA
+	depends on MACH_HEROC
+	default y
+	bool "Camera Support"
+	help
+	 Support for s5k3e2fx camera
+
+config HEROC_H2W
+	depends on MACH_HEROC
+	default n
+	bool "h22 Support"
+	help
+	  No clue
+
+config HEROC_AUDIO_JACK
+	depends on MACH_HEROC
+	default n
+	bool "Old audio jack support"
+	help
+	  Leave disabled for now
+endmenu
+
 config MACH_MAHIMAHI
 	depends on ARCH_QSD8X50
 	default y

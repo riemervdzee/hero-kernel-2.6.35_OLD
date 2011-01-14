@@ -413,13 +413,15 @@ static struct i2c_board_info i2c_devices[] = {
 		I2C_BOARD_INFO(TPA6130_I2C_NAME, 0xC0 >> 1),
 		.platform_data = &headset_amp_platform_data,
 	},
+#ifdef CONFIG_HEROC_CAMERA
 	{
 		I2C_BOARD_INFO("s5k3e2fx", 0x20 >> 1)
 	}
+#endif
 };
 
 
-
+#ifdef CONFIG_HEROC_CAMERA
 static struct msm_camera_device_platform_data msm_camera_device_data = {
 	.camera_gpio_on  = config_heroc_camera_on_gpios,
 	.camera_gpio_off = config_heroc_camera_off_gpios,
@@ -452,6 +454,7 @@ static struct platform_device msm_camera_sensor_s5k3e2fx = {
 		.platform_data = &msm_camera_sensor_s5k3e2fx_data,
 	},
 };
+#endif
 
 static void heroc_phy_reset(void)
 {
@@ -556,9 +559,165 @@ static uint32_t uart3_on_gpio_table[] = {
 	PCOM_GPIO_CFG(HEROC_GPIO_UART3_TX, 1, GPIO_OUTPUT, GPIO_NO_PULL, 0),
 };
 
+/* default TX,RX to GPI */
+static uint32_t uart3_off_gpio_table[] = {
+	/* RX, H2W DATA */
+	PCOM_GPIO_CFG(HEROC_GPIO_H2W_DATA, 0,
+		      GPIO_INPUT, GPIO_NO_PULL, GPIO_2MA),
+	/* TX, H2W CLK */
+	PCOM_GPIO_CFG(HEROC_GPIO_H2W_CLK, 0,
+		      GPIO_INPUT, GPIO_NO_PULL, GPIO_2MA),
+};
 
+#ifdef CONFIG_HEROC_H2W
+static int heroc_h2w_path = H2W_GPIO;
+
+static void h2w_configure(int route)
+{
+	printk(KERN_INFO "H2W route = %d \n", route);
+	switch (route) {
+		case H2W_UART3:
+			msm_proc_comm(PCOM_RPC_GPIO_TLMM_CONFIG_EX,
+				      uart3_on_gpio_table+0, 0);
+			msm_proc_comm(PCOM_RPC_GPIO_TLMM_CONFIG_EX,
+				      uart3_on_gpio_table+1, 0);
+			heroc_h2w_path = H2W_UART3;
+			printk(KERN_INFO "H2W -> UART3\n");
+			break;
+		case H2W_GPIO:
+			msm_proc_comm(PCOM_RPC_GPIO_TLMM_CONFIG_EX,
+				      uart3_off_gpi_table+0, 0);
+			msm_proc_comm(PCOM_RPC_GPIO_TLMM_CONFIG_EX,
+				      uart3_off_gpi_table+1, 0);
+			heroc_h2w_path = H2W_GPIO;
+			printk(KERN_INFO "H2W -> GPIO\n");
+			break;
+	}
+}
+
+static void h2w_defconfig(void)
+{
+	h2w_configure(H2W_GPIO);
+}
+
+static void set_h2w_dat(int n)
+{
+	gpio_set_value(HEROC_GPIO_H2W_DATA, n);
+}
+
+static void set_h2w_clk(int n)
+{
+	gpio_set_value(HEROC_GPIO_H2W_CLK, n);
+}
+
+static void set_h2w_dat_dir(int n)
+{
+#if (0)
+	if (n == 0) /* input */
+		gpio_direction_input(HEROC_GPIO_H2W_DATA);
+	else
+		gpio_configure(HEROC_GPIO_H2W_DATA, GPIOF_DRIVE_OUTPUT);
+#else
+	if (n == 0) /* input */
+		msm_proc_comm(PCOM_RPC_GPIO_TLMM_CONFIG_EX,
+			      uart3_off_gpi_table+0, 0);
+	else
+		msm_proc_comm(PCOM_RPC_GPIO_TLMM_CONFIG_EX,
+			      uart3_off_gpo_table+0, 0);
+#endif
+}
+
+static void set_h2w_clk_dir(int n)
+{
+#if (0)
+	if (n == 0) /* input */
+		gpio_direction_input(HEROC_GPIO_H2W_CLK);
+	else
+		gpio_configure(HEROC_GPIO_H2W_CLK, GPIOF_DRIVE_OUTPUT);
+#else
+	if (n == 0) /* input */
+		msm_proc_comm(PCOM_RPC_GPIO_TLMM_CONFIG_EX,
+			      uart3_off_gpi_table+1, 0);
+	else
+		msm_proc_comm(PCOM_RPC_GPIO_TLMM_CONFIG_EX,
+			      uart3_off_gpo_table+1, 0);
+#endif
+}
+
+static int get_h2w_dat(void)
+{
+	return gpio_get_value(HEROC_GPIO_H2W_DATA);
+}
+
+static int get_h2w_clk(void)
+{
+	return gpio_get_value(HEROC_GPIO_H2W_CLK);
+}
+
+#ifdef CONFIG_HTC_HEADSET_V1
+static int set_h2w_path(const char *val, struct kernel_param *kp)
+{
+	int ret = -EINVAL;
+	int enable;
+
+	ret = param_set_int(val, kp);
+	if (ret)
+		return ret;
+
+	switch (heroc_h2w_path) {
+	case H2W_GPIO:
+		enable = 1;
+		cnf_driver_event("H2W_enable_irq", &enable);
+		break;
+	case H2W_UART3:
+		enable = 0;
+		cnf_driver_event("H2W_enable_irq", &enable);
+		break;
+	default:
+		heroc_h2w_path = -1;
+		return -EINVAL;
+	}
+
+	h2w_configure(heroc_h2w_path);
+	return ret;
+}
+
+module_param_call(h2w_path, set_h2w_path, param_get_int,
+		  &heroc_h2w_path, S_IWUSR | S_IRUGO);
+
+#endif
+static struct h2w_platform_data heroc_h2w_data = {
+	.h2w_power	 	= HEROC_GPIO_H2W_POWER,
+	.cable_in1	 	= HEROC_GPIO_CABLE_IN1,
+	.cable_in2	 	= HEROC_GPIO_CABLE_IN2,
+	.h2w_clk 		= HEROC_GPIO_H2W_CLK,
+	.h2w_data 		= HEROC_GPIO_H2W_DATA,
+	.headset_mic_35mm 	= HEROC_GPIO_HEADSET_MIC,
+//	.ext_mic_sel 		= HEROC_GPIO_AUD_EXTMIC_SEL,
+	.debug_uart 		= H2W_UART3,
+	.config 		= h2w_configure,
+	.defconfig 		= h2w_defconfig,
+	.set_dat 		= set_h2w_dat,
+	.set_clk 		= set_h2w_clk,
+	.set_dat_dir 		= set_h2w_dat_dir,
+	.set_clk_dir 		= set_h2w_clk_dir,
+	.get_dat 		= get_h2w_dat,
+	.get_clk 		= get_h2w_clk,
+	.flags 			= REVERSE_MIC_SEL,
+};
+
+static struct platform_device heroc_h2w = {
+	.name = "h2w",
+	.id = -1,
+	.dev = {
+		.platform_data = &heroc_h2w_data,
+	},
+};
+#endif
+
+#ifdef CONFIG_HEROC_AUDIO_JACK
 static struct audio_jack_platform_data heroc_jack_data = {
-	.gpio	= HEROC_GPIO_35MM_HEADSET_DET,
+        .gpio   = HEROC_GPIO_35MM_HEADSET_DET,
 };
 
 static struct platform_device heroc_audio_jack = {
@@ -568,7 +727,7 @@ static struct platform_device heroc_audio_jack = {
 		.platform_data	= &heroc_jack_data,
 	},
 };
-
+#endif
 
 static struct platform_device heroc_rfkill = {
 	.name = "heroc_rfkill",
@@ -589,12 +748,6 @@ static struct msm_pmem_setting pmem_setting_32 = {
 	.ram_console_start = SMI32_MSM_RAM_CONSOLE_BASE,
 	.ram_console_size = SMI32_MSM_RAM_CONSOLE_SIZE,
 };
-
-/*static struct msm_i2c_device_platform_data heroc_i2c_device_data = {
-	.i2c_clock = 100000,
-	.clock_strength = GPIO_8MA,
-	.data_strength = GPIO_4MA,
-};*/
 
 #define SND(num, desc) { .name = desc, .id = num }
 static struct snd_endpoint snd_endpoints_list[] = {
@@ -660,10 +813,24 @@ static struct platform_device *devices[] __initdata = {
 	&msm_device_smd,
 	&msm_device_nand,
 	&msm_device_i2c,
+#ifdef CONFIG_HEROC_SERIAL
+#ifdef CONFIG_SERIAL_MSM_HS
+        &msm_device_uart_dm1,
+#else
+        &msm_device_uart1,
+#endif
+        &msm_device_uart3,
+#endif
+#ifdef CONFIG_HEROC_CAMERA
 	&msm_camera_sensor_s5k3e2fx,
-	//&heroc_h2w,
+#endif
+#ifdef CONFIG_HEROC_H2W
+	&heroc_h2w,
+#endif
 	&htc_battery_pdev,
-	//&heroc_audio_jack,
+#ifdef CONFIG_HEROC_AUDIO_JACK
+	&heroc_audio_jack,
+#endif
 	&heroc_rfkill,
 #ifdef CONFIG_HTC_PWRSINK
 	&heroc_pwr_sink,
