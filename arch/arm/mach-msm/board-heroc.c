@@ -17,7 +17,7 @@
 #include <linux/input.h>
 #include <linux/interrupt.h>
 #include <linux/i2c.h>
-// i2c-msm
+//#include <mach/i2c-msm.h>
 #include <linux/irq.h>
 #include <linux/leds.h>
 #include <linux/switch.h>
@@ -50,8 +50,8 @@
 #include <mach/msm_fb.h>
 #include "proc_comm.h"
 #include "devices.h"
-// h2w_v1.h
-#include <mach/htc_headset.h>
+#include <mach/h2w_v1.h>
+//#include <mach/htc_headset.h>
 #include <mach/audio_jack.h>
 #include <mach/microp_i2c.h>
 #include <mach/htc_battery.h>
@@ -586,9 +586,9 @@ static void h2w_configure(int route)
 			break;
 		case H2W_GPIO:
 			msm_proc_comm(PCOM_RPC_GPIO_TLMM_CONFIG_EX,
-				      uart3_off_gpi_table+0, 0);
+				      uart3_off_gpio_table+0, 0);
 			msm_proc_comm(PCOM_RPC_GPIO_TLMM_CONFIG_EX,
-				      uart3_off_gpi_table+1, 0);
+				      uart3_off_gpio_table+1, 0);
 			heroc_h2w_path = H2W_GPIO;
 			printk(KERN_INFO "H2W -> GPIO\n");
 			break;
@@ -620,10 +620,10 @@ static void set_h2w_dat_dir(int n)
 #else
 	if (n == 0) /* input */
 		msm_proc_comm(PCOM_RPC_GPIO_TLMM_CONFIG_EX,
-			      uart3_off_gpi_table+0, 0);
+			      uart3_off_gpio_table+0, 0);
 	else
 		msm_proc_comm(PCOM_RPC_GPIO_TLMM_CONFIG_EX,
-			      uart3_off_gpo_table+0, 0);
+			      uart3_off_gpio_table+0, 0);
 #endif
 }
 
@@ -637,10 +637,10 @@ static void set_h2w_clk_dir(int n)
 #else
 	if (n == 0) /* input */
 		msm_proc_comm(PCOM_RPC_GPIO_TLMM_CONFIG_EX,
-			      uart3_off_gpi_table+1, 0);
+			      uart3_off_gpio_table+1, 0);
 	else
 		msm_proc_comm(PCOM_RPC_GPIO_TLMM_CONFIG_EX,
-			      uart3_off_gpo_table+1, 0);
+			      uart3_off_gpio_table+1, 0);
 #endif
 }
 
