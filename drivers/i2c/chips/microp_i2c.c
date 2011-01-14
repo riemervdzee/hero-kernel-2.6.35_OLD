@@ -11,6 +11,18 @@
  * GNU General Public License for more details.
  */
 
+/*
+ * Upgraded version of the original microp_i2c found in the hero(c) sources
+ * Changes so far:
+ * - Rearrangement of functions/structures or well everything
+ * - Adds irq-chip code so it actually boots without changes to gpio.c etc.
+ *
+ * Note: this bugger still ain't finnished...
+ *
+ * Riemer van der Zee
+ * riemervdzee@gmail.com
+ */
+
 #define DEBUG
 
 #include <linux/kernel.h>
@@ -29,11 +41,13 @@
 #include <linux/bma150.h>
 #include <linux/miscdevice.h>
 #include <linux/input.h>
-#include <linux/uaccess.h>
+#include <asm/uaccess.h>
 #include <linux/earlysuspend.h>
 #include <mach/htc_battery.h>
 #include <mach/drv_callback.h>
 #include <linux/lightsensor.h>
+#include <linux/irq.h>
+#include <asm/mach-types.h>
 
 #define ENABLE_READ_35MM_ADC_VALUE_FROM_ATTR_FILE
 
@@ -2170,6 +2184,34 @@ static void microp_i2c_auto_bl_work_func(struct work_struct *work)
 
 
 /*-----------------------------------------
+   microp irq setup
+ -----------------------------------------*/
+
+static void microp_irq_ack(unsigned int irq)
+{
+	;
+}
+
+static void microp_irq_mask(unsigned int irq)
+{
+	;
+}
+
+static void microp_irq_unmask(unsigned int irq)
+{
+	;
+}
+
+static struct irq_chip microp_irq_chip = {
+	.name = "microp_chip",
+	.disable = microp_irq_mask,
+	.ack = microp_irq_ack,
+	.mask = microp_irq_mask,
+	.unmask = microp_irq_unmask,
+};
+
+
+/*-----------------------------------------
    Initialisator function
  -----------------------------------------*/
 
@@ -3089,6 +3131,15 @@ static struct i2c_driver microp_i2c_driver = {
 
 static int __init microp_i2c_init(void)
 {
+	// Inits the microp irqs
+	int n, MICROP_IRQ_END = FIRST_MICROP_IRQ + NR_MICROP_IRQS;
+
+	for (n = FIRST_MICROP_IRQ; n < MICROP_IRQ_END; n++) {
+		set_irq_chip(n, &microp_irq_chip);
+		set_irq_handler(n, handle_level_irq);
+		set_irq_flags(n, IRQF_VALID);
+	}
+
 	microp_i2c_is_backlight_on = 1;
 
 	wake_lock_init(&microp_i2c_wakelock, WAKE_LOCK_SUSPEND, "microp_i2c_present");
