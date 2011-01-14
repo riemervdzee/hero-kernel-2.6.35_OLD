@@ -750,6 +750,12 @@ config MICROP_COMMON
         help
           HTC Microp-P support.
 
+config BUILD_CIQ
+        bool "Build in CIQ fixes"
+        default n
+        help
+          For CIQ we need to do some additional fixes.
+
 config HTC_HEADSET_MGR
         tristate "HTC headset manager driver"
         default n

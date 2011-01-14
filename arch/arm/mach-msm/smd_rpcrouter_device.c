@@ -324,7 +324,7 @@ int msm_rpcrouter_create_server_pdev(struct rr_server *server)
 	sprintf(server->pdev_name, "rs%.8x:%.8x",
 		server->prog, dev_vers);
 
-	//printk(KERN_DEBUG "Registered device: %s\n", server->pdev_name);
+	printk(KERN_INFO "Registered device: %s\n", server->pdev_name);
 
 	server->p_device.base.id = -1;
 	server->p_device.base.name = server->pdev_name;
