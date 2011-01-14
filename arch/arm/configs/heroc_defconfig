@@ -1,7 +1,7 @@
 #
 # Automatically generated make config: don't edit
 # Linux kernel version: 2.6.35.10
-# Thu Jan 13 23:05:43 2011
+# Fri Jan 14 12:33:13 2011
 #
 CONFIG_ARM=y
 CONFIG_SYS_SUPPORTS_APM_EMULATION=y
@@ -284,7 +284,7 @@ CONFIG_MACH_HEROC=y
 #
 CONFIG_HEROC_SERIAL=y
 CONFIG_HEROC_CAMERA=y
-CONFIG_HEROC_H2W=y
+# CONFIG_HEROC_H2W is not set
 # CONFIG_HEROC_AUDIO_JACK is not set
 CONFIG_JESUS_PHONE=y
 # CONFIG_HTC_HEADSET is not set
@@ -1255,7 +1255,7 @@ CONFIG_MFD_SUPPORT=y
 # CONFIG_MFD_88PM860X is not set
 # CONFIG_MFD_SM501 is not set
 # CONFIG_MFD_ASIC3 is not set
-CONFIG_HTC_EGPIO=y
+# CONFIG_HTC_EGPIO is not set
 # CONFIG_HTC_PASIC3 is not set
 # CONFIG_HTC_I2CPLD is not set
 # CONFIG_TPS65010 is not set
