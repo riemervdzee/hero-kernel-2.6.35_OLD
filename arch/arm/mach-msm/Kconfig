@@ -170,6 +170,9 @@ choice
 		bool "6.3.55"
 		select MSM_ADSP_PKG2
 
+	config MSM_AMSS_VERSION_4410
+		bool "4.4.10"
+
 	config MSM_AMSS_VERSION_3200
 		bool "3.2.00"
 endchoice
