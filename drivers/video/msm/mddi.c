@@ -1025,7 +1025,7 @@ static int __init mddi_probe(struct platform_device *pdev)
 #if 0
 	if ( mddi->caps.Mfr_Name == 0 && mddi->caps.Product_Code == 0)
 #else
-	if (mddi->caps.Mfr_Name == 0 )
+	if (mddi->caps.Mfr_Name == 0 || mddi->caps.Product_Code == 0)
 #endif
 		pdata->fixup(&mddi->caps.Mfr_Name, &mddi->caps.Product_Code);
 
