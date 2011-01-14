@@ -74,9 +74,12 @@ struct cabc {
 };
 
 enum {
+	LS_STATE,
 	GATE_ON,
+	ENFORCE_ON,
 	SUSPEND,
 	AUTO_SETTING,
+	LS_SWITCH,
 };
 
 #define to_cabc(p, m) container_of(p, struct cabc, m)
@@ -106,6 +109,23 @@ static inline int cabc_shrink(struct cabc *cabc, int brightness)
 			brightness = 124 * (brightness - 102) / 153 + 131;
 	}
 	return brightness;
+}
+
+static inline int samsung_wait(struct cabc *cabc)
+{
+       int rc = -1;
+
+       if (test_bit(ENFORCE_ON, &cabc->status))
+               goto end;
+
+       if (test_bit(GATE_ON, &cabc->status)) {
+               rc = 0;
+       } else {
+               printk(KERN_WARNING "%s: wait failed (%d), mask = 0x%lx\n",
+                               __func__, rc, cabc->status);
+       }
+end:
+       return rc;
 }
 
 static void
@@ -141,7 +161,7 @@ samsung_send_cmd(struct msm_mddi_client_data *client_data, unsigned cmd,
 
 static int
 samsung_change_cabcmode(struct msm_mddi_client_data *client_data,
-		int mode, u8 dimming)
+		enum cabc_mode mode, u8 dimming)
 {
 	u8 prm[20];
 
@@ -169,7 +189,9 @@ __set_brightness(struct cabc *cabc, int brightness, u8 dimming)
 
 	/* no need to check brightness > LED_FULL, the led class
 	 * already does */
-	//printk(KERN_INFO "_set_brightness = %d\n", brightness);
+	printk(KERN_INFO "brightness = %d, %s ls-(%s)\n",
+              brightness, str_bc_mode[cabc->mode_bc],
+               (test_bit(LS_STATE, &cabc->status) ? "on" : "off"));
 
 	mutex_lock(&cabc->data_lock);
 	if(cabc->cabc_config->shrink && cabc->cabc_config->shrink_br)
@@ -222,12 +244,22 @@ static void __turn_on_backlight(struct cabc *cabc, u8 brightness)
 #if DEBUG
 static void cabc_dump(unsigned long status)
 {
+       if (test_bit(LS_STATE, &status))
+               B("LS ");
+       if (test_bit(ENFORCE_ON, &status))
+               B("EN_ON ");
+        if (test_bit(SUSPEND, &status))
+                B("SUSPEND ");
+        if (test_bit(AUTO_SETTING, &status))
+                B("AUTO_SETTING ");
 	if (test_bit(GATE_ON, &status))
 		B("GATE ");
 	if (test_bit(SUSPEND, &status))
 		B("SUSPEND ");
 	if (test_bit(AUTO_SETTING, &status))
 		B("AUTO_SETTING ");
+       if (test_bit(LS_SWITCH, &status))
+               B("SWITCH ");
 	B("\n");
 }
 #endif
@@ -241,7 +273,8 @@ static void cabc_lcd_work(struct work_struct *work)
 
 	/* check again, if we are doing early_suspend, but the check
 	 * already passed. */
-	if (test_bit(SUSPEND, &cabc->status) == 0) {
+	if ((test_bit(SUSPEND, &cabc->status) == 0) &&
+	    (test_bit(ENFORCE_ON, &cabc->status) == 0)) {
 		__set_brightness(cabc, led_cdev->brightness, 1U << 3);
 		sprintf(event_string, "CABC_BRIGHTNESS=%d",
 			led_cdev->brightness);
@@ -256,16 +289,19 @@ samsung_set_brightness(struct led_classdev *led_cdev,
 		       enum led_brightness brightness)
 {
 	struct cabc *cabc = to_cabc(led_cdev, lcd_backlight);
+	int rc;
 
 	B(KERN_DEBUG "%s\n", __func__);
 
-	if (test_bit(SUSPEND, &cabc->status))
+	if ((test_bit(SUSPEND, &cabc->status)) ||
+	    (test_bit(ENFORCE_ON, &cabc->status)))
 		return;
-
 
 	wake_lock(&cabc->wakelock);
 
-	if (test_bit(GATE_ON, &cabc->status))
+	rc = samsung_wait(cabc);
+
+	if ((rc == 0) && (test_bit(GATE_ON, &cabc->status)))
 		queue_work(cabc->cabc_queue, &cabc->lcd_changed_work);
 	else
 		wake_unlock(&cabc->wakelock);
@@ -275,7 +311,18 @@ static enum led_brightness
 samsung_get_brightness(struct led_classdev *led_cdev)
 {
 	B(KERN_DEBUG "%s enter\n", __func__);
-	return led_cdev->brightness;
+	struct cabc *cabc = to_cabc(led_cdev, lcd_backlight);
+       struct msm_mddi_client_data *client_data = cabc_get_client(cabc);
+       u32 val = 0;
+
+       wake_lock(&cabc->wakelock);
+
+       val = client_data->remote_read(client_data, RDDISBV);
+       val &= 0x000000ff;
+       B(KERN_DEBUG "%s: brightness = %d\n", __func__,  val);
+
+       wake_unlock(&cabc->wakelock);
+	return val;
 }
 
 /*
@@ -289,18 +336,22 @@ static void cabc_auto_work(struct work_struct *work)
 	struct msm_mddi_client_data *client_data = cabc_get_client(cabc);
 	int on;
 
-	on = test_bit(AUTO_SETTING, &cabc->status);
+	on = test_bit(LS_SWITCH, &cabc->status);
 	/* update on success */
 	mutex_lock(&cabc->data_lock);
 	if (on) {
 		cabc->mode_bc = BC_MERGED;
 		cabc->mode_cabc = CABC_MOVING;
+		set_bit(LS_STATE, &cabc->status);
 		mutex_unlock(&cabc->data_lock);
 	} else {
+		clear_bit(LS_STATE, &cabc->status);
 		cabc->mode_bc = BC_MANUAL;
 		cabc->mode_cabc = CABC_OFF;
 		mutex_unlock(&cabc->data_lock);
 	}
+	clear_bit(AUTO_SETTING, &cabc->status);
+/* XXX this next line is suspect... not in our driver */
 	cabc->cabc_config->change_cabcmode(client_data, cabc->mode_cabc, 0x25);
 }
 
@@ -342,15 +393,22 @@ samsung_auto_backlight(struct cabc *cabc, int on)
 {
 	B(KERN_DEBUG "%s: %s\n", __func__, on ? "ON" : "OFF");
 
+	if (test_bit(LS_STATE, &cabc->status) == on)
+               return 0;
+
 	if (on)
-		set_bit(AUTO_SETTING, &cabc->status);
+		set_bit(LS_SWITCH, &cabc->status);
 	else
-		clear_bit(AUTO_SETTING, &cabc->status);
+		clear_bit(LS_SWITCH, &cabc->status);
 
-	if (test_bit(SUSPEND, &cabc->status) == 0)
-		cabc_auto_work(&cabc->set_auto_work);
-
-
+	if (test_bit(AUTO_SETTING, &cabc->status) == 0) {
+               set_bit(AUTO_SETTING, &cabc->status);
+ 
+               /* if we are not in suspend mode, we can
+                * do it right away */
+               if (test_bit(SUSPEND, &cabc->status) == 0)
+                       cabc_auto_work(&cabc->set_auto_work);
+       }
 
 	return 0;
 }
@@ -391,7 +449,7 @@ samsung_show(struct device *dev, struct device_attribute *attr, char *buf)
 		break;
 	case AUTO_BACKLIGHT:
 		i += scnprintf(buf + i, PAGE_SIZE - 1, "%d\n",
-			test_bit(AUTO_SETTING, &cabc->status));
+			test_bit(LS_SWITCH, &cabc->status));
 		break;
 	default:
 		i = -EINVAL;
@@ -463,6 +521,7 @@ samsung_cabc_suspend(struct early_suspend *h)
 		cancel_work_sync(&cabc->set_auto_work);
 		flush_workqueue(cabc->cabc_queue);
 	} else {
+		set_bit(ENFORCE_ON, &cabc->status);
 		__set_brightness(cabc, DEFAULT_BRIGHTNESS, 0);
 	}
 }
@@ -474,6 +533,7 @@ samsung_cabc_resume(struct early_suspend *h)
 
 	B(KERN_DEBUG "%s\n", __func__);
 
+	clear_bit(ENFORCE_ON, &cabc->status);
 	clear_bit(SUSPEND, &cabc->status);
 
 	if (test_bit(AUTO_SETTING, &cabc->status))
