@@ -219,7 +219,8 @@ static struct microp_pin_config microp_pins_skuid_0[] = {
 	},
 	{
 		.pin	 = 17,
-		.config  = MICROP_PIN_CONFIG_INTR_ALL,
+		//.config  = MICROP_PIN_CONFIG_INTR_ALL,
+		.config = MICROP_PIN_CONFIG_OTHER,
 		.mask 	 = { 0x00, 0x01, 0x00 },
 		.intr_debounce = hero_microp_intr_debounce,
 		.intr_function = hero_microp_intr_function,
@@ -277,7 +278,8 @@ static struct microp_pin_config microp_pins_skuid_1[] = {
 	{
 		.name   = "microp_intrrupt",
 		.pin	 = 17,
-		.config  = MICROP_PIN_CONFIG_INTR_ALL,
+		//.config  = MICROP_PIN_CONFIG_INTR_ALL,
+		.config = MICROP_PIN_CONFIG_OTHER,
 		.mask 	 = { 0x00, 0x01, 0x00 },
 		.intr_debounce = hero_microp_intr_debounce,
 		.intr_function = hero_microp_intr_function,
@@ -340,7 +342,8 @@ static struct microp_pin_config microp_pins_skuid_2[] = {
 	{
 		.name   = "microp_intrrupt",
 		.pin	 = 17,
-		.config  = MICROP_PIN_CONFIG_INTR_ALL,
+		//.config  = MICROP_PIN_CONFIG_INTR_ALL,
+		.config = MICROP_PIN_CONFIG_OTHER,
 		.mask 	 = { 0x00, 0x01, 0x00 },
 		.intr_debounce = hero_microp_intr_debounce,
 		.intr_function = hero_microp_intr_function,
@@ -409,7 +412,8 @@ static struct microp_pin_config microp_pins_skuid_3[] = {
 	{
 		.name   = "microp_intrrupt",
 		.pin	 = 17,
-		.config  = MICROP_PIN_CONFIG_INTR_ALL,
+		//.config  = MICROP_PIN_CONFIG_INTR_ALL,
+		.config = MICROP_PIN_CONFIG_OTHER,
 		.mask 	 = { 0x00, 0x01, 0x00 },
 		.intr_debounce = hero_microp_intr_debounce,
 		.intr_function = hero_microp_intr_function,
