@@ -747,6 +747,16 @@ static struct msm_pmem_setting pmem_setting_32 = {
 	.pmem_camera_size = SMI32_MSM_PMEM_CAMERA_SIZE,
 	.ram_console_start = SMI32_MSM_RAM_CONSOLE_BASE,
 	.ram_console_size = SMI32_MSM_RAM_CONSOLE_SIZE,
+#ifdef CONFIG_BUILD_CIQ
+       .pmem_ciq_start = MSM_PMEM_CIQ_BASE,
+       .pmem_ciq_size = MSM_PMEM_CIQ_SIZE,
+       .pmem_ciq1_start = MSM_PMEM_CIQ1_BASE,
+       .pmem_ciq1_size = MSM_PMEM_CIQ1_SIZE,
+       .pmem_ciq2_start = MSM_PMEM_CIQ2_BASE,
+       .pmem_ciq2_size = MSM_PMEM_CIQ2_SIZE,
+       .pmem_ciq3_start = MSM_PMEM_CIQ3_BASE,
+       .pmem_ciq3_size = MSM_PMEM_CIQ3_SIZE,
+#endif
 };
 
 #define SND(num, desc) { .name = desc, .id = num }

@@ -227,6 +227,32 @@ static struct android_pmem_platform_data pmem_camera_pdata = {
 	.cached = 0,
 };
 
+#ifdef CONFIG_BUILD_CIQ
+static struct android_pmem_platform_data pmem_ciq_pdata = {
+        .name = "pmem_ciq",
+        .no_allocator = 0,
+        .cached = 0,
+};
+
+static struct android_pmem_platform_data pmem_ciq1_pdata = {
+        .name = "pmem_ciq1",
+        .no_allocator = 0,
+        .cached = 0,
+};
+
+static struct android_pmem_platform_data pmem_ciq2_pdata = {
+        .name = "pmem_ciq2",
+        .no_allocator = 0,
+        .cached = 0,
+};
+
+static struct android_pmem_platform_data pmem_ciq3_pdata = {
+        .name = "pmem_ciq3",
+        .no_allocator = 0,
+        .cached = 0,
+};
+#endif
+
 static struct platform_device pmem_device = {
 	.name = "android_pmem",
 	.id = 0,
@@ -244,6 +270,32 @@ static struct platform_device pmem_camera_device = {
 	.id = 2,
 	.dev = { .platform_data = &pmem_camera_pdata },
 };
+
+#ifdef CONFIG_BUILD_CIQ
+static struct platform_device pmem_ciq_device = {
+        .name = "android_pmem",
+        .id = 5,
+        .dev = { .platform_data = &pmem_ciq_pdata },
+};
+
+static struct platform_device pmem_ciq1_device = {
+        .name = "android_pmem",
+        .id = 6,
+        .dev = { .platform_data = &pmem_ciq1_pdata },
+};
+
+static struct platform_device pmem_ciq2_device = {
+        .name = "android_pmem",
+        .id = 7,
+        .dev = { .platform_data = &pmem_ciq2_pdata },
+};
+
+static struct platform_device pmem_ciq3_device = {
+        .name = "android_pmem",
+        .id = 8,
+        .dev = { .platform_data = &pmem_ciq3_pdata },
+};
+#endif
 
 static struct resource ram_console_resource[] = {
 	{
@@ -302,20 +354,22 @@ void __init msm_add_mem_devices(struct msm_pmem_setting *setting)
 		platform_device_register(&pmem_adsp_device);
 	}
 
-	if (setting->pmem_gpu0_size && setting->pmem_gpu1_size) {
-		struct resource *res;
+#if defined(CONFIG_MSM_HW3D)
+        if (setting->pmem_gpu0_size && setting->pmem_gpu1_size) {
+                struct resource *res;
 
-		res = platform_get_resource_byname(&hw3d_device, IORESOURCE_MEM,
-						   "smi");
-		res->start = setting->pmem_gpu0_start;
-		res->end = res->start + setting->pmem_gpu0_size - 1;
+                res = platform_get_resource_byname(&hw3d_device, IORESOURCE_MEM,
+                                                   "smi");
+                res->start = setting->pmem_gpu0_start;
+                res->end = res->start + setting->pmem_gpu0_size - 1;
 
-		res = platform_get_resource_byname(&hw3d_device, IORESOURCE_MEM,
-						   "ebi");
-		res->start = setting->pmem_gpu1_start;
-		res->end = res->start + setting->pmem_gpu1_size - 1;
-		platform_device_register(&hw3d_device);
-	}
+                res = platform_get_resource_byname(&hw3d_device, IORESOURCE_MEM,
+                                                   "ebi");
+                res->start = setting->pmem_gpu1_start;
+                res->end = res->start + setting->pmem_gpu1_size - 1;
+                platform_device_register(&hw3d_device);
+        }
+#endif
 
 	if (setting->pmem_camera_size) {
 		pmem_camera_pdata.start = setting->pmem_camera_start;
@@ -329,6 +383,31 @@ void __init msm_add_mem_devices(struct msm_pmem_setting *setting)
 			+ setting->ram_console_size - 1;
 		platform_device_register(&ram_console_device);
 	}
+#ifdef CONFIG_BUILD_CIQ
+        if(setting->pmem_ciq_size) {
+                pmem_ciq_pdata.start = setting->pmem_ciq_start;
+                pmem_ciq_pdata.size = setting->pmem_ciq_size;
+                platform_device_register(&pmem_ciq_device);
+        }
+
+        if(setting->pmem_ciq1_size) {
+                pmem_ciq1_pdata.start = setting->pmem_ciq1_start;
+                pmem_ciq1_pdata.size = setting->pmem_ciq1_size;
+                platform_device_register(&pmem_ciq1_device);
+        }
+
+        if(setting->pmem_ciq2_size) {
+                pmem_ciq2_pdata.start = setting->pmem_ciq2_start;
+                pmem_ciq2_pdata.size = setting->pmem_ciq2_size;
+                platform_device_register(&pmem_ciq2_device);
+        }
+
+        if(setting->pmem_ciq3_size) {
+                pmem_ciq3_pdata.start = setting->pmem_ciq3_start;
+                pmem_ciq3_pdata.size = setting->pmem_ciq3_size;
+                platform_device_register(&pmem_ciq3_device);
+        }
+#endif
 }
 
 #if 0
