@@ -193,6 +193,7 @@ config HOLES_IN_ZONE
 config MACH_HALIBUT
 	depends on ARCH_MSM
 	depends on ARCH_MSM7X00A
+        select SMS_SMD_PKG3
 	bool "Halibut Board (QCT SURF7201A)"
 	help
 	  Support for the Qualcomm SURF7201A eval board.
@@ -200,9 +201,126 @@ config MACH_HALIBUT
 config MACH_TROUT
 	depends on ARCH_MSM
 	depends on ARCH_MSM7X00A
+        select SMS_SMD_PKG3
 	bool "HTC Dream (aka trout)"
 	help
 	  Support for the HTC Dream, T-Mobile G1, Android ADP1 devices.
+
+config MACH_SAPPHIRE
+        depends on ARCH_MSM7X00A
+        select SMS_SMD_PKG3
+        default y
+        bool "Sapphire"
+
+choice
+        depends on ARCH_MSM7X00A
+        prompt "Hero"
+        default MACH_HERO_NONE
+        help
+          Select this to support the Hero GSM or CDMA device
+
+        config MACH_HERO_NONE
+                bool "None"
+
+        config MACH_HERO
+                bool "GSM"
+                select SMS_SMD_PKG3
+                help
+                  Select this to support the Hero GSM device
+
+        config MACH_HEROC
+                bool "CDMA"
+                help
+                  Select this to support the Hero CDMA device
+endchoice
+
+menu "HeroC specific devices"
+        depends on MACH_HEROC
+
+config HEROC_SERIAL
+        depends on MACH_HEROC
+        default n
+        bool "Serial Support"
+        help
+          Support for serial
+
+config HEROC_CAMERA
+        depends on MACH_HEROC
+        default y
+        bool "Camera Support"
+        help
+         Support for s5k3e2fx camera
+
+config HEROC_TS
+        depends on MACH_HEROC
+        default y
+        bool "Touchscreen Support"
+        help
+          Support for the touchscreen
+
+config HEROC_H2W
+        depends on MACH_HEROC
+        default n
+        bool "h22 Support"
+        help
+          No clue
+
+config HEROC_AUDIO_JACK
+        depends on MACH_HEROC
+        default n
+        bool "Old audio jack support"
+        help
+          Leave disabled for now
+endmenu
+
+config MACH_MAHIMAHI
+        depends on ARCH_QSD8X50
+        default y
+        bool "Mahi-Mahi"
+        help
+          Select this to support the Mahi-Mahi device
+
+choice
+        depends on ARCH_QSD8X50
+        prompt "Bravo"
+        default MACH_BRAVO_NONE
+        help
+          Select this to support the Bravo GSM or CDMA device
+
+        config MACH_BRAVO_NONE
+                bool "None"
+
+        config MACH_BRAVO
+                bool "GSM"
+                help
+                  Select this to support the Bravo GSM device
+
+        config MACH_BRAVOC
+                bool "CDMA"
+                help
+                  Select this to support the Bravo CDMA device
+endchoice
+
+config MACH_SUPERSONIC
+        depends on ARCH_QSD8X50
+        default y
+        bool "Supersonic (HTC EVO 4G)"
+        help
+          Select this to support the Supersonic device
+
+config MACH_QSD8X50_FFA
+        depends on ARCH_QSD8X50
+        default y
+        bool "8x50-ffa"
+        help
+          Select this to support the 8x50 ffa device
+
+config MACH_MSM7X30_SURF
+        depends on ARCH_MSM7X30
+        default y
+        bool "QCT SURF7x30 Board"
+        help
+          Select this to support the Qualcomm SURF7X30 development board
 
 config MACH_MSM7X30_SURF
 	depends on ARCH_MSM7X30
@@ -270,111 +388,6 @@ endchoice
 
 config MSM_SMD_PKG3
 	bool
-
-config MACH_SAPPHIRE
-	depends on ARCH_MSM7X00A
-	default y
-	bool "Sapphire"
-
-config MACH_HERO
-	depends on ARCH_MSM7X00A
-	default y
-	bool "Hero"
-
-config MACH_HEROC
-	depends on ARCH_MSM7X00A
-	default n
-	bool "HeroC"
-	help
-	  Support for HeroC (PDA phone).
-
-menu "HeroC specific devices"
-	depends on MACH_HEROC
-
-config HEROC_SERIAL
-	depends on MACH_HEROC
-	default n
-	bool "Serial Support"
-	help
-	  Support for serial
-
-config HEROC_CAMERA
-	depends on MACH_HEROC
-	default y
-	bool "Camera Support"
-	help
-	 Support for s5k3e2fx camera
-
-config HEROC_TS
-	depends on MACH_HEROC
-	default y
-	bool "Touchscreen Support"
-	help
-	  Support for the touchscreen
-
-config HEROC_H2W
-	depends on MACH_HEROC
-	default n
-	bool "h22 Support"
-	help
-	  No clue
-
-config HEROC_AUDIO_JACK
-	depends on MACH_HEROC
-	default n
-	bool "Old audio jack support"
-	help
-	  Leave disabled for now
-endmenu
-
-config MACH_MAHIMAHI
-	depends on ARCH_QSD8X50
-	default y
-	bool "Mahi-Mahi"
-	help
-	  Select this to support the Mahi-Mahi device
-
-choice
-        depends on ARCH_QSD8X50
-        prompt "Bravo"
-        default MACH_BRAVO_NONE
-	help
-	  Select this to support the Bravo GSM or CDMA device
-
-	config MACH_BRAVO_NONE
-		bool "None"
-
-        config MACH_BRAVO
-                bool "GSM"
-		help
-		  Select this to support the Bravo GSM device
-
-	config MACH_BRAVOC
-		bool "CDMA"
-		help
-		  Select this to support the Bravo CDMA device
-endchoice
-
-config MACH_SUPERSONIC
-	depends on ARCH_QSD8X50
-	default y
-	bool "Supersonic (HTC EVO 4G)"
-	help
-	  Select this to support the Supersonic device
-
-config MACH_QSD8X50_FFA
-	depends on ARCH_QSD8X50
-	default y
-	bool "8x50-ffa"
-	help
-	  Select this to support the 8x50 ffa device
-
-config MACH_MSM7X30_SURF
-	depends on ARCH_MSM7X30
-	default y
-	bool "QCT SURF7x30 Board"
-	help
-	  Select this to support the Qualcomm SURF7X30 development board
 
 config JESUS_PHONE
 	depends on ARCH_QSD8X50 || ARCH_MSM7X00A || ARCH_MSM7227 || ARCH_MSM7225
