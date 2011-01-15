@@ -172,6 +172,7 @@ choice
 
 	config MSM_AMSS_VERSION_4410
 		bool "4.4.10"
+		select MSM_LEGACY_7X00A_AMSS
 
 	config MSM_AMSS_VERSION_3200
 		bool "3.2.00"

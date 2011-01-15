@@ -781,7 +781,7 @@ static struct h2w_platform_data heroc_h2w_data = {
 	.set_clk_dir 		= set_h2w_clk_dir,
 	.get_dat 		= get_h2w_dat,
 	.get_clk 		= get_h2w_clk,
-	.headset_mic_sel        = hero_headset_mic_select,
+	.headset_mic_sel        = heroc_headset_mic_select,
 	.flags 			= REVERSE_MIC_SEL,
 };
 
@@ -1056,7 +1056,7 @@ static void __init heroc_init(void)
 	msm_hw_reset_hook = heroc_reset;
 
 #ifdef CONFIG_HEROC_TS
-	gpio_requeso(HEROC_TP_LS_EN, "tp_ls_en");
+	gpio_request(HEROC_TP_LS_EN, "tp_ls_en");
 	gpio_direction_output(HEROC_TP_LS_EN, 0);
 #endif
 
