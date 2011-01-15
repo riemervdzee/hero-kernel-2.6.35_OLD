@@ -226,8 +226,8 @@ static struct microp_pin_config microp_pins_0[] = {
 		.pin	= 16,
 		.config  = MICROP_PIN_CONFIG_INTR_ALL,
 		.mask	 = { 0x00, 0x00, 0x00 },
-		.intr_debounce = heroc_microp_intr_debounce,
-                .intr_function = heroc_microp_intr_function,
+//		.intr_debounce = heroc_microp_intr_debounce,
+//                .intr_function = heroc_microp_intr_function,
                 .init_intr_function = 1,
 	}
 };
@@ -294,8 +294,8 @@ static struct microp_pin_config microp_pins_1[] = {
 		.pin	= 18,
 		.config  = MICROP_PIN_CONFIG_INTR_ALL,
 		.mask	 = { 0x00, 0x00, 0x00 },
-		.intr_debounce = heroc_microp_intr_debounce,
-                .intr_function = heroc_microp_intr_function,
+//		.intr_debounce = heroc_microp_intr_debounce,
+//                .intr_function = heroc_microp_intr_function,
                 .init_intr_function = 1,
 	},
 };

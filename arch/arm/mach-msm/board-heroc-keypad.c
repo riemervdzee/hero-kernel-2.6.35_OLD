@@ -16,7 +16,6 @@
 #include <linux/platform_device.h>
 #include <linux/input.h>
 #include <linux/interrupt.h>
-#include <linux/gpio.h>
 #include <linux/gpio_event.h>
 #include <linux/keyreset.h>
 #include <asm/mach-types.h>
@@ -204,27 +203,12 @@ static struct heroc_axis_info heroc_y_axis = {
 
 int heroc_nav_power(const struct gpio_event_platform_data *pdata, bool on)
 {
-	if (on) {
-		gpio_direction_input(heroc_x_axis_gpios[0]);
-		gpio_direction_input(heroc_x_axis_gpios[1]);
-		gpio_direction_input(heroc_y_axis_gpios[0]);
-		gpio_direction_input(heroc_y_axis_gpios[1]);
-		if (!system_rev) /*XA*/
-			gpio_set_value(HEROC_JOGBALL_EN_XA, on);
-		else
-			gpio_set_value(HEROC_JOGBALL_EN, on);
-		nav_just_on = 1;
-		nav_on_jiffies = jiffies;
-	} else {
-		if (!system_rev) /*XA*/
-			gpio_set_value(HEROC_JOGBALL_EN_XA, on);
-		else
-			gpio_set_value(HEROC_JOGBALL_EN, on);
-		gpio_direction_output(heroc_x_axis_gpios[0], 0);
-		gpio_direction_output(heroc_x_axis_gpios[1], 0);
-		gpio_direction_output(heroc_y_axis_gpios[0], 0);
-		gpio_direction_output(heroc_y_axis_gpios[1], 0);
-	}
+	if (!system_rev) /*XA*/
+		gpio_set_value(HEROC_JOGBALL_EN_XA, on);
+	else
+		gpio_set_value(HEROC_JOGBALL_EN, on);
+	nav_just_on = 1;
+	nav_on_jiffies = jiffies;
 	return 0;
 }
 
