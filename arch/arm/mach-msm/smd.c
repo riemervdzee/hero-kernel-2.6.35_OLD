@@ -35,6 +35,8 @@
 #include "smd_private.h"
 #include "proc_comm.h"
 
+#define D printk("smem_alloc from %s\n", __func__)
+
 #if defined(CONFIG_ARCH_QSD8X50)
 #define CONFIG_QDSP6 1
 #endif
@@ -617,7 +619,7 @@ static int smd_packet_read(smd_channel_t *ch, void *data, int len)
 static inline int smd_alloc_channel_for_package_version(struct smd_channel *ch)
 {
 	struct smd_shared_v1 *shared1;
-
+	
 	shared1 = smem_alloc(ID_SMD_CHANNELS + ch->n, sizeof(*shared1));
 	if (!shared1) {
 		pr_err("smd_alloc_channel() cid %d does not exist\n", ch->n);
@@ -640,7 +642,7 @@ static inline int smd_alloc_channel_for_package_version(struct smd_channel *ch)
 	struct smd_shared_v2 *shared2;
 	void *buffer;
 	unsigned buffer_sz;
-
+	
 	shared2 = smem_alloc(SMEM_SMD_BASE_ID + ch->n, sizeof(*shared2));
 	buffer = smem_item(SMEM_SMD_FIFO_BASE_ID + ch->n, &buffer_sz);
 
@@ -725,6 +727,7 @@ static void smd_channel_probe_worker(struct work_struct *work)
 	unsigned ctype;
 	unsigned type;
 	unsigned n;
+	unsigned ret = -EAGAIN;
 
 	shared = smem_find(ID_CH_ALLOC_TBL, sizeof(*shared) * 64);
 	if (!shared) {
@@ -750,8 +753,9 @@ static void smd_channel_probe_worker(struct work_struct *work)
 		type = shared[n].ctype & SMD_TYPE_MASK;
 		if ((type == SMD_TYPE_APPS_MODEM) ||
 		    (type == SMD_TYPE_APPS_DSP))
-			if (!smd_alloc_channel(shared[n].name, shared[n].cid, ctype))
-				smd_ch_allocated[n] = 1;
+			ret = smd_alloc_channel(shared[n].name, shared[n].cid, ctype);
+		if(!ret)
+			smd_ch_allocated[n] = 1;
 	}
 }
 
