@@ -775,6 +775,14 @@ config BUILD_CIQ
         help
           For CIQ we need to do some additional fixes.
 
+config SMD_OFFSET_TCXO_STAT
+        depends on MSM_SMD
+        depends on ARCH_QSD8X50 || ARCH_MSM7X00A || ARCH_MSM7227 || ARCH_MSM7225
+        hex "SMD offset of accumulated tcxo off time"
+        default 0x0
+        help
+                TCXO off time is in tick of sleep clock, 1/32768.
+
 config HTC_HEADSET_MGR
         tristate "HTC headset manager driver"
         default n

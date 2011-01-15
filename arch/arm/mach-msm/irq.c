@@ -140,9 +140,7 @@ static uint8_t msm_irq_to_smsm[NR_MSM_IRQS + NR_SIRC_IRQS] = {
 	[INT_UART1DM_IRQ] = 17,
 	[INT_UART1DM_RX] = 18,
 	[INT_KEYSENSE] = 19,
-#if !defined(CONFIG_ARCH_MSM7X30)
 	[INT_AD_HSSD] = 20,
-#endif
 
 	[INT_NAND_WR_ER_DONE] = 21,
 	[INT_NAND_OP_DONE] = 22,
