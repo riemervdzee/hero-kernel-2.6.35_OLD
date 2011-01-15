@@ -177,6 +177,17 @@ static int heroc_microp_intr_debounce(uint8_t *pin_status);
 static void heroc_microp_intr_function(uint8_t *pin_status);
 
 static struct microp_pin_config microp_pins_0[] = {
+	MICROP_PIN(0, MICROP_PIN_CONFIG_GPO),
+	MICROP_PIN(1, MICROP_PIN_CONFIG_GPO),
+	MICROP_PIN(2, MICROP_PIN_CONFIG_GPO),
+	MICROP_PIN(4, MICROP_PIN_CONFIG_GPO),
+	MICROP_PIN(6, MICROP_PIN_CONFIG_GPO),
+	MICROP_PIN(10, MICROP_PIN_CONFIG_GPO),
+	MICROP_PIN(11, MICROP_PIN_CONFIG_GPO),
+	MICROP_PIN(12, MICROP_PIN_CONFIG_GPO),
+	MICROP_PIN(13, MICROP_PIN_CONFIG_GPO),
+	MICROP_PIN(14, MICROP_PIN_CONFIG_GPO_INV),
+	MICROP_PIN(15, MICROP_PIN_CONFIG_GPO),
 	{
 		.name   = "green",
 		.pin    = 3,
@@ -185,10 +196,6 @@ static struct microp_pin_config microp_pins_0[] = {
 	{
 		.name   = "amber",
 		.pin    = 5,
-		.config = MICROP_PIN_CONFIG_GPO,
-	},
-	{
-		.pin	= 6,
 		.config = MICROP_PIN_CONFIG_GPO,
 	},
 	{
@@ -215,46 +222,6 @@ static struct microp_pin_config microp_pins_0[] = {
 		.levels = { 0, 2, 4, 12, 26, 51, 117, 204, 470, 651 },
 	},
 	{
-		.pin	= 0,
-		.config = MICROP_PIN_CONFIG_GPO,
-	},
-	{
-		.pin	= 1,
-		.config = MICROP_PIN_CONFIG_GPO,
-	},
-	{
-		.pin	= 2,
-		.config = MICROP_PIN_CONFIG_GPO,
-	},
-	{
-		.pin	= 4,
-		.config = MICROP_PIN_CONFIG_GPO,
-	},
-	{
-		.pin	= 10,
-		.config = MICROP_PIN_CONFIG_GPO,
-	},
-	{
-		.pin	= 11,
-		.config = MICROP_PIN_CONFIG_GPO,
-	},
-	{
-		.pin	= 12,
-		.config = MICROP_PIN_CONFIG_GPO,
-	},
-	{
-		.pin	= 13,
-		.config = MICROP_PIN_CONFIG_GPO,
-	},
-	{
-		.pin	= 14,
-		.config = MICROP_PIN_CONFIG_GPO_INV,
-	},
-	{
-		.pin	= 15,
-		.config = MICROP_PIN_CONFIG_GPO,
-	},
-	{
 		.name   = "microp_intrrupt",
 		.pin	= 16,
 		.config  = MICROP_PIN_CONFIG_INTR_ALL,
@@ -266,6 +233,15 @@ static struct microp_pin_config microp_pins_0[] = {
 };
 
 static struct microp_pin_config microp_pins_1[] = {
+	MICROP_PIN(2, MICROP_PIN_CONFIG_GPO),
+	MICROP_PIN(4, MICROP_PIN_CONFIG_GPO),
+	MICROP_PIN(6, MICROP_PIN_CONFIG_GPO),
+	MICROP_PIN(10, MICROP_PIN_CONFIG_GPO),
+	MICROP_PIN(11, MICROP_PIN_CONFIG_GPO),
+	MICROP_PIN(12, MICROP_PIN_CONFIG_GPO),
+	MICROP_PIN(13, MICROP_PIN_CONFIG_GPO),
+	MICROP_PIN(14, MICROP_PIN_CONFIG_GPO_INV),
+	MICROP_PIN(15, MICROP_PIN_CONFIG_GPO),
 	{
 		.name   = "green",
 		.pin    = 3,
@@ -274,10 +250,6 @@ static struct microp_pin_config microp_pins_1[] = {
 	{
 		.name   = "amber",
 		.pin    = 5,
-		.config = MICROP_PIN_CONFIG_GPO,
-	},
-	{
-		.pin	= 6,
 		.config = MICROP_PIN_CONFIG_GPO,
 	},
 	{
@@ -325,38 +297,6 @@ static struct microp_pin_config microp_pins_1[] = {
 		.intr_debounce = heroc_microp_intr_debounce,
                 .intr_function = heroc_microp_intr_function,
                 .init_intr_function = 1,
-	},
-	{
-		.pin	= 2,
-		.config = MICROP_PIN_CONFIG_GPO,
-	},
-	{
-		.pin	= 4,
-		.config = MICROP_PIN_CONFIG_GPO,
-	},
-	{
-		.pin	= 10,
-		.config = MICROP_PIN_CONFIG_GPO,
-	},
-	{
-		.pin	= 11,
-		.config = MICROP_PIN_CONFIG_GPO,
-	},
-	{
-		.pin	= 12,
-		.config = MICROP_PIN_CONFIG_GPO,
-	},
-	{
-		.pin	= 13,
-		.config = MICROP_PIN_CONFIG_GPO,
-	},
-	{
-		.pin	= 14,
-		.config = MICROP_PIN_CONFIG_GPO_INV,
-	},
-	{
-		.pin	= 15,
-		.config = MICROP_PIN_CONFIG_GPO,
 	},
 };
 
