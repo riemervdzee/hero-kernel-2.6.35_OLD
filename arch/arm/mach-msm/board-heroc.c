@@ -898,8 +898,8 @@ static void heroc_reset(void)
 }
 
 static uint32_t gpio_table[] = {
-	PCOM_GPIO_CFG(HEROC_GPIO_H2W_CLK, 1, GPIO_INPUT, GPIO_NO_PULL, GPIO_8MA),
-	PCOM_GPIO_CFG(HEROC_GPIO_H2W_DATA, 1, GPIO_INPUT, GPIO_NO_PULL, GPIO_4MA)
+//	PCOM_GPIO_CFG(HEROC_GPIO_I2C_CLK, 1, GPIO_INPUT, GPIO_NO_PULL, GPIO_8MA),
+//	PCOM_GPIO_CFG(HEROC_GPIO_I2C_DAT, 1, GPIO_INPUT, GPIO_NO_PULL, GPIO_4MA)
 };
 
 
@@ -958,7 +958,7 @@ void config_heroc_camera_off_gpios(void)
 static void __init config_gpios(void)
 {
 	config_gpio_table(gpio_table, ARRAY_SIZE(gpio_table));
-	config_heroc_camera_off_gpios();
+//	config_heroc_camera_off_gpios();
 }
 
 

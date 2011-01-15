@@ -76,6 +76,8 @@
 #define HEROC_GPIO_UART1_TX              (46)
 #define HEROC_GPIO_WB_SHUT_DOWN_N        (101)
 
+#define HEROC_GPIO_I2C_CLK               (60)
+#define HEROC_GPIO_I2C_DAT               (61)
 #define HEROC_GPIO_UP_RESET_N            (76)
 #define HEROC_GPIO_COMPASS_INT_N         (83)
 #define HEROC_GPIO_COMPASS_RST_N         (84)
