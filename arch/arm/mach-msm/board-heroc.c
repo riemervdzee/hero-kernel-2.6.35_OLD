@@ -11,68 +11,78 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  */
+
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/platform_device.h>
 #include <linux/input.h>
 #include <linux/interrupt.h>
 #include <linux/i2c.h>
-//#include <mach/i2c-msm.h>
 #include <linux/irq.h>
 #include <linux/leds.h>
 #include <linux/switch.h>
 #include <linux/synaptics_i2c_rmi.h>
 #include <linux/cy8c_tmg_ts.h>
 #include <linux/akm8973.h>
-#include <mach/tpa6130.h>
-#include <linux/bma150.h>
 #include <linux/sysdev.h>
+#include <linux/android_pmem.h>
+#include <linux/bma150.h>
+#include <mach/tpa6130.h>
+
 #include <linux/delay.h>
+
 #include <asm/gpio.h>
+#include <mach/hardware.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
-#include <asm/mach/mmc.h>
 #include <asm/mach/flash.h>
 #include <asm/system.h>
+#include <mach/system.h>
+#include <mach/vreg.h>
+
 #include <asm/io.h>
-#include <asm/setup.h>
 #include <asm/delay.h>
+#include <asm/setup.h>
+
 #include <linux/gpio_event.h>
 #include <linux/mtd/nand.h>
 #include <linux/mtd/partitions.h>
+
+#include <asm/mach/mmc.h>
 #include <linux/mmc/sdio_ids.h>
-#include <mach/system.h>
-#include <mach/vreg.h>
-#include <mach/hardware.h>
+
 #include <mach/board.h>
-#include <mach/msm_serial_hs.h>
-#include <mach/msm_fb.h>
-#include "proc_comm.h"
-#include "devices.h"
-#include <mach/h2w_v1.h>
-//#include <mach/htc_headset.h>
-#include <mach/audio_jack.h>
-#include <mach/microp_i2c.h>
-#include <mach/htc_battery.h>
-#include <mach/htc_pwrsink.h>
-#include <mach/perflock.h>
-#include <mach/drv_callback.h>
 #include <mach/board_htc.h>
 #include <mach/msm_serial_debugger.h>
-// msm_hsusb
-#include <linux/android_pmem.h>
+#include <mach/msm_serial_hs.h>
+#include <mach/htc_pwrsink.h>
+#include <mach/msm_fb.h>
+#include <mach/h2w_v1.h>
+#include <mach/microp_i2c.h>
+#include <mach/htc_battery.h>
+#include <mach/drv_callback.h>
 
+#include "proc_comm.h"
+#include "devices.h"
+#include "gpio_chip.h"
 #include "board-heroc.h"
 #include "board-heroc-camsensor.h"
-#include "gpio_chip.h"
+//#include <mach/htc_headset.h>
+//#include <mach/i2c-msm.h>
+//#include <mach/audio_jack.h>
+//#include <mach/perflock.h>
+// msm_hsusb
 
+static unsigned int hwid = 0;
+static unsigned int skuid = 0;
+static unsigned int engineerid = 0;
 
 extern ssize_t htc_battery_show_batt_attr(struct device *dev,
 					 struct device_attribute *attr,
 					 char *buf);
-
 static struct htc_battery_platform_data htc_battery_pdev_data = {
+	.func_show_batt_attr = htc_battery_show_batt_attr,
 //	.gpio_mbat_in = HERO_GPIO_MBAT_IN,
 //	.gpio_mchg_en_n = HERO_GPIO_MCHG_EN_N,
 //	.gpio_iset = HERO_GPIO_ISET,
@@ -89,6 +99,21 @@ static struct platform_device htc_battery_pdev = {
 	},
 };
 
+unsigned int hero_get_hwid(void)
+{
+        return hwid;
+}
+
+unsigned int hero_get_skuid(void)
+{
+        return skuid;
+}
+
+unsigned hero_engineerid(void)
+{
+        return engineerid;
+}
+#ifdef CONFIG_HEROC_TS
 static int heroc_ts_power(int on)
 {
 	printk(KERN_INFO "heroc_ts_power:%d\n", on);
@@ -146,7 +171,10 @@ static struct synaptics_i2c_rmi_platform_data heroc_ts_data[] = {
 		.inactive_bottom = ((6946 - 6696) / 2) * 0x10000 / 6696,
 	}
 };
+#endif
 
+static int heroc_microp_intr_debounce(uint8_t *pin_status);
+static void heroc_microp_intr_function(uint8_t *pin_status);
 
 static struct microp_pin_config microp_pins_0[] = {
 	{
@@ -231,6 +259,9 @@ static struct microp_pin_config microp_pins_0[] = {
 		.pin	= 16,
 		.config  = MICROP_PIN_CONFIG_INTR_ALL,
 		.mask	 = { 0x00, 0x00, 0x00 },
+		.intr_debounce = heroc_microp_intr_debounce,
+                .intr_function = heroc_microp_intr_function,
+                .init_intr_function = 1,
 	}
 };
 
@@ -291,6 +322,9 @@ static struct microp_pin_config microp_pins_1[] = {
 		.pin	= 18,
 		.config  = MICROP_PIN_CONFIG_INTR_ALL,
 		.mask	 = { 0x00, 0x00, 0x00 },
+		.intr_debounce = heroc_microp_intr_debounce,
+                .intr_function = heroc_microp_intr_function,
+                .init_intr_function = 1,
 	},
 	{
 		.pin	= 2,
@@ -336,6 +370,45 @@ static struct microp_i2c_platform_data microp_data = {
 	.microp_mic_status = 0,
 	.microp_enable_reset_button = 1,
 };
+static int heroc_microp_intr_debounce(uint8_t *pin_status)
+{
+/*Per HW RD's request, wait 300 mill-seconds.*/
+#if 1
+        mdelay(100);
+        return 0;
+#else
+        static int count;
+        static uint8_t data[DEBOUNCE_LENGTH];
+
+        if (pin_status[0] == 0 && pin_status[1] == 0 && pin_status[2] == 0) {
+                mdelay(5);
+                return 1;
+        }
+        /*
+        printk(KERN_INFO "hero_microp_intr_debounce : %02X %02X %02X\n",
+                pin_status[0], pin_status[1], pin_status[2]);
+        */
+        if (count < DEBOUNCE_LENGTH - 1) {
+                data[count] = pin_status[1] & 0x01;
+                count++;
+        } else {
+                data[DEBOUNCE_LENGTH - 1] = pin_status[1] & 0x01;
+                for (count = 0; count < DEBOUNCE_LENGTH - 1; count++)
+                        if (data[count] != data[count + 1])
+                                break;
+                if (count == DEBOUNCE_LENGTH - 1) {
+                        count = 0;
+                        return 0;
+                }
+                for (count = 0; count < DEBOUNCE_LENGTH - 1; count++)
+                        data[count] = data[count + 1];
+        }
+
+        mdelay(20);
+
+        return 1;
+#endif
+}
 
 void heroc_headset_mic_select(uint8_t select)
 {
@@ -357,7 +430,7 @@ static void heroc_microp_intr_function(uint8_t *pin_status)
 	}
 
 	if (last_insert != insert) {
-		printk(KERN_INFO "hero_microp_intr_function : %s\n", insert ? "inserted" : "not inserted");
+		printk(KERN_INFO "heroc_microp_intr_function : %s\n", insert ? "inserted" : "not inserted");
 		microp_i2c_set_pin_mode(4, insert, microp_data.dev_id);
 #ifdef CONFIG_HTC_HEADSET_V1
 		cnf_driver_event("H2W_extend_headset", &insert);
@@ -383,6 +456,7 @@ static struct tpa6130_platform_data headset_amp_platform_data = {
 };
 
 static struct i2c_board_info i2c_devices[] = {
+#ifdef CONFIG_HEROC_TS
 	{
 		I2C_BOARD_INFO(SYNAPTICS_I2C_RMI_NAME, 0x20),
 		.platform_data = &heroc_ts_data,
@@ -393,26 +467,30 @@ static struct i2c_board_info i2c_devices[] = {
 		.platform_data = &heroc_cypress_ts_data,
 		.irq = MSM_GPIO_TO_INT(HEROC_GPIO_TP_ATT_N)
 	},
-	//{
-	//	I2C_BOARD_INFO(MICROP_I2C_NAME, 0xCC >> 1),
-	//	.platform_data = &microp_data,
-	//	.irq = MSM_GPIO_TO_INT(HEROC_GPIO_UP_INT_N)
-	//},
+#endif
+	{
+		I2C_BOARD_INFO(MICROP_I2C_NAME, 0xCC >> 1),
+		.platform_data = &microp_data,
+		.irq = MSM_GPIO_TO_INT(HEROC_GPIO_UP_INT_N)
+	},
 	{
 		I2C_BOARD_INFO(AKM8973_I2C_NAME, 0x1E),
 		.platform_data = &compass_platform_data,
 		.irq = MSM_GPIO_TO_INT(HEROC_GPIO_COMPASS_INT_N),
 	},
+#if 0
 	{
 		I2C_BOARD_INFO(BMA150_I2C_NAME, 0x38),
 		.platform_data = &gsensor_platform_data,
 		.irq = MSM_GPIO_TO_INT(HEROC_GPIO_GSENSOR_INT_N),
 	},
-
+#endif
+#if 0
 	{
 		I2C_BOARD_INFO(TPA6130_I2C_NAME, 0xC0 >> 1),
 		.platform_data = &headset_amp_platform_data,
 	},
+#endif
 #ifdef CONFIG_HEROC_CAMERA
 	{
 		I2C_BOARD_INFO("s5k3e2fx", 0x20 >> 1)
@@ -703,6 +781,7 @@ static struct h2w_platform_data heroc_h2w_data = {
 	.set_clk_dir 		= set_h2w_clk_dir,
 	.get_dat 		= get_h2w_dat,
 	.get_clk 		= get_h2w_clk,
+	.headset_mic_sel        = hero_headset_mic_select,
 	.flags 			= REVERSE_MIC_SEL,
 };
 
@@ -863,11 +942,7 @@ module_param_named(iset, cpld_iset, uint, 0);
 module_param_named(charger_en, cpld_charger_en, uint, 0);
 module_param_named(disable_uart3, opt_disable_uart3, uint, 0);
 
-/*static void clear_bluetooth_rx_irq_status()
-{
-	#define GPIO_INT_CLEAR_2 (MSM_GPIO1_BASE + 0x800 + 0x94)
-	writel((1U << (HEROC_GPIO_UART1_RX-43)), GPIO_INT_CLEAR_2);
-}*/
+
 
 static char bt_chip_id[10] = "brfxxxx";
 module_param_string(bt_chip_id, bt_chip_id, sizeof(bt_chip_id), S_IWUSR | S_IRUGO);
@@ -883,8 +958,8 @@ static void heroc_reset(void)
 }
 
 static uint32_t gpio_table[] = {
-	//PCOM_GPIO_CFG(HEROC_GPIO_I2C_CLK, 1, GPIO_INPUT, GPIO_NO_PULL, GPIO_8MA),
-	//PCOM_GPIO_CFG(HEROC_GPIO_I2C_DAT , 1, GPIO_INPUT, GPIO_NO_PULL, GPIO_4MA)
+	PCOM_GPIO_CFG(HEROC_GPIO_H2W_CLK, 1, GPIO_INPUT, GPIO_NO_PULL, GPIO_8MA),
+	PCOM_GPIO_CFG(HEROC_GPIO_H2W_DATA, 1, GPIO_INPUT, GPIO_NO_PULL, GPIO_4MA)
 };
 
 
@@ -928,16 +1003,6 @@ static uint32_t camera_on_gpio_table[] = {
 	PCOM_GPIO_CFG(15, 1, GPIO_OUTPUT, GPIO_PULL_UP, GPIO_16MA), /* MCLK */
 };
 
-/*static void config_gpio_table(uint32_t *table, int len)
-{
-	int n;
-	unsigned id;
-	for (n = 0; n < len; n++) {
-		id = table[n];
-		msm_proc_comm(PCOM_RPC_GPIO_TLMM_CONFIG_EX, &id, 0);
-	}
-}*/
-
 void config_heroc_camera_on_gpios(void)
 {
 	config_gpio_table(camera_on_gpio_table,
@@ -953,6 +1018,7 @@ void config_heroc_camera_off_gpios(void)
 static void __init config_gpios(void)
 {
 	config_gpio_table(gpio_table, ARRAY_SIZE(gpio_table));
+	config_heroc_camera_off_gpios();
 }
 
 
@@ -982,12 +1048,18 @@ static void __init heroc_init(void)
 	int rc;
 	printk(KERN_INFO "heroc_init() revision=%d\n", system_rev);
 
+
+
+
 	config_gpios();
 
 	msm_hw_reset_hook = heroc_reset;
 
-	gpio_request(HEROC_TP_LS_EN, "tp_ls_en");
+#ifdef CONFIG_HEROC_TS
+	gpio_requeso(HEROC_TP_LS_EN, "tp_ls_en");
 	gpio_direction_output(HEROC_TP_LS_EN, 0);
+#endif
+
 	gpio_request(HEROC_GPIO_VCM_PWDN, "heroc_gpio_vcm_pwdn");
 
 	msm_acpu_clock_init(&heroc_clock_data);
@@ -1012,24 +1084,25 @@ static void __init heroc_init(void)
 	if (rc)
 		printk(KERN_CRIT "%s: MMC init failure (%d)\n", __func__, rc);
 
-	//msm_device_i2c.dev.platform_data = &heroc_i2c_device_data;
 	platform_add_devices(devices, ARRAY_SIZE(devices));
 
 	for (rc=0;rc<ARRAY_SIZE(i2c_devices);rc++){
             if (!strcmp(i2c_devices[rc].type,AKM8973_I2C_NAME)){
                 if (!system_rev)
-                    i2c_devices[rc].addr = 0x1E; /*XA*/
+                    i2c_devices[rc].irq = 0x1E; /*XA*/
                 else
-                    i2c_devices[rc].addr = 0x1C;
+                    i2c_devices[rc].irq = 0x1C;
             }
+	    if (!strcmp(i2c_devices[rc].type, MICROP_I2C_NAME))
+                    i2c_devices[rc].irq = MSM_GPIO_TO_INT(HEROC_GPIO_UP_INT_N);
         }
-	if(system_rev < 2) {
+	if(system_rev >= 2) {
+		microp_data.num_pins = ARRAY_SIZE(microp_pins_1);
+                microp_data.pin_config = microp_pins_1;
+	} else if(system_rev < 2) {
 		microp_data.num_pins   = ARRAY_SIZE(microp_pins_0);
 		microp_data.pin_config = microp_pins_0;
 	}
-
-	if (system_rev > 1)
-		//heroc_h2w_data.flags |= _35MM_MIC_DET_L2H;
 
 	i2c_register_board_info(0, i2c_devices, ARRAY_SIZE(i2c_devices));
 
@@ -1043,6 +1116,10 @@ static void __init heroc_fixup(struct machine_desc *desc, struct tag *tags,
 	mi->bank[0].start = PHYS_OFFSET;
 	mi->bank[0].node = PHYS_TO_NID(PHYS_OFFSET);
 	mi->bank[0].size = MSM_EBI_SMI32_256MB_SIZE;
+
+        hwid            = parse_tag_hwid((const struct tag *)tags);
+        skuid           = parse_tag_skuid((const struct tag *)tags);
+        engineerid      = parse_tag_engineerid((const struct tag *)tags);
 
 }
 

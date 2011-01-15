@@ -305,6 +305,13 @@ config HEROC_CAMERA
 	help
 	 Support for s5k3e2fx camera
 
+config HEROC_TS
+	depends on MACH_HEROC
+	default y
+	bool "Touchscreen Support"
+	help
+	  Support for the touchscreen
+
 config HEROC_H2W
 	depends on MACH_HEROC
 	default n
