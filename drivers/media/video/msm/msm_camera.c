@@ -22,6 +22,7 @@
 #include <linux/module.h>
 #include <linux/init.h>
 #include <mach/board.h>
+#include <linux/sched.h>
 
 #include <linux/dma-mapping.h>
 #include <linux/fs.h>
