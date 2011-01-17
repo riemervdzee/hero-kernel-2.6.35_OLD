@@ -129,3 +129,4 @@ obj-$(CONFIG_CEPH_FS)		+= ceph/
 
 # Patched by YAFFS
 obj-$(CONFIG_YAFFS_FS)		+= yaffs2/
+obj-$(CONFIG_OYAFFS_FS)		+= yaffs2_old/
