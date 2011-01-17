@@ -1,7 +1,7 @@
 #
 # Automatically generated make config: don't edit
 # Linux kernel version: 2.6.35.10
-# Thu Jan 13 12:57:23 2011
+# Mon Jan 17 21:52:39 2011
 #
 CONFIG_ARM=y
 CONFIG_SYS_SUPPORTS_APM_EMULATION=y
@@ -317,9 +317,9 @@ CONFIG_MSM_RPCSERVERS=y
 # CONFIG_AXI_SCREEN_POLICY is not set
 CONFIG_MSM_HW3D=y
 CONFIG_MSM_ADSP_PKG2=y
-CONFIG_MSM_ADSP=y
+# CONFIG_MSM_ADSP is not set
+CONFIG_MSM_ADSP_COMP=y
 CONFIG_HTC_ACOUSTIC=y
-CONFIG_MSM_ADSP_REPORT_EVENTS=y
 CONFIG_WIFI_CONTROL_FUNC=y
 # CONFIG_WIFI_MEM_PREALLOC is not set
 # CONFIG_ARCH_MSM_FLASHLIGHT is not set
@@ -442,8 +442,6 @@ CONFIG_CPU_FREQ_MSM=y
 #
 # At least one emulation must be selected
 #
-# CONFIG_FPE_NWFPE is not set
-# CONFIG_FPE_FASTFPE is not set
 # CONFIG_VFP is not set
 
 #
@@ -1578,8 +1576,6 @@ CONFIG_ANDROID_LOW_MEMORY_KILLER=y
 # RAR Register Driver
 #
 # CONFIG_IIO is not set
-CONFIG_RAMZSWAP=m
-CONFIG_RAMZSWAP_STATS=y
 # CONFIG_BATMAN_ADV is not set
 # CONFIG_FB_SM7XX is not set
 
