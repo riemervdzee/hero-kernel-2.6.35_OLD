@@ -226,6 +226,8 @@
 #define TIME_REMOTE_MTOA_VERS                  0x10001
 #define RPC_SND_VERS                           0x10001
 #define RPC_SND_CB_VERS                        0x10001
+#define VOCPCM_REGISTER_PCM_INPUT_CLIENT_PROC  23
+#define VOCPCM_REGISTER_PCM_OUTPUT_CLIENT_PROC 24
 #define PM_LIBVERS 0x10001
 #define HTC_PROCEDURE_SET_VIB_ON_OFF 21
 

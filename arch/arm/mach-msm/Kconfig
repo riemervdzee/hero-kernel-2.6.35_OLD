@@ -631,6 +631,14 @@ config MSM_ADSP
 	help
 	  Provides access to registers needed by the userspace aDSP library.
 
+config MSM_ADSP_COMP
+        tristate "MSM ADSP support init info by RPC"
+        default y
+        depends on MSM_AMSS_VERSION_6355 || MSM_AMSS_VERSION_1355 || MSM_AMSS_VERSION_4725 || \
+                   MSM_AMSS_VERSION_4735 || MSM_AMSS_VERSION_4410
+        help
+          Provides access to registers needed by the userspace aDSP library.
+
 config HTC_ACOUSTIC
         tristate "HTC acoustic driver"
         default y

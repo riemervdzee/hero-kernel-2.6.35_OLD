@@ -1168,7 +1168,7 @@ fail_request_irq:
 static struct platform_driver msm_adsp_driver = {
 	.probe = msm_adsp_probe,
 	.driver = {
-		.name = ADSP_DRIVER_NAME,
+		.name = MSM_ADSP_DRIVER_NAME,
 		.owner = THIS_MODULE,
 	},
 };
