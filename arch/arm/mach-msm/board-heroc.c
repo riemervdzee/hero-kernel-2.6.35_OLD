@@ -224,7 +224,7 @@ static struct microp_pin_config microp_pins_0[] = {
 		.mask	 = { 0x00, 0x00, 0x00 },
 //		.intr_debounce = heroc_microp_intr_debounce,
 //                .intr_function = heroc_microp_intr_function,
-                .init_intr_function = 1,
+                .init_intr_function = 0,
 	}
 };
 
@@ -292,7 +292,7 @@ static struct microp_pin_config microp_pins_1[] = {
 		.mask	 = { 0x00, 0x00, 0x00 },
 //		.intr_debounce = heroc_microp_intr_debounce,
 //                .intr_function = heroc_microp_intr_function,
-                .init_intr_function = 1,
+                .init_intr_function = 0,
 	},
 };
 
@@ -870,7 +870,7 @@ static struct platform_device hero_snd = {
 static struct platform_device *devices[] __initdata = {
 	&msm_device_smd,
 	&msm_device_nand,
-	&msm_device_i2c,
+//	&msm_device_i2c,
 #ifdef CONFIG_HEROC_SERIAL
 #ifdef CONFIG_SERIAL_MSM_HS
         &msm_device_uart_dm1,
