@@ -181,8 +181,7 @@ static int yaffs_file_flush(struct file *file, fl_owner_t id);
 static int yaffs_file_flush(struct file *file);
 #endif
 
-static int yaffs_sync_object(struct file *file, struct dentry *dentry,
-				int datasync);
+static int yaffs_sync_object(struct file *file, int datasync);
 
 static int yaffs_readdir(struct file *f, void *dirent, filldir_t filldir);
 
@@ -1574,12 +1573,12 @@ static int yaffs_symlink(struct inode *dir, struct dentry *dentry,
 	return -ENOMEM;
 }
 
-static int yaffs_sync_object(struct file *file, struct dentry *dentry,
-				int datasync)
+static int yaffs_sync_object(struct file *file, int datasync)
 {
 
 	yaffs_Object *obj;
 	yaffs_Device *dev;
+	struct dentry *dentry = file->f_path.dentry;
 
 	obj = yaffs_DentryToObject(dentry);
 
