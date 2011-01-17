@@ -201,8 +201,11 @@ static void audplay_aac_dsp_event(void *data, unsigned id, size_t len,
 			audplay_send_lp_data(audio, 1);
 		}
 		break;
+	case ADSP_MESSAGE_ID:
+		pr_info("audplay: module enabled\n");
+		break;
 	default:
-		pr_err("aac:unexpected message from decoder \n");
+		pr_err("aac: unexpected message from decoder\n");
 		break;
 	}
 }

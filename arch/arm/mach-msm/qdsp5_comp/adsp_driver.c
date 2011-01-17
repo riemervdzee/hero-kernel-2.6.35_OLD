@@ -142,7 +142,8 @@ static int adsp_pmem_add(struct msm_adsp_module *module,
 	region->len = len;
 	region->file = file;
 	pr_info("adsp_pmem_add module %s vaddr:0x%x paddr:0x%x len:%d\n",
-		module->name, region->vaddr, region->paddr, region->len);
+		module->name, (unsigned int) region->vaddr,
+		(unsigned int) region->paddr, (int) region->len);
 	hlist_add_head(&region->list, &module->pmem_regions);
 end:
 	mutex_unlock(&module->pmem_regions_lock);
@@ -164,9 +165,9 @@ static int adsp_pmem_del(struct msm_adsp_module *module)
 		pr_info("%s name %s vaddr:0x%x paddr:0x%x len:%d\n",
 			__func__,
 			module->name,
-			region->vaddr,
-			region->paddr,
-			region->len);
+			(unsigned int) region->vaddr,
+			(unsigned int) region->paddr,
+			(int) region->len);
 		kfree(region);
 	}
 	mutex_unlock(&module->pmem_regions_lock);
