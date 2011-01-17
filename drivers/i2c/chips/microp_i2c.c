@@ -665,15 +665,14 @@ static void microp_i2c_clear_led_data(struct i2c_client *client)
 /* Riemer: tracked down the system hang here */
 static irqreturn_t microp_i2c_intr_irq_handler(int irq, void *dev_id)
 {
-	return 0; 
 	struct i2c_client *client;
 	struct microp_i2c_client_data *cdata;
 
 	client = to_i2c_client(dev_id);
 	cdata = i2c_get_clientdata(client);
 
-	disable_irq(client->irq);
-	//queue_work(cdata->microp_queue, &cdata->work.work); TODO
+	disable_irq_nosync(client->irq); // Same as irq?
+	queue_work(cdata->microp_queue, &cdata->work.work);
 	return IRQ_HANDLED;
 }
 
