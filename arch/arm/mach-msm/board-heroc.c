@@ -375,11 +375,11 @@ static struct i2c_board_info i2c_devices[] = {
 		.platform_data = &compass_platform_data,
 		.irq = MSM_GPIO_TO_INT(HEROC_GPIO_COMPASS_INT_N),
 	},
-	{
+/*	{
 		I2C_BOARD_INFO(BMA150_I2C_NAME, 0x38),
 		.platform_data = &gsensor_platform_data,
 		.irq = MSM_GPIO_TO_INT(HEROC_GPIO_GSENSOR_INT_N),
-	},
+	},*/
 	{
 		I2C_BOARD_INFO(TPA6130_I2C_NAME, 0xC0 >> 1),
 		.platform_data = &headset_amp_platform_data,
@@ -389,6 +389,12 @@ static struct i2c_board_info i2c_devices[] = {
 		I2C_BOARD_INFO("s5k3e2fx", 0x20 >> 1)
 	}
 #endif
+};
+
+static struct i2c_board_info i2c_bma150 = {
+        I2C_BOARD_INFO(BMA150_I2C_NAME, 0x38),
+        .platform_data = &gsensor_platform_data,
+        .irq = MSM_GPIO_TO_INT(HEROC_GPIO_GSENSOR_INT_N),
 };
 
 
@@ -927,8 +933,8 @@ static void heroc_reset(void)
 }
 
 static uint32_t gpio_table[] = {
-//	PCOM_GPIO_CFG(HEROC_GPIO_I2C_CLK, 1, GPIO_INPUT, GPIO_NO_PULL, GPIO_8MA),
-//	PCOM_GPIO_CFG(HEROC_GPIO_I2C_DAT, 1, GPIO_INPUT, GPIO_NO_PULL, GPIO_4MA)
+	PCOM_GPIO_CFG(HEROC_GPIO_I2C_CLK, 1, GPIO_INPUT, GPIO_NO_PULL, GPIO_8MA),
+	PCOM_GPIO_CFG(HEROC_GPIO_I2C_DAT, 1, GPIO_INPUT, GPIO_NO_PULL, GPIO_4MA)
 };
 
 
@@ -968,7 +974,6 @@ static void __init heroc_init(void)
 
 
 
-	config_gpios();
 
 	msm_hw_reset_hook = heroc_reset;
 
@@ -991,18 +996,18 @@ static void __init heroc_init(void)
 	msm_device_uart_dm1.dev.platform_data = &msm_uart_dm1_pdata;
 #endif
 
-	msm_add_usb_devices(heroc_phy_reset);
 	
 	msm_add_mem_devices(&pmem_setting_32);
 
-	msm_init_pmic_vibrator();
 	
 	rc = heroc_init_mmc(system_rev);
 	if (rc)
 		printk(KERN_CRIT "%s: MMC init failure (%d)\n", __func__, rc);
 
 	platform_add_devices(devices, ARRAY_SIZE(devices));
-
+	config_gpios();
+	msm_init_pmic_vibrator();
+	msm_add_usb_devices(heroc_phy_reset);
 	for (rc=0;rc<ARRAY_SIZE(i2c_devices);rc++){
             if (!strcmp(i2c_devices[rc].type,AKM8973_I2C_NAME)){
                 if (!system_rev)
@@ -1013,6 +1018,9 @@ static void __init heroc_init(void)
 	    if (!strcmp(i2c_devices[rc].type, MICROP_I2C_NAME))
                     i2c_devices[rc].irq = MSM_GPIO_TO_INT(HEROC_GPIO_UP_INT_N);
         }
+	
+	i2c_register_board_info(0, &i2c_bma150, 1);
+	
 	if(system_rev < 2) {
 		microp_data.num_pins   = ARRAY_SIZE(microp_pins_0);
 		microp_data.pin_config = microp_pins_0;
