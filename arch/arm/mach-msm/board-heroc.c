@@ -70,7 +70,7 @@
 //#include <mach/htc_headset.h>
 //#include <mach/i2c-msm.h>
 //#include <mach/audio_jack.h>
-//#include <mach/perflock.h>
+#include <mach/perflock.h>
 // msm_hsusb
 
 static unsigned int hwid = 0;
@@ -767,6 +767,16 @@ static struct platform_device heroc_h2w = {
 		.platform_data = &heroc_h2w_data,
 	},
 };
+
+static uint32_t h2w_gpio_table[] = {
+        PCOM_GPIO_CFG(HEROC_GPIO_HEADSET_MIC, 0, GPIO_INPUT, GPIO_PULL_UP, GPIO_2MA), /* MCLK */
+};
+
+void config_h2w_gpios(void)
+{
+        config_gpio_table(h2w_gpio_table, ARRAY_SIZE(h2w_gpio_table));
+}
+
 #endif
 
 #ifdef CONFIG_HEROC_AUDIO_JACK
@@ -873,21 +883,19 @@ static struct platform_device hero_snd = {
 	},
 };
 
-static struct platform_device *devices[] __initdata = {
+static struct platform_device *core_devices[] __initdata = {
 	&msm_device_smd,
-	&msm_device_nand,
-	&msm_device_i2c,
-#ifdef CONFIG_HEROC_SERIAL
-#ifdef CONFIG_SERIAL_MSM_HS
-        &msm_device_uart_dm1,
-#else
-        &msm_device_uart1,
-#endif
-        &msm_device_uart3,
-#endif
-#ifdef CONFIG_HEROC_CAMERA
-	&msm_camera_sensor_s5k3e2fx,
-#endif
+        &msm_device_nand,
+};
+/*
+static struct msm_i2c_device_platform_data heroc_i2c_device_data = {
+        .i2c_clock = 100000,
+        .clock_strength = GPIO_8MA,
+        .data_strength = GPIO_4MA,
+};*/
+
+static struct platform_device *devices[] __initdata = {
+        &msm_device_i2c,
 #ifdef CONFIG_HEROC_H2W
 	&heroc_h2w,
 #endif
@@ -898,6 +906,20 @@ static struct platform_device *devices[] __initdata = {
 	&heroc_rfkill,
 #ifdef CONFIG_HTC_PWRSINK
 	&heroc_pwr_sink,
+#endif
+#ifdef CONFIG_HEROC_CAMERA
+	&msm_camera_sensor_s5k3e2fx,
+#endif
+};
+
+static struct platform_device *serial_devices[] __initdata = {
+#ifdef CONFIG_HEROC_SERIAL
+#ifdef CONFIG_SERIAL_MSM_HS
+        &msm_device_uart_dm1,
+#else
+        &msm_device_uart1,
+#endif
+        &msm_device_uart3,
 #endif
 };
 
@@ -917,7 +939,11 @@ module_param_named(iset, cpld_iset, uint, 0);
 module_param_named(charger_en, cpld_charger_en, uint, 0);
 module_param_named(disable_uart3, opt_disable_uart3, uint, 0);
 
-
+static void clear_bluetooth_rx_irq_status()
+{
+        #define GPIO_INT_CLEAR_2 (MSM_GPIO1_BASE + 0x800 + 0x94)
+        writel((1U << (HEROC_GPIO_UART1_RX-43)), GPIO_INT_CLEAR_2);
+}
 
 static char bt_chip_id[10] = "brfxxxx";
 module_param_string(bt_chip_id, bt_chip_id, sizeof(bt_chip_id), S_IWUSR | S_IRUGO);
@@ -958,6 +984,18 @@ static struct msm_acpu_clock_platform_data heroc_clock_data = {
 };
 
 
+static unsigned heroc_perf_acpu_table[] = {
+        245760000,
+        480000000,
+        528000000,
+};
+
+static struct perflock_platform_data heroc_perflock_data = {
+        .perf_acpu_table = heroc_perf_acpu_table,
+        .table_size = ARRAY_SIZE(heroc_perf_acpu_table),
+};
+
+
 #ifdef CONFIG_SERIAL_MSM_HS
 static struct msm_serial_hs_platform_data msm_uart_dm1_pdata = {
 	.rx_wakeup_irq = MSM_GPIO_TO_INT(HEROC_GPIO_UART1_RX),
@@ -971,20 +1009,14 @@ static void __init heroc_init(void)
 	int rc;
 	printk(KERN_INFO "heroc_init() revision=%d\n", system_rev);
 
-
-
-
+	config_gpios();
+	config_h2w_gpios();
 
 	msm_hw_reset_hook = heroc_reset;
 
-#ifdef CONFIG_HEROC_TS
-	gpio_request(HEROC_TP_LS_EN, "tp_ls_en");
-	gpio_direction_output(HEROC_TP_LS_EN, 0);
-#endif
-
-	gpio_request(HEROC_GPIO_VCM_PWDN, "heroc_gpio_vcm_pwdn");
-
 	msm_acpu_clock_init(&heroc_clock_data);
+	perflock_init(&heroc_perflock_data);
+
 
 #if defined(CONFIG_MSM_SERIAL_DEBUGGER)
 	if (!opt_disable_uart3)
@@ -992,28 +1024,34 @@ static void __init heroc_init(void)
 				      &msm_device_uart3.dev, 1, INT_UART3_RX);
 #endif
 
+	platform_add_devices(core_devices, ARRAY_SIZE(core_devices));
+	clear_bluetooth_rx_irq_status();
+
 #ifdef CONFIG_SERIAL_MSM_HS
 	msm_device_uart_dm1.dev.platform_data = &msm_uart_dm1_pdata;
 #endif
+	platform_add_devices(serial_devices, ARRAY_SIZE(serial_devices));	
 
-	
+	msm_add_usb_devices(heroc_phy_reset);
 	msm_add_mem_devices(&pmem_setting_32);
 
+	msm_init_pmic_vibrator();
 	
 	rc = heroc_init_mmc(system_rev);
 	if (rc)
 		printk(KERN_CRIT "%s: MMC init failure (%d)\n", __func__, rc);
 
+	// This requires a ported msm_i2c driver that supports overrides
+//	msm_device_i2c.dev.platform_data = &heroc_i2c_device_data; 
 	platform_add_devices(devices, ARRAY_SIZE(devices));
-	config_gpios();
-	msm_init_pmic_vibrator();
-	msm_add_usb_devices(heroc_phy_reset);
+
+
 	for (rc=0;rc<ARRAY_SIZE(i2c_devices);rc++){
             if (!strcmp(i2c_devices[rc].type,AKM8973_I2C_NAME)){
                 if (!system_rev)
-                    i2c_devices[rc].irq = 0x1E; /*XA*/
+                    i2c_devices[rc].irq = MSM_GPIO_TO_INT(HEROC_GPIO_COMPASS_INT_N); /*XA*/
                 else
-                    i2c_devices[rc].irq = 0x1C;
+                    i2c_devices[rc].irq = MSM_GPIO_TO_INT(HEROC_GPIO_COMPASS_INT_N);
             }
 	    if (!strcmp(i2c_devices[rc].type, MICROP_I2C_NAME))
                     i2c_devices[rc].irq = MSM_GPIO_TO_INT(HEROC_GPIO_UP_INT_N);
