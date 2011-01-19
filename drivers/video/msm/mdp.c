@@ -33,6 +33,8 @@
 
 #include "mdp_hw.h"
 #include "mdp_ppp.h"
+/*FIXME*/
+#include <asm/mach-types.h>
 
 struct class *mdp_class;
 
@@ -234,6 +236,56 @@ static int mdp_ppp_wait(struct mdp_info *mdp)
 	return mdp_wait(mdp, DL0_ROI_DONE, &mdp_ppp_waitqueue);
 }
 
+static void mdp_dmas_to_mddi(void *priv, uint32_t addr, uint32_t stride,
+                uint32_t width, uint32_t height, uint32_t x, uint32_t y)
+{
+        struct mdp_info *mdp = priv;
+        uint32_t dma2_cfg;
+        uint16_t ld_param = 1;
+
+        dma2_cfg = DMA_PACK_TIGHT |
+                DMA_PACK_ALIGN_LSB |
+                DMA_OUT_SEL_AHB |
+                DMA_IBUF_NONCONTIGUOUS;
+
+        dma2_cfg |= mdp->format;
+
+#if defined CONFIG_MSM_MDP22 || defined CONFIG_MSM_MDP30
+        if (mdp->format == DMA_IBUF_FORMAT_RGB888_OR_ARGB8888)
+#else
+        if (mdp->format == DMA_IBUF_FORMAT_XRGB8888)
+#endif
+                dma2_cfg |= DMA_PACK_PATTERN_BGR;
+        else
+                dma2_cfg |= DMA_PACK_PATTERN_RGB;
+
+        dma2_cfg |= DMA_OUT_SEL_MDDI;
+
+        dma2_cfg |= DMA_MDDI_DMAOUT_LCD_SEL_PRIMARY;
+
+        dma2_cfg |= DMA_DITHER_EN;
+
+#if defined(CONFIG_FB_565)
+        dma2_cfg |= DMA_DSTC0G_6BITS | DMA_DSTC1B_5BITS | DMA_DSTC2R_5BITS;
+#else
+        /* 666 18BPP */
+        dma2_cfg |= DMA_DSTC0G_6BITS | DMA_DSTC1B_6BITS | DMA_DSTC2R_6BITS;
+#endif
+        /* setup size, address, and stride */
+        mdp_writel(mdp, (height << 16) | (width), MDP_DMA_S_SIZE);
+        mdp_writel(mdp, addr, MDP_DMA_S_IBUF_ADDR);
+        mdp_writel(mdp, stride, MDP_DMA_S_IBUF_Y_STRIDE);
+
+        /* set y & x offset and MDDI transaction parameters */
+        mdp_writel(mdp, (y << 16) | (x), MDP_DMA_S_OUT_XY);
+        mdp_writel(mdp, ld_param, MDP_MDDI_PARAM_WR_SEL);
+        mdp_writel(mdp, (MDDI_VDO_PACKET_DESC << 16) | MDDI_VDO_PACKET_PRIM,
+                        MDP_MDDI_PARAM);
+
+        mdp_writel(mdp, dma2_cfg, MDP_DMA_S_CONFIG);
+        mdp_writel(mdp, 0, MDP_DMA_S_START);
+}
+
 static void mdp_dma_to_mddi(void *priv, uint32_t addr, uint32_t stride,
 			    uint32_t width, uint32_t height, uint32_t x,
 			    uint32_t y)
@@ -244,11 +296,18 @@ static void mdp_dma_to_mddi(void *priv, uint32_t addr, uint32_t stride,
 
 	dma2_cfg = DMA_PACK_TIGHT |
 		DMA_PACK_ALIGN_LSB |
-		DMA_PACK_PATTERN_RGB |
 		DMA_OUT_SEL_AHB |
 		DMA_IBUF_NONCONTIGUOUS;
 
 	dma2_cfg |= mdp->format;
+#if defined CONFIG_MSM_MDP22 || defined CONFIG_MSM_MDP30
+        if (mdp->format == DMA_IBUF_FORMAT_RGB888_OR_ARGB8888)
+#else
+        if (mdp->format == DMA_IBUF_FORMAT_XRGB8888)
+#endif
+		dma2_cfg |= DMA_PACK_PATTERN_BGR;
+        else
+                dma2_cfg |= DMA_PACK_PATTERN_RGB;
 
 	dma2_cfg |= DMA_OUT_SEL_MDDI;
 
@@ -256,8 +315,12 @@ static void mdp_dma_to_mddi(void *priv, uint32_t addr, uint32_t stride,
 
 	dma2_cfg |= DMA_DITHER_EN;
 
+#if defined(CONFIG_MSM_FB_565)
+        dma2_cfg |= DMA_DSTC0G_6BITS | DMA_DSTC1B_5BITS | DMA_DSTC2R_5BITS;
+#else
 	/* 666 18BPP */
 	dma2_cfg |= DMA_DSTC0G_6BITS | DMA_DSTC1B_6BITS | DMA_DSTC2R_6BITS;
+#endif
 
 #ifdef CONFIG_MSM_MDP22
 	/* setup size, address, and stride */
@@ -689,6 +752,7 @@ int register_mdp_client(struct class_interface *cint)
 void mdp_hw_init(struct mdp_info *mdp)
 {
 	int n;
+	int lcdc_enabled;
 
 	mdp_irq_mask = 0;
 
@@ -699,6 +763,8 @@ void mdp_hw_init(struct mdp_info *mdp)
 	mdp_writel(mdp, 1, MDP_EBI2_PORTMAP_MODE);
 
 #ifndef CONFIG_MSM_MDP22
+	
+	lcdc_enabled = mdp_readl(mdp, MDP_LCDC_EN);
 	/* disable lcdc */
 	mdp_writel(mdp, 0, MDP_LCDC_EN);
 	/* enable auto clock gating for all blocks by default */
@@ -749,13 +815,21 @@ void mdp_hw_init(struct mdp_info *mdp)
 #ifndef CONFIG_MSM_MDP31
 	mdp_writel(mdp, 0x04000400, MDP_COMMAND_CONFIG);
 #endif
+
+#ifndef CONFIG_MSM_MDP22
+        if(lcdc_enabled)
+                mdp_writel(mdp, 1, MDP_LCDC_EN);
+#endif
+
 }
 
+uint32_t msm_mdp_base;
 int mdp_probe(struct platform_device *pdev)
 {
 	struct resource *resource;
-	int ret;
+	int ret = -EINVAL;
 	struct mdp_info *mdp;
+	struct msm_mdp_platform_data *pdata = pdev->dev.platform_data;
 
 	resource = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!resource) {
@@ -776,7 +850,7 @@ int mdp_probe(struct platform_device *pdev)
 		goto error_get_irq;
 	}
 
-	mdp->base = ioremap(resource->start,
+	msm_mdp_base = mdp->base = ioremap(resource->start,
 			    resource->end - resource->start);
 	if (mdp->base == 0) {
 		printk(KERN_ERR "msmfb: cannot allocate mdp regs!\n");
@@ -792,8 +866,16 @@ int mdp_probe(struct platform_device *pdev)
 	mdp->mdp_dev.check_output_format = mdp_check_output_format;
 	mdp->mdp_dev.configure_dma = mdp_configure_dma;
 
-	ret = mdp_out_if_register(&mdp->mdp_dev, MSM_MDDI_PMDH_INTERFACE, mdp,
-				  MDP_DMA_P_DONE, mdp_dma_to_mddi);
+	if (pdata == NULL || pdata->dma_channel == MDP_DMA_P) {
+		ret = mdp_out_if_register(&mdp->mdp_dev, 
+				MSM_MDDI_PMDH_INTERFACE, mdp, MDP_DMA_P_DONE, 
+				mdp_dma_to_mddi);
+	} else if (pdata->dma_channel == MDP_DMA_S) {
+                ret = mdp_out_if_register(&mdp->mdp_dev,
+                                MSM_MDDI_PMDH_INTERFACE, mdp, MDP_DMA_S_DONE,
+                                mdp_dmas_to_mddi);
+        }
+
 	if (ret)
 		goto error_mddi_pmdh_register;
 
