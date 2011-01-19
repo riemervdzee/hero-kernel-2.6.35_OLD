@@ -265,7 +265,7 @@ static void mdp_dmas_to_mddi(void *priv, uint32_t addr, uint32_t stride,
 
         dma2_cfg |= DMA_DITHER_EN;
 
-#if defined(CONFIG_FB_565)
+#if defined(CONFIG_MSM_FB_565)
         dma2_cfg |= DMA_DSTC0G_6BITS | DMA_DSTC1B_5BITS | DMA_DSTC2R_5BITS;
 #else
         /* 666 18BPP */
