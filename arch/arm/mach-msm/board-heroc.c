@@ -1015,7 +1015,7 @@ static void __init heroc_init(void)
 	msm_hw_reset_hook = heroc_reset;
 
 	msm_acpu_clock_init(&heroc_clock_data);
-	perflock_init(&heroc_perflock_data);
+//	perflock_init(&heroc_perflock_data);
 
 
 #if defined(CONFIG_MSM_SERIAL_DEBUGGER)
