@@ -160,6 +160,8 @@ static struct synaptics_i2c_rmi_platform_data heroc_ts_data[] = {
 		.snap_top_off = 110 * 0x10000 / 6696,
 		.snap_bottom_on = 100 * 0x10000 / 6696,
 		.snap_bottom_off = 110 * 0x10000 / 6696,
+                .display_width = 320,
+                .display_height = 480,
 		.dup_threshold = 10,
 	},
 	{
@@ -168,6 +170,8 @@ static struct synaptics_i2c_rmi_platform_data heroc_ts_data[] = {
 		.inactive_right = ((4674 - 4334) / 2 + 200) * 0x10000 / 4334,
 		.inactive_top = ((6946 - 6696) / 2) * 0x10000 / 6696,
 		.inactive_bottom = ((6946 - 6696) / 2) * 0x10000 / 6696,
+		 .display_width = 320,
+                .display_height = 480,
 	}
 };
 #endif
