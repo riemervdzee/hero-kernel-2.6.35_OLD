@@ -346,6 +346,28 @@ config TOUCHSCREEN_SYNAPTICS_I2C_RMI
 	help
 	  This enables support for Synaptics RMI over I2C based touchscreens.
 
+config TOUCHSCREEN_IME_IMPROVEMENT
+        bool "Improved IME"
+        depends on TOUCHSCREEN_SYNAPTICS_I2C_RMI
+        default y
+        help
+	  Not sure
+
+config TOUCHSCREEN_CONCATENATE_REPORT
+        bool "Touchscreen concatenate report"
+        depends on TOUCHSCREEN_SYNAPTICS_I2C_RMI
+        default n
+        help
+          This enables support for concatenate report style in touchscreen driver
+          This support could reduce the number of reports in touchscreen driver
+
+config TOUCHSCREEN_COMPATIBLE_REPORT
+        bool "Touchscreen compatible report"
+        depends on TOUCHSCREEN_SYNAPTICS_I2C_RMI
+        default n
+        help
+          This enables support for old report style in touchscreen driver
+
 config TOUCHSCREEN_DUPLICATED_FILTER
         bool "Touchscreen duplicated report filter"
         depends on TOUCHSCREEN_SYNAPTICS_I2C_RMI
