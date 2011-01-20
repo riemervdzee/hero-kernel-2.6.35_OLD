@@ -461,6 +461,12 @@ config HTC_ONMODE_CHARGING
   default n
   bool "Low-power hibernate charging support"
 
+config BUILD_OMA_DM
+        bool "Build in OMA-DM fixes"
+        default n
+        help
+          For OMA-DM we need to do some additional fixes.
+
 config CACHE_FLUSH_RANGE_LIMIT
 	hex "Cache flush range limit"
 	default 0x40000
