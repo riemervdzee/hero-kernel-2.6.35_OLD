@@ -159,7 +159,7 @@ static unsigned int hero_sdslot_type = MMC_TYPE_SD;
 
 static struct mmc_platform_data hero_sdslot_data = {
 	.ocr_mask	= HERO_MMC_VDD,
-	.status_irq	= MSM_GPIO_TO_INT(HERO_GPIO_SDMC_CD_N),
+	//.status_irq	= MSM_GPIO_TO_INT(HERO_GPIO_SDMC_CD_N),
 	.status		= hero_sdslot_status,
 	.translate_vdd	= hero_sdslot_switchvdd,
 	.slot_type	= &hero_sdslot_type,
@@ -331,9 +331,6 @@ void hero_wifi_reset(int on)
 	hero_wifi_reset_state = on;
 	//mdelay(50);
 }
-#ifndef CONFIG_WIFI_CONTROL_FUNC
-EXPORT_SYMBOL(hero_wifi_reset);
-#endif
 
 int __init hero_init_mmc(unsigned int sys_rev)
 {
