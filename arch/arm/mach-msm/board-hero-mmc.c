@@ -155,10 +155,14 @@ static unsigned int hero_sdslot_status(struct device *dev)
 
 #define HERO_MMC_VDD	MMC_VDD_27_28 | MMC_VDD_28_29 | MMC_VDD_29_30
 
+static unsigned int hero_sdslot_type = MMC_TYPE_SD;
+
 static struct mmc_platform_data hero_sdslot_data = {
 	.ocr_mask	= HERO_MMC_VDD,
+	.status_irq	= MSM_GPIO_TO_INT(HERO_GPIO_SDMC_CD_N),
 	.status		= hero_sdslot_status,
 	.translate_vdd	= hero_sdslot_switchvdd,
+	.slot_type	= &hero_sdslot_type,
 };
 
 
@@ -247,9 +251,6 @@ int hero_wifi_set_carddetect(int val)
 		printk(KERN_WARNING "%s: Nobody to notify\n", __func__);
 	return 0;
 }
-#ifndef CONFIG_WIFI_CONTROL_FUNC
-EXPORT_SYMBOL(hero_wifi_set_carddetect);
-#endif
 
 int hero_wifi_power_state=0;
 int hero_bt_power_state=0;
@@ -293,9 +294,6 @@ int hero_wifi_power(int on)
 	hero_wifi_power_state = on;
 	return 0;
 }
-#ifndef CONFIG_WIFI_CONTROL_FUNC
-EXPORT_SYMBOL(hero_wifi_power);
-#endif
 
 /* Eenable VREG_MMC pin to turn on fastclock oscillator : colin */
 int hero_bt_fastclock_power(int on)
