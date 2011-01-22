@@ -189,8 +189,8 @@ struct msmsdcc_dma_data {
 	struct msmsdcc_host		*host;
 	int				busy; /* Set if DM is busy */
 	int				active;
-	unsigned int 			result;
-	struct msm_dmov_errdata 	*err;
+	unsigned int			result;
+	struct msm_dmov_errdata		err;
 };
 
 struct msmsdcc_pio_data {
