@@ -389,7 +389,7 @@ unsigned long acpuclk_power_collapse(int from_idle) {
 		acpuclk_set_rate(drv_state.power_collapse_khz * 1000,
 		        (from_idle ? SETRATE_PC_IDLE : SETRATE_PC));
 	}
-	return ret * 1000;
+	return ret;
 }
 
 unsigned long acpuclk_get_wfi_rate(void)
