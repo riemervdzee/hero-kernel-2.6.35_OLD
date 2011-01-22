@@ -151,6 +151,7 @@ static struct mmc_platform_data heroc_sdslot_data = {
 	.ocr_mask	= HEROC_MMC_VDD,
 	.status		= heroc_sdslot_status,
 	.translate_vdd	= heroc_sdslot_switchvdd,
+	.slot_type      = &heroc_sdslot_type,
 };
 
 
