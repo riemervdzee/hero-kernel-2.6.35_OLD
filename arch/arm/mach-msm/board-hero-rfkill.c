@@ -126,7 +126,7 @@ static int hero_rfkill_probe(struct platform_device *pdev)
 
 	ret = gpio_request(HERO_GPIO_WB_SHUT_DOWN_N, "hero_gpio_wb_shut_down_n");
 	if (ret) {
-		printk(KERN_ERROR "%s: Could not request gpio: %d\n", __func__, ret);
+		printk(KERN_ERR "%s: Could not request gpio: %d\n", __func__, ret);
 		goto err_gpio_shutdown;
 	}
 
@@ -140,7 +140,7 @@ static int hero_rfkill_probe(struct platform_device *pdev)
 	bt_rfk = rfkill_alloc(bt_name, &pdev->dev, RFKILL_TYPE_BLUETOOTH,
 			      &hero_rfkill_ops, NULL);
 	if (!bt_rfk){
-		printk(KERN_ERROR "%s: Could not allocate memmory\n", __func__);
+		printk(KERN_ERR "%s: Could not allocate memmory\n", __func__);
 		ret = -ENOMEM;
 		goto err_rfkill_alloc;
 	}
@@ -150,7 +150,7 @@ static int hero_rfkill_probe(struct platform_device *pdev)
 
 	ret = rfkill_register(bt_rfk);
 	if (ret) {
-		printk(KERN_ERROR "%s: failed to register rfkill: %d\n", __func__, ret);
+		printk(KERN_ERR "%s: failed to register rfkill: %d\n", __func__, ret);
 		goto err_rfkill_reg;
 	}
 

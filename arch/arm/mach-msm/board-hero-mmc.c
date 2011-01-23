@@ -304,7 +304,7 @@ int hero_bt_fastclock_power(int on)
 		if (on) {
 			ret = vreg_enable(vreg_wifi_osc);
 			if (ret) {
-				printk(KERN_ERROR "%s: error vreg_wifi_osc=%d\n", __func__, ret);
+				printk(KERN_ERR "%s: error vreg_wifi_osc=%d\n", __func__, ret);
 				return ret;
 			}
 		} else {
