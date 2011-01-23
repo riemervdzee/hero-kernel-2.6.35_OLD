@@ -91,9 +91,7 @@ static unsigned int sdslot_vreg_enabled;
 
 static uint32_t hero_sdslot_switchvdd(struct device *dev, unsigned int vdd)
 {
-	int i, rc;
-
-	BUG_ON(!vreg_sdslot);
+	int i, ret;
 
 	if (vdd == sdslot_vdd)
 		return 0;
@@ -113,11 +111,11 @@ static uint32_t hero_sdslot_switchvdd(struct device *dev, unsigned int vdd)
 
 	if (!sdslot_vreg_enabled) {
 		mdelay(5);
-		rc = vreg_enable(vreg_sdslot);
+		ret = vreg_enable(vreg_sdslot);
 		udelay(500);
-		if (rc) {
+		if (ret) {
 			printk(KERN_ERR "%s: Error enabling vreg (%d)\n",
-			       __func__, rc);
+			       __func__, ret);
 		}
 		config_gpio_table(sdcard_on_gpio_table,
 				  ARRAY_SIZE(sdcard_on_gpio_table));
@@ -125,20 +123,20 @@ static uint32_t hero_sdslot_switchvdd(struct device *dev, unsigned int vdd)
 	}
 
 	for (i = 0; i < ARRAY_SIZE(mmc_vdd_table); i++) {
-		if (mmc_vdd_table[i].mask == (1 << vdd)) {
+		if (mmc_vdd_table[i].mask != (1 << vdd))
+			continue;
 #if DEBUG_SDSLOT_VDD
-			printk(KERN_DEBUG "%s: Setting level to %u\n",
-				__func__, mmc_vdd_table[i].level);
+		printk(KERN_DEBUG "%s: Setting level to %u\n",
+			__func__, mmc_vdd_table[i].level);
 #endif
-			rc = vreg_set_level(vreg_sdslot,
-					    mmc_vdd_table[i].level);
-			if (rc) {
-				printk(KERN_ERR
-				       "%s: Error setting vreg level (%d)\n",
-				       __func__, rc);
-			}
-			return 0;
+		ret = vreg_set_level(vreg_sdslot,
+				    mmc_vdd_table[i].level);
+		if (ret) {
+			printk(KERN_ERR
+			       "%s: Error setting vreg level (%d)\n",
+			       __func__, ret);
 		}
+		return 0;
 	}
 
 	printk(KERN_ERR "%s: Invalid VDD %d specified\n", __func__, vdd);
@@ -186,12 +184,12 @@ static uint32_t wifi_off_gpio_table[] = {
 	PCOM_GPIO_CFG(54, 0, GPIO_OUTPUT, GPIO_NO_PULL, GPIO_4MA), /* DAT0 */
 	PCOM_GPIO_CFG(55, 0, GPIO_OUTPUT, GPIO_NO_PULL, GPIO_4MA), /* CMD */
 	PCOM_GPIO_CFG(56, 0, GPIO_OUTPUT, GPIO_NO_PULL, GPIO_4MA), /* CLK */
-	PCOM_GPIO_CFG(29, 0, GPIO_OUTPUT, GPIO_NO_PULL, GPIO_4MA),  /* WLAN IRQ */
+	PCOM_GPIO_CFG(29, 0, GPIO_OUTPUT, GPIO_NO_PULL, GPIO_4MA), /* WLAN IRQ */
 };
 
-static struct vreg *vreg_wifi_osc;	/* WIFI 32khz oscilator */
-static int hero_wifi_cd = 0;		/* WIFI virtual 'card detect' status */
-static struct vreg *vreg_wifi_batpa;	/* WIFI main power */
+static struct vreg *vreg_wifi_osc;    /* WIFI 32khz oscilator */
+static int hero_wifi_cd = 0;          /* WIFI virtual 'card detect' status */
+static struct vreg *vreg_wifi_batpa;  /* WIFI main power */
 
 static struct sdio_embedded_func wifi_func = {
 	.f_class      = SDIO_CLASS_WLAN,
@@ -200,19 +198,19 @@ static struct sdio_embedded_func wifi_func = {
 
 static struct embedded_sdio_data hero_wifi_emb_data = {
 	.cis	= {
-		.vendor		= 0x104c,
-		.device		= 0x9066,
-		.blksize	= 512,
-		.max_dtr	= 20000000,
+		.vendor      = 0x104c,
+		.device      = 0x9066,
+		.blksize     = 512,
+		.max_dtr     = 20000000,
 	},
 	.cccr	= {
-		.multi_block	= 0,
-		.low_speed	= 0,
-		.wide_bus	= 1,
-		.high_power	= 0,
-		.high_speed	= 0,
+		.multi_block = 0,
+		.low_speed   = 0,
+		.wide_bus    = 1,
+		.high_power  = 0,
+		.high_speed  = 0,
 	},
-	.funcs	= &wifi_func,
+	.funcs     = &wifi_func,
 	.num_funcs = 1,
 };
 
@@ -235,10 +233,11 @@ static unsigned int hero_wifi_status(struct device *dev)
 }
 
 static struct mmc_platform_data hero_wifi_data = {
-	.ocr_mask		= MMC_VDD_28_29,
-	.status			= hero_wifi_status,
-	.register_status_notify	= hero_wifi_status_register,
-	.embedded_sdio		= &hero_wifi_emb_data,
+	.ocr_mask               = MMC_VDD_28_29,
+	.built_in               = 1,
+	.status                 = hero_wifi_status,
+	.register_status_notify = hero_wifi_status_register,
+	.embedded_sdio          = &hero_wifi_emb_data,
 };
 
 int hero_wifi_set_carddetect(int val)
@@ -257,7 +256,7 @@ int hero_bt_power_state=0;
 
 int hero_wifi_power(int on)
 {
-	int rc;
+	int ret;
 
 	printk(KERN_DEBUG "%s: %d\n", __func__, on);
 
@@ -267,11 +266,11 @@ int hero_wifi_power(int on)
 		vreg_enable(vreg_wifi_batpa);
 		vreg_set_level(vreg_wifi_batpa, 3000);
 		mdelay(50);
-		rc = vreg_enable(vreg_wifi_osc);
+		ret = vreg_enable(vreg_wifi_osc);
 		vreg_set_level(vreg_wifi_osc, 1800);
 		mdelay(50);
-		if (rc)
-			return rc;
+		if (ret)
+			return ret;
 		htc_pwrsink_set(PWRSINK_WIFI, 70);
 	} else {
 		config_gpio_table(wifi_off_gpio_table,
@@ -289,7 +288,7 @@ int hero_wifi_power(int on)
 			vreg_disable(vreg_wifi_batpa);
 		}
 		else
-			printk("WiFi shouldn't disable vreg_wifi_osc. BT is using it!!\n");
+			printk(KERN_DEBUG "WiFi shouldn't disable vreg_wifi_osc. BT is using it!!\n");
 	}
 	hero_wifi_power_state = on;
 	return 0;
@@ -298,17 +297,15 @@ int hero_wifi_power(int on)
 /* Eenable VREG_MMC pin to turn on fastclock oscillator : colin */
 int hero_bt_fastclock_power(int on)
 {
-	int rc;
+	int ret;
 
-	printk(KERN_DEBUG "hero_bt_fastclock_power on = %d\n", on);
+	printk(KERN_DEBUG "%s: Called with on = %d\n", __func__, on);
 	if (vreg_wifi_osc) {
 		if (on) {
-			rc = vreg_enable(vreg_wifi_osc);
-			printk(KERN_DEBUG "BT vreg_enable vreg_mmc, rc=%d\n",
-			       rc);
-			if (rc) {
-				printk("Error turn hero_bt_fastclock_power rc=%d\n", rc);
-				return rc;
+			ret = vreg_enable(vreg_wifi_osc);
+			if (ret) {
+				printk(KERN_ERROR "%s: error vreg_wifi_osc=%d\n", __func__, ret);
+				return ret;
 			}
 		} else {
 			if (!hero_wifi_power_state) {
