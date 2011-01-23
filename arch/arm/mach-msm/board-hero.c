@@ -71,23 +71,16 @@ static unsigned int hwid = 0;
 static unsigned int skuid = 0;
 static unsigned int engineerid = 0;
 
-extern ssize_t htc_battery_show_batt_attr(struct device *dev,
-					 struct device_attribute *attr,
-					 char *buf);
 static struct htc_battery_platform_data htc_battery_pdev_data = {
-	.func_show_batt_attr = htc_battery_show_batt_attr,
-/*	.gpio_mbat_in = HERO_GPIO_MBAT_IN,*/
-/*	.gpio_mchg_en_n = HERO_GPIO_MCHG_EN_N,*/
-/*	.gpio_iset = HERO_GPIO_ISET,*/
-	.guage_driver = GUAGE_MODEM,
-	.charger = LINEAR_CHARGER,
+	.guage_driver     = GUAGE_MODEM,
+	.charger          = LINEAR_CHARGER,
 	.m2a_cable_detect = 1,
 };
 
 static struct platform_device htc_battery_pdev = {
 	.name = "htc_battery",
-	.id = -1,
-	.dev	= {
+	.id   = -1,
+	.dev  = {
 		.platform_data = &htc_battery_pdev_data,
 	},
 };
