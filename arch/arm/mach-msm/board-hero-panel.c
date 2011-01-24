@@ -591,14 +591,24 @@ static int config_vsync(void)
 	uint32_t config;
 
 	ret = gpio_request(HERO_GPIO_VSYNC, "vsync");
-	if (ret)
-		return ret;
+	if (ret) {
+		printk(KERN_ERR "Could not request vsync");
+		goto err_gpio;
+	}
 
 	config = PCOM_GPIO_CFG(HERO_GPIO_VSYNC, 1, GPIO_INPUT,
 			GPIO_PULL_DOWN, GPIO_2MA);
 	ret = msm_proc_comm(PCOM_RPC_GPIO_TLMM_CONFIG_EX, &config, 0);
-	if (ret)
-		gpio_free(HERO_GPIO_VSYNC);
+	if (ret) {
+		printk(KERN_ERR "Could not set vsync direction");
+		goto err_direction;
+	}
+
+	return 0;
+
+err_direction:
+	gpio_free(HERO_GPIO_VSYNC);
+err_gpio:
 	return ret;
 }
 
@@ -646,6 +656,7 @@ static struct msm_mddi_platform_data hero_pdata = {
 	.clk_rate = 122880000,
 	.power_client = hero_mddi_sharp_power,
 	.fixup = panel_eid_fixup,
+	.vsync_irq = MSM_GPIO_TO_INT(HERO_GPIO_VSYNC),
 	.fb_resource = resources_msm_fb,
 	.num_clients = 2,
 	.client_platform_data = {
@@ -678,9 +689,6 @@ int __init hero_init_panel(void)
 {
 	int panel, rc;
 	struct panel_data *panel_data = &eid_client_data.panel_conf;
-
-	if(!machine_is_hero())
-		return -1;
 	
 	B(KERN_INFO "%s: enter.\n", __func__);
 
@@ -725,9 +733,9 @@ int __init hero_init_panel(void)
 	if (rc)
 		return rc;
 
-	rc = config_vsync();
-	if (rc)
-		return rc;
+	//rc = config_vsync();
+	//if (rc)
+	//	return rc;
 
 	msm_device_mddi0.dev.platform_data = &hero_pdata;
 	rc = platform_device_register(&msm_device_mddi0);
