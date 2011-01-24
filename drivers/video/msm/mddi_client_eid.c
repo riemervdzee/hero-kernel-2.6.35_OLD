@@ -15,10 +15,6 @@
  * GNU General Public License for more details.
  */
 
-#include <linux/slab.h>
-//#include <linux/sched.h>
-//#include <linux/wait.h>
-
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/platform_device.h>
@@ -26,6 +22,8 @@
 #include <linux/interrupt.h>
 #include <linux/io.h>
 #include <linux/gpio.h>
+#include <linux/sched.h>
+#include <linux/slab.h>
 #include <linux/leds.h>
 #include <linux/kthread.h>
 #include <linux/wakelock.h>
@@ -77,6 +75,7 @@ struct panel_info {
 	struct wake_lock idle_lock;
 	int samsung_got_int;
 	atomic_t depth;
+	int irq;
 };
 
 static struct cabc_config cabc_config;
@@ -904,39 +903,6 @@ static irqreturn_t eid_vsync_interrupt(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
-static int setup_vsync(struct panel_info *panel, int init)
-{
-	int ret;
-	int gpio = 97;
-	unsigned int irq;
-
-	if (!init) {
-		ret = 0;
-		goto uninit;
-	}
-
-	ret = irq = gpio_to_irq(gpio);
-	if (ret < 0)
-		goto err_get_irq_num_failed;
-
-	samsung_clear_vsync();
-	ret = request_irq(irq, eid_vsync_interrupt, IRQF_TRIGGER_HIGH,
-			"vsync", panel);
-	if (ret)
-		goto err_request_irq_failed;
-	disable_irq_nosync(irq);
-
-	printk(KERN_INFO "vsync on gpio %d now %d\n", gpio,
-			gpio_get_value(gpio));
-	return 0;
-
-uninit:
-	free_irq(gpio_to_irq(gpio), panel->client_data);
-err_request_irq_failed:
-err_get_irq_num_failed:
-	printk(KERN_ERR "%s fail (%d)\n", __func__, ret);
-	return ret;
-}
 
 static int mddi_samsung_probe(struct platform_device *pdev)
 {
@@ -991,7 +957,19 @@ static int mddi_samsung_probe(struct platform_device *pdev)
 		platform_device_register(&mddi_samsung_cabc);
 	}
 
-	ret = setup_vsync(panel, 1);
+	// Get IRQ
+	ret = MSM_GPIO_TO_INT( 97);
+	// Should be the following line though, but not working :(
+	// ret = platform_get_irq_byname(pdev, "vsync");
+	if (ret <= 0)
+	{
+		dev_err(&pdev->dev, "could not get vsync irq\n");
+		goto err_panel;
+	}
+
+	panel->irq = ret;
+	ret = request_irq(panel->irq, eid_vsync_interrupt,
+			  IRQF_TRIGGER_RISING, "vsync", panel);
 	if (ret) {
 		dev_err(&pdev->dev, "mddi_samsung_setup_vsync failed\n");
 		err = -EIO;
@@ -1032,7 +1010,8 @@ static int mddi_samsung_remove(struct platform_device *pdev)
 {
 	struct panel_info *panel = platform_get_drvdata(pdev);
 
-	setup_vsync(panel, 0);
+	platform_set_drvdata(pdev, NULL);
+	free_irq(panel->irq, panel);
 	kfree(panel);
 	return 0;
 }
