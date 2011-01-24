@@ -74,7 +74,6 @@ struct panel_info {
 	struct msmfb_callback *fb_callback;
 	struct wake_lock idle_lock;
 	int samsung_got_int;
-	atomic_t depth;
 	int irq;
 };
 
@@ -90,12 +89,10 @@ static struct platform_device mddi_samsung_cabc = {
 static struct clk *ebi1_clk;
 static void samsung_dump_vsync(void)
 {
-	unsigned long rate = clk_get_rate(ebi1_clk);
-
 	printk(KERN_INFO "STATUS %d %s EBI1 %lu\n",
 		readl(VSYNC_STATUS) & 0x04,
 		readl(VSYNC_EN) & 0x04 ? "ENABLED" : "DISABLED",
-		rate);
+		clk_get_rate(ebi1_clk));
 }
 
 static inline void samsung_clear_vsync(void)
@@ -127,12 +124,6 @@ samsung_request_vsync(struct msm_panel_data *panel_data,
 	if (panel->samsung_got_int) {
 		panel->samsung_got_int = 0;
 		client_data->activate_link(client_data); /* clears interrupt */
-	}
-	
-	if (atomic_read(&panel->depth) <= 0) {
-		atomic_inc(&panel->depth);
-		samsung_clear_vsync();
-		enable_irq(gpio_to_irq(97));
 	}
 }
 
@@ -300,23 +291,25 @@ eid_client_init(struct msm_mddi_bridge_platform_data *bridge,
                 eid_cmd(client_data, 0xF3, prm, 12, 0x01, 0x00, 0x2a, 0x00,
                         0x09, 0x33, 0x75, 0x75, 0x00, 0x00, 0x00, 0x00);
 
-	if (panel->panel_id != PANEL_ESPRESSO_TPO) {
+	if (panel->panel_id != PANEL_ESPRESSO_TPO)
 	       eid_cmd(client_data, SLPOUT, prm, 4, 0x00, 0x00, 0x00, 0x00);
-	       hr_msleep(20);
-        }
 
-	if (panel->panel_id == PANEL_ESPRESSO_TPO)
+	if (panel->panel_id == PANEL_ESPRESSO_TPO) {
 		eid_cmd(client_data, DISCTL, prm, 12, 0x16, 0x16, 0x0f, 0x1b,
 			0x07, 0x1b, 0x07, 0x10, 0x02, 0x16, 0x16, 0x00);
-	else if (panel->panel_id == PANEL_LIBERTY_EID_24pin)
+	} else if (panel->panel_id == PANEL_LIBERTY_EID_24pin) {
+		hr_msleep(10);
 		eid_cmd(client_data, DISCTL, prm, 12, 0x16, 0x16, 0x0f, 0x1b,
 			0x07, 0x1b, 0x07, 0x10, 0x00, 0x16, 0x16, 0x00);
-	else if (panel->panel_id == PANEL_LIBERTY_TPO)
+	} else if (panel->panel_id == PANEL_LIBERTY_TPO) {
+		hr_msleep(20);
 		eid_cmd(client_data, DISCTL, prm, 12, 0x16, 0x16, 0x0f, 0x1b,
 			0x07, 0x11, 0x11, 0x10, 0x00, 0x16, 0x16, 0x00);
-	else
+	} else {
+		hr_msleep(20);
 		eid_cmd(client_data, DISCTL, prm, 12, 0x16, 0x16, 0x0f, 0x11,
 			0x11, 0x11, 0x11, 0x10, 0x00, 0x16, 0x16, 0x00);
+	}
 
 	if (panel->panel_id != PANEL_ESPRESSO_TPO)
                 eid_pwrctl(client_data, panel->panel_id, 0x01, 0x00);
@@ -360,10 +353,27 @@ eid_client_init(struct msm_mddi_bridge_platform_data *bridge,
 	else
 	        eid_cmd(client_data, GATECTL, prm, 4, 0x44, 0x3b, 0x00, 0x00);
 
-	if (panel->panel_id != PANEL_ESPRESSO_TPO)
-	        hr_msleep(20);
+        if (panel->panel_id == PANEL_LIBERTY_EID_24pin) {
+			hr_msleep(10);
+                eid_pwrctl(client_data, panel->panel_id, 0x03, 0x00);
+	        hr_msleep(10);
 
-        if (panel->panel_id != PANEL_ESPRESSO_TPO) {
+                eid_pwrctl(client_data, panel->panel_id, 0x07, 0x00);
+	        hr_msleep(10);
+
+	        eid_pwrctl(client_data, panel->panel_id, 0x0f, 0x02);
+	        hr_msleep(10);
+
+	        eid_pwrctl(client_data, panel->panel_id, 0x1f, 0x02);
+	        hr_msleep(10);
+
+	        eid_pwrctl(client_data, panel->panel_id, 0x3f, 0x08);
+	        hr_msleep(30);
+
+	        eid_pwrctl(client_data, panel->panel_id, 0x7f, 0x08);
+	        hr_msleep(30);
+        } else if (panel->panel_id != PANEL_ESPRESSO_TPO) {
+			hr_msleep(20);
                 eid_pwrctl(client_data, panel->panel_id, 0x03, 0x00);
 	        hr_msleep(20);
 
@@ -680,9 +690,9 @@ static int
 eid2_client_uninit(struct msm_mddi_bridge_platform_data *bridge,
 		struct msm_mddi_client_data *client_data)
 {
-	B(KERN_DEBUG "%s\n", __func__);
 	uint8_t prm[20];
 	struct panel_data *panel = &bridge->panel_conf;
+	B(KERN_DEBUG "%s\n", __func__);
 
 	client_data->auto_hibernate(client_data, 0);
 	eid_cmd(client_data, DCON, prm, 4, 0x06, 0x00, 0x00, 0x00);
@@ -888,10 +898,6 @@ static irqreturn_t eid_vsync_interrupt(int irq, void *data)
 	if (!!(val & 0x04) == 0)
 		printk(KERN_ERR "BUG!! val: %x\n", val);
 #endif
-	if (atomic_read(&panel->depth) > 0) {
-		atomic_dec(&panel->depth);
-		disable_irq_nosync(gpio_to_irq(97));
-	}
 
 	if (panel->fb_callback) {
 		panel->fb_callback->func(panel->fb_callback);
@@ -988,7 +994,6 @@ static int mddi_samsung_probe(struct platform_device *pdev)
 	panel->panel_data.shutdown = samsung_shutdown;
 	panel->panel_data.fb_data = &bridge_data->fb_data;
 	panel->panel_data.caps = ~MSMFB_CAP_PARTIAL_UPDATES;
-	atomic_set(&panel->depth, 0);
 	panel->pdev.name = "msm_panel";
 	panel->pdev.id = pdev->id;
 	panel->pdev.resource = client_data->fb_resource;
