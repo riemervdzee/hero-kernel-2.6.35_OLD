@@ -78,7 +78,7 @@ static int __init parse_tag_cam_awb_cal(const struct tag *tag)
 
 	 pint = (int *)cam_awb_ram;
 
-	 for (i = 0; i < 1024; i++)
+	 for (i = 0; i < 8; i++)
 	   printk(KERN_INFO "%x\n", pint[i]);
 
    }
@@ -98,8 +98,7 @@ static ssize_t awb_calibration_show(struct device *dev,
 
 	ptr = get_cam_awb_cal();
 	/* fixed : workaround because of defined 8 parameters now */
-
-	ret = sizeof(struct qct_awb_lsc_struct);/* 8*4; */
+	ret = 8*4;
 	memcpy(buf, ptr, ret);
 
 
@@ -108,7 +107,7 @@ static ssize_t awb_calibration_show(struct device *dev,
 	 int i, *pint;
 	 printk(KERN_INFO "awb_calibration_show():\n");
 	 pint = (int *)buf;
-	 for (i = 0; i < 898; i++)
+	 for (i = 0; i < 8; i++)
 	   printk(KERN_INFO "%x\n", pint[i]);
 
    }
