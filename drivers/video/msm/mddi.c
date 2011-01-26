@@ -533,7 +533,7 @@ static int __init mddi_get_client_caps(struct mddi_info *mddi)
 	mddi_writel(MDDI_CMD_LINK_ACTIVE, CMD);
 	mddi_wait_interrupt(mddi, MDDI_INT_NO_CMD_PKTS_PEND);
 	/*FIXME: mddi host can't get caps on MDDI type 2*/
-	if (mddi->type == MSM_MDP_MDDI_TYPE_I) {
+	if (mddi->type != MSM_MDP_MDDI_TYPE_II) {
 		for (j = 0; j < 3; j++) {
 			/* the toshiba vga panel does not respond to get
 			 * caps unless you SEND_RTD, but the first SEND_RTD
