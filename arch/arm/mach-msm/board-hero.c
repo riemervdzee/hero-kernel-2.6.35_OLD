@@ -1088,7 +1088,6 @@ static void __init hero_init(void)
 
 	gpio_request(HERO_TP_LS_EN, "tp_ls_en");
 	gpio_direction_output(HERO_TP_LS_EN, 0);
-	gpio_request(HERO_GPIO_VCM_PWDN, "hero_gpio_vcm_pwdn");
 	gpio_request(HERO_GPIO_EXT_3V_EN, "hero_gpio_ext_3v_en");
 	gpio_request(HERO_GPIO_CABLE_IN2, "hero_gpio_cable_in2");
 	gpio_request(HERO_GPIO_AUD_EXTMIC_SEL, "hero_gpio_aud_extmic_sel");
