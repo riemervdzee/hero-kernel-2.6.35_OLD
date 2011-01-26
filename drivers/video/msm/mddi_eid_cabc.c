@@ -509,6 +509,7 @@ err_out:
 	(ptr)->member.brightness_get = _name##_get_brightness;	\
 }
 
+#ifdef CONFIG_EARLYSUSPEND
 static void
 samsung_cabc_suspend(struct early_suspend *h)
 {
@@ -539,6 +540,7 @@ samsung_cabc_resume(struct early_suspend *h)
 	if (test_bit(AUTO_SETTING, &cabc->status))
 		queue_work(cabc->cabc_queue, &cabc->set_auto_work);
 }
+#endif
 
 static int samsung_cabc_probe(struct platform_device *pdev)
 {

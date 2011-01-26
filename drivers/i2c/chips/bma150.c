@@ -354,9 +354,11 @@ int bma150_probe(struct i2c_client *client, const struct i2c_device_id *id)
 		goto exit_misc_device_register_failed;
 	}
 
+#ifdef CONFIG_EARLYSUSPEND
 	bma->early_suspend.suspend = bma150_early_suspend;
 	bma->early_suspend.resume = bma150_early_resume;
 	register_early_suspend(&bma->early_suspend);
+#endif
 
 	return 0;
 
