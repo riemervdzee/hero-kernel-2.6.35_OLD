@@ -60,7 +60,8 @@ obj-$(CONFIG_MACH_HERO) += htc_wifi_nvs.o htc_awb_cal.o
 obj-$(CONFIG_MACH_HEROC) += board-heroc.o 
 obj-$(CONFIG_MACH_HEROC) += board-heroc-panel.o board-heroc-keypad.o
 obj-$(CONFIG_MACH_HEROC) += board-heroc-rfkill.o msm_vibrator.o
-obj-$(CONFIG_MACH_HEROC) += board-heroc-mmc.o board-heroc-wifi.o htc_wifi_nvs.o
+obj-$(CONFIG_MACH_HEROC) += board-heroc-mmc.o board-heroc-wifi.o 
+obj-$(CONFIG_MACH_HEROC) += htc_wifi_nvs.o
 
 obj-$(CONFIG_MACH_HERO) += devices_htc.o
 obj-$(CONFIG_MACH_HEROC) += devices_htc.o
