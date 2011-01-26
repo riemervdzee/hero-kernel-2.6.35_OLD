@@ -291,6 +291,18 @@ static int mt9p012_i2c_write_w_table(struct mt9p012_i2c_reg_conf
 	return rc;
 }
 
+static int mt9p012_gpio_pull(int gpio_pin, int pull_mode)
+{
+	int rc = 0;
+	rc = gpio_request(gpio_pin, "mt9p012");
+	if (!rc)
+		gpio_direction_output(gpio_pin, pull_mode);
+	else
+		printk(KERN_ERR "%s: GPIO(%d) request failed\n", __func__, gpio_pin);
+	gpio_free(gpio_pin);
+	return rc;
+}
+
 static int mt9p012_test(enum mt9p012_test_mode mo)
 {
 	int rc = 0;
@@ -936,13 +948,17 @@ static int mt9p012_set_default_focus(void)
 	mt9p012_ctrl->curr_lens_pos = 0;
 	mt9p012_ctrl->init_curr_lens_pos = 0;
 
+	/* TODO fix me... */
+#if 0
 	return rc;
+#else
+	return 0;
+#endif
 }
 
 static int mt9p012_probe_init_done(const struct msm_camera_sensor_info *data)
 {
-	gpio_direction_output(data->sensor_reset, 0);
-	gpio_free(data->sensor_reset);
+	mt9p012_gpio_pull(data->sensor_reset, 0);
 	return 0;
 }
 
@@ -951,10 +967,8 @@ static int mt9p012_probe_init_sensor(const struct msm_camera_sensor_info *data)
 	int rc;
 	uint16_t chipid;
 
-	rc = gpio_request(data->sensor_reset, "mt9p012");
-	if (!rc)
-		gpio_direction_output(data->sensor_reset, 1);
-	else
+	rc = mt9p012_gpio_pull(data->sensor_reset, 1);
+	if (rc)
 		goto init_probe_done;
 
 	mdelay(20);
@@ -1252,7 +1266,7 @@ int mt9p012_sensor_release(void)
 	mutex_lock(&mt9p012_mutex);
 	mt9p012_power_down();
 
-	gpio_direction_output(mt9p012_ctrl->sensordata->sensor_reset, 0);
+	//mt9p012_gpio_pull(mt9p012_ctrl->sensordata->sensor_reset, 0);
 	gpio_free(mt9p012_ctrl->sensordata->sensor_reset);
 
 	gpio_direction_output(mt9p012_ctrl->sensordata->vcm_pwd, 0);
@@ -1378,9 +1392,11 @@ static int mt9p012_sensor_probe(const struct msm_camera_sensor_info *info,
 	msm_camio_clk_rate_set(MT9P012_DEFAULT_CLOCK_RATE);
 	mdelay(20);
 
+#if 0
 	rc = mt9p012_probe_init_sensor(info);
 	if (rc < 0)
 		goto probe_done;
+#endif
 
 	init_suspend();
 	s->s_init = mt9p012_sensor_open_init;
