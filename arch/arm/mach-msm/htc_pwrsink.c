@@ -260,8 +260,8 @@ static int __init htc_pwrsink_probe(struct platform_device *pdev)
 		htc_pwrsink_early_suspend.suspend = pdata->suspend_early;
 	if (pdata->resume_late)
 		htc_pwrsink_early_suspend.resume = pdata->resume_late;
-#endif
 	register_early_suspend(&htc_pwrsink_early_suspend);
+#endif
 
 	return 0;
 }
