@@ -163,6 +163,30 @@ static struct mt9p012_ctrl *mt9p012_ctrl;
 static DECLARE_WAIT_QUEUE_HEAD(mt9p012_wait_queue);
 DEFINE_MUTEX(mt9p012_mutex);
 
+
+
+#define MAX_I2C_RETRIES 20
+static int i2c_transfer_retry(struct i2c_adapter *adap,
+			struct i2c_msg *msgs,
+			int len)
+{
+	int i2c_retry = 0;
+	int ns; /* number sent */
+
+	while (i2c_retry++ < MAX_I2C_RETRIES) {
+		ns = i2c_transfer(adap, msgs, len);
+		if (ns == len)
+			break;
+		pr_err("%s: try %d/%d: i2c_transfer sent: %d, len %d\n",
+			__func__,
+			i2c_retry, MAX_I2C_RETRIES, ns, len);
+		msleep(10);
+	}
+
+	return ns == len ? 0 : -EIO;
+}
+
+
 static int mt9p012_i2c_rxdata(unsigned short saddr, unsigned char *rxdata,
 			      int length)
 {
@@ -181,12 +205,7 @@ static int mt9p012_i2c_rxdata(unsigned short saddr, unsigned char *rxdata,
 		 },
 	};
 
-	if (i2c_transfer(mt9p012_client->adapter, msgs, 2) < 0) {
-		CDBG("mt9p012_i2c_rxdata failed!\n");
-		return -EIO;
-	}
-
-	return 0;
+	return i2c_transfer_retry(mt9p012_client->adapter, msgs, 2);
 }
 
 static int mt9p012_i2c_read_w(unsigned short saddr, unsigned short raddr,
@@ -227,12 +246,7 @@ static int mt9p012_i2c_txdata(unsigned short saddr, unsigned char *txdata,
 		 },
 	};
 
-	if (i2c_transfer(mt9p012_client->adapter, msg, 1) < 0) {
-		CDBG("mt9p012_i2c_txdata failed\n");
-		return -EIO;
-	}
-
-	return 0;
+	return i2c_transfer_retry(mt9p012_client->adapter, msg, 1);
 }
 
 static int mt9p012_i2c_write_b(unsigned short saddr, unsigned short baddr,
