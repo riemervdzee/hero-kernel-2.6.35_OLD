@@ -27,9 +27,11 @@
 #include <mach/gpio.h>
 #include <mach/camera.h>
 #include "mt9p012.h"
+#include <mach/perflock.h>
 #include <linux/wakelock.h>
 
 static struct wake_lock mt9p012_wake_lock;
+static struct perf_lock mt9p012_perf_lock;
 
 static inline void init_suspend(void)
 {
@@ -1046,6 +1048,8 @@ static int mt9p012_sensor_open_init(const struct msm_camera_sensor_info *data)
 {
 	int rc;
 	printk("mt9p012_sensor_open_init()\n");
+	if (!is_perf_lock_active(&mt9p012_perf_lock))
+			perf_lock(&mt9p012_perf_lock);
 	mt9p012_ctrl = kzalloc(sizeof(struct mt9p012_ctrl), GFP_KERNEL);
 	if (!mt9p012_ctrl) {
 		CDBG("mt9p012_init failed!\n");
@@ -1278,6 +1282,8 @@ int mt9p012_sensor_release(void)
 {
 	int rc = -EBADF;
 	mutex_lock(&mt9p012_mutex);
+	if (is_perf_lock_active(&mt9p012_perf_lock))
+		perf_unlock(&mt9p012_perf_lock);
 	mt9p012_power_down();
 
 	gpio_direction_output(mt9p012_ctrl->sensordata->sensor_reset, 0);
@@ -1418,6 +1424,7 @@ static int mt9p012_sensor_probe(const struct msm_camera_sensor_info *info,
 	s->s_config = mt9p012_sensor_config;
 	mt9p012_probe_init_done(info);
 	mt9p012_sysfs_init();
+	perf_lock_init(&mt9p012_perf_lock, PERF_LOCK_HIGHEST, "mt9p012");
 
 probe_done:
 	CDBG("%s %s:%d\n", __FILE__, __func__, __LINE__);
