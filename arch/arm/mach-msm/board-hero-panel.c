@@ -585,33 +585,6 @@ static void panel_eid_fixup(uint16_t *mfr_name, uint16_t *product_code)
 	*product_code= 0x0;
 }
 
-static int config_vsync(void)
-{
-	int ret;
-	uint32_t config;
-
-	ret = gpio_request(HERO_GPIO_VSYNC, "vsync");
-	if (ret) {
-		printk(KERN_ERR "Could not request vsync");
-		goto err_gpio;
-	}
-
-	config = PCOM_GPIO_CFG(HERO_GPIO_VSYNC, 1, GPIO_INPUT,
-			GPIO_PULL_DOWN, GPIO_2MA);
-	ret = msm_proc_comm(PCOM_RPC_GPIO_TLMM_CONFIG_EX, &config, 0);
-	if (ret) {
-		printk(KERN_ERR "Could not set vsync direction");
-		goto err_direction;
-	}
-
-	return 0;
-
-err_direction:
-	gpio_free(HERO_GPIO_VSYNC);
-err_gpio:
-	return ret;
-}
-
 static struct msm_mddi_bridge_platform_data toshiba_client_data = {
 	.init = mddi_toshiba_client_init,
 	.uninit = mddi_toshiba_client_uninit,
@@ -647,7 +620,7 @@ static struct msm_mddi_bridge_platform_data eid_client_data = {
 static struct resource resources_msm_fb[] = {
 	{
 		.start = SMI32_MSM_FB_BASE,
-		.end = SMI32_MSM_FB_BASE + SMI32_MSM_FB_SIZE - 1,
+		.end   = SMI32_MSM_FB_BASE + SMI32_MSM_FB_SIZE - 1,
 		.flags = IORESOURCE_MEM,
 	},
 };
@@ -732,10 +705,6 @@ int __init hero_init_panel(void)
 	rc = platform_device_register(&msm_device_mdp);
 	if (rc)
 		return rc;
-
-	//rc = config_vsync();
-	//if (rc)
-	//	return rc;
 
 	msm_device_mddi0.dev.platform_data = &hero_pdata;
 	rc = platform_device_register(&msm_device_mddi0);
