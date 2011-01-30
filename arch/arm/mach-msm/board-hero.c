@@ -60,6 +60,7 @@
 #include <mach/h2w_v1.h>
 #include <mach/microp_i2c.h>
 #include <mach/htc_battery.h>
+#include <mach/perflock.h>
 #include <mach/drv_callback.h>
 
 #include "proc_comm.h"
@@ -1066,6 +1067,19 @@ static struct msm_acpu_clock_platform_data hero_clock_data = {
 #endif
 };
 
+static unsigned hero_perf_acpu_table[] = {
+	245760000,
+	480000000,
+	528000000,
+};
+
+
+static struct perflock_platform_data hero_perflock_data = {
+	.perf_acpu_table = hero_perf_acpu_table,
+	.table_size = ARRAY_SIZE(hero_perf_acpu_table),
+};
+
+
 #ifdef CONFIG_SERIAL_MSM_HS
 static struct msm_serial_hs_platform_data msm_uart_dm1_pdata = {
 	.rx_wakeup_irq = MSM_GPIO_TO_INT(HERO_GPIO_UART1_RX),
@@ -1093,6 +1107,7 @@ static void __init hero_init(void)
 	gpio_request(HERO_GPIO_AUD_EXTMIC_SEL, "hero_gpio_aud_extmic_sel");
 
 	msm_acpu_clock_init(&hero_clock_data);
+	perflock_init(&hero_perflock_data);
 
 #if defined(CONFIG_MSM_SERIAL_DEBUGGER)
 	if (!opt_disable_uart3)
