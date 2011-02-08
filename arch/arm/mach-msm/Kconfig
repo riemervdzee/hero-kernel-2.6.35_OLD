@@ -235,6 +235,11 @@ config MACH_SAPPHIRE
 	default y
 	bool "Sapphire"
 
+config MACH_HERO
+	depends on ARCH_MSM7X00A
+	default y
+	bool "Hero"
+
 config MACH_MAHIMAHI
 	depends on ARCH_QSD8X50
 	default y
