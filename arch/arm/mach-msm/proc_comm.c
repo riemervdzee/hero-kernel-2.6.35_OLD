@@ -23,6 +23,10 @@
 
 #include "proc_comm.h"
 
+#ifdef CONFIG_HTC_SLEEP_MODE_GPIO_DUMP
+#include "gpio_dump.h"
+#endif
+
 static inline void msm_a2m_int(uint32_t irq)
 {
 #if defined(CONFIG_ARCH_MSM7X30)
@@ -81,6 +85,24 @@ int msm_proc_comm(unsigned cmd, unsigned *data1, unsigned *data2)
 	int ret;
 
 	spin_lock_irqsave(&proc_comm_lock, flags);
+
+#ifdef CONFIG_HTC_SLEEP_MODE_GPIO_DUMP
+	if (cmd == PCOM_RPC_GPIO_TLMM_CONFIG_EX) {
+		unsigned int value, gpio, owner;
+
+		gpio = (*data1 >> 4) & 0x3FF;
+		owner = readl(htc_smem_gpio_cfg(gpio, 0));
+		owner = owner & (0x1 << GPIO_CFG_OWNER);
+
+		value = (0 << GPIO_CFG_INVALID) | owner  |
+			(((*data1 >> 17) & 0xF) << GPIO_CFG_DRVSTR) |
+			(((*data1 >> 15) & 0x3) << GPIO_CFG_PULL) |
+			(((*data1 >> 14) & 0x1) << GPIO_CFG_DIR) |
+			(0x01 << GPIO_CFG_RMT) | (*data1 & 0xF);
+
+		writel(value, htc_smem_gpio_cfg(gpio, 0));
+	}
+#endif
 
 	for (;;) {
 		if (proc_comm_wait_for(base + MDM_STATUS, PCOM_READY))
