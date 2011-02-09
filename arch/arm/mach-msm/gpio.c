@@ -23,6 +23,10 @@
 #include "proc_comm.h"
 #include "smd_private.h"
 
+#ifdef CONFIG_HTC_SLEEP_MODE_GPIO_DUMP
+#include "gpio_dump.h"
+#endif
+
 enum {
 	GPIO_DEBUG_SLEEP = 1U << 0,
 };
@@ -367,6 +371,32 @@ int msm_gpio_configure(struct gpio_chip *chip, unsigned int gpio,
 	unsigned b = 1U << (gpio - chip->start);
 	unsigned v;
 
+#ifdef CONFIG_HTC_SLEEP_MODE_GPIO_DUMP
+	unsigned int gpio_pull = 0, gpio_direction = 0, gpio_owner;
+
+	gpio_owner = readl(htc_smem_gpio_cfg(gpio, 0));
+	gpio_owner = gpio_owner & (0x1 << GPIO_CFG_OWNER);
+
+	if (flags & (GPIOF_INPUT | GPIOF_DRIVE_OUTPUT)) {
+		if (flags & GPIOF_INPUT)
+			gpio_direction = 0;
+		else if (flags & GPIOF_DRIVE_OUTPUT)
+			gpio_direction = 1;
+
+		if (flags & GPIOF_OUTPUT_LOW)
+			gpio_pull = 1;
+		else if (flags & GPIOF_OUTPUT_HIGH)
+			gpio_pull = 3;
+
+		v  = (0 << GPIO_CFG_INVALID) | gpio_owner |
+		    (0 << GPIO_CFG_DRVSTR) | (gpio_pull << GPIO_CFG_PULL) |
+		    (gpio_direction << GPIO_CFG_DIR) |
+		    (1 << GPIO_CFG_RMT) | 0;
+
+		writel(v, htc_smem_gpio_cfg(gpio, 0));
+	}
+#endif
+
 	if (flags & (GPIOF_OUTPUT_LOW | GPIOF_OUTPUT_HIGH))
 		msm_gpio_write(chip, gpio, flags & GPIOF_OUTPUT_HIGH);
 
@@ -560,6 +590,13 @@ static void msm_gpio_sleep_int(unsigned long arg)
 }
 
 static DECLARE_TASKLET(msm_gpio_sleep_int_tasklet, msm_gpio_sleep_int, 0);
+
+#ifdef CONFIG_HTC_SLEEP_MODE_GPIO_DUMP
+unsigned int htc_smem_gpio_cfg(unsigned int num, unsigned int mode)
+{
+	return (unsigned int)(HTC_GPIO_CFG_ADDR(mode) + (num * 0x04));
+}
+#endif
 
 void msm_gpio_enter_sleep(int from_idle)
 {
