@@ -221,6 +221,10 @@ config MACH_QSD8X50A_ST1_5
 
 endmenu
 
+config HTC_PWR_TEST
+		default n
+		bool "HTC pwr_test (gpio writes) on sleep"
+
 config MSM_AMSS_SUPPORT_256MB_EBI1
         default n
         bool "AMSS that support unified 128MB and 256MB EBI1"

@@ -135,6 +135,12 @@ int msm_irq_pending(void);
 int clks_print_running(void);
 extern int board_mfg_mode(void);
 
+#ifdef CONFIG_HTC_PWR_TEST
+extern char * board_get_mfg_sleep_gpio_table(void);
+extern void gpio_set_diag_gpio_table(unsigned long * dwMFG_gpio_table);
+#warning hoi!
+#endif
+
 #ifdef CONFIG_AXI_SCREEN_POLICY
 static int axi_rate;
 static int sleep_axi_rate;
@@ -295,6 +301,11 @@ static int msm_sleep(int sleep_mode, uint32_t sleep_delay, int from_idle)
 	int ret;
 	int rv = -EINTR;
 	bool invalid_inital_state = false;
+
+#ifdef CONFIG_HTC_PWR_TEST
+	if (board_mfg_mode() == 4) /*power test mode*/
+		gpio_set_diag_gpio_table(board_get_mfg_sleep_gpio_table());
+#endif
 
 	if (msm_pm_debug_mask & MSM_PM_DEBUG_SUSPEND)
 		printk(KERN_INFO "msm_sleep(): mode %d delay %u idle %d\n",
