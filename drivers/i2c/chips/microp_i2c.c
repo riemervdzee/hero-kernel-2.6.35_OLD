@@ -2244,12 +2244,16 @@ static int microp_i2c_config_microp(struct i2c_client *client)
 				data[0] = pin;
 				data[1] = config;
 				ret = i2c_write_block(client, MICROP_I2C_CMD_PIN_CONFIG, data, 2);
-				if (ret)
+				if (ret) {
+					pr_err("%s: write_block failed at %d\n", __func__, __LINE__);
 					goto err_led;
+				}
 
 				ret = microp_i2c_write_pin_mode(client, &cdata->led_data[led]);
-				if (ret)
+				if (ret) {
+					pr_err("%s: pinmode failed at %d\n", __func__, __LINE__);
 					goto err_led;
+				}
 
 				mutex_unlock(&cdata->led_data[led].pin_mutex);
 				led++;
@@ -2257,8 +2261,10 @@ static int microp_i2c_config_microp(struct i2c_client *client)
 				data[0] = pin;
 				data[1] = config;
 				ret = i2c_write_block(client, MICROP_I2C_CMD_PIN_CONFIG, data, 2);
-				if (ret)
+				if (ret) {
+					pr_err("%s: write_block failed at %d\n", __func__, __LINE__);
 					goto exit;
+				}
 			}
 		} else if (microp_i2c_is_pwm(config)) {
 			if (!microp_i2c_is_supported(FUNC_MICROP_PWM, cdata->version))
@@ -2270,12 +2276,16 @@ static int microp_i2c_config_microp(struct i2c_client *client)
 			if (cdata->led_data[led].skip_config == 0) {
 				data[1] = config;
 				ret = i2c_write_block(client, MICROP_I2C_CMD_PIN_CONFIG, data, 2);
-				if (ret)
+				if (ret) {
+					pr_err("%s: write_block failed at %d\n", __func__, __LINE__);
 					goto err_led;
+				}
 
 				ret = microp_i2c_write_pin_mode(client, &cdata->led_data[led]);
-				if (ret)
+				if (ret) {
+					pr_err("%s: pinmode failed at %d\n", __func__, __LINE__);
 					goto err_led;
+				}
 
 				data[1] = MICROP_I2C_PWM_FREQ;
 				data[2] = pdata->pin_config[i].freq;
@@ -2288,16 +2298,20 @@ static int microp_i2c_config_microp(struct i2c_client *client)
 					j = 3;
 				}
 				ret = i2c_write_block(client, MICROP_I2C_CMD_PIN_PWM, data, j);
-				if (ret)
+				if (ret) {
+					pr_err("%s: write_block failed at %d\n", __func__, __LINE__);
 					goto err_led;
+				}
 
 				if (!microp_i2c_is_supported(FUNC_MICROP_SET_FREQ_FADE,
 					cdata->version)) {
 					data[1] = MICROP_I2C_PWM_FADE;
 					data[2] = cdata->led_data[led].fade_timer;
 					ret = i2c_write_block(client, MICROP_I2C_CMD_PIN_PWM, data, 3);
-					if (ret)
+					if (ret) {
+						pr_err("%s: write_block failed at %d\n", __func__, __LINE__);
 						goto err_led;
+					}
 				}
 			}
 
@@ -2306,15 +2320,19 @@ static int microp_i2c_config_microp(struct i2c_client *client)
 					microp_i2c_is_supported(FUNC_MICROP_PWM_TRACKBALL, cdata->version)) {
 					data[1] = MICROP_I2C_PWM_FADE;
 					ret = i2c_write_block(client, MICROP_I2C_CMD_PIN_CONFIG, data, 2);
-					if (ret)
+					if (ret) {
+						pr_err("%s: write_block failed at %d\n", __func__, __LINE__);
 						goto err_led;
+					}
 				} else {
 					data[1] = MICROP_I2C_PWM_LEVELS;
 					for (j = 0; j < 10; j++)
 						data[j+2] = pdata->pin_config[i].dutys[j];
 					ret = i2c_write_block(client, MICROP_I2C_CMD_PIN_PWM, data, 12);
-					if (ret)
+					if (ret) {
+						pr_err("%s: write_block failed at %d\n", __func__, __LINE__);
 						goto err_led;
+					}
 				}
 			}
 
@@ -2323,12 +2341,16 @@ static int microp_i2c_config_microp(struct i2c_client *client)
 					microp_i2c_is_supported(FUNC_MICROP_PWM_AUTO, cdata->version)) {
 					data[1] = MICROP_I2C_PWM_AUTO;
 					ret = i2c_write_block(client, MICROP_I2C_CMD_PIN_PWM, data, 2);
-					if (ret)
+					if (ret) {
+						pr_err("%s: write_block failed at %d\n", __func__, __LINE__);
 						goto err_led;
+					}
 				} else {
 					ret = microp_i2c_write_pin_duty(client, &cdata->led_data[led]);
-					if (ret)
+					if (ret) {
+						pr_err("%s: write_pin_duty failed at %d\n", __func__, __LINE__);
 						goto err_led;
+					}
 				}
 			}
 			mutex_unlock(&cdata->led_data[led].pin_mutex);
@@ -2343,16 +2365,20 @@ static int microp_i2c_config_microp(struct i2c_client *client)
 				data[1] = config;
 				ret = i2c_write_block(client, MICROP_I2C_CMD_PIN_CONFIG, data,
 						2);
-				if (ret)
+				if (ret) {
+					pr_err("%s: write_block failed at %d\n", __func__, __LINE__);
 					goto exit;
+				}
 			}
 			for (j = 0; j < 10; j++) {
 				data[j * 2] = (uint8_t)(pdata->pin_config[i].levels[j] >> 8);
 				data[j * 2 + 1] = (uint8_t)(pdata->pin_config[i].levels[j]);
 			}
 			ret = i2c_write_block(client, MICROP_I2C_CMD_ADC_TABLE, data, 20);
-			if (ret)
+			if (ret) {
+				pr_err("%s: write_block failed at %d\n", __func__, __LINE__);
 				goto exit;
+			}
 		} else if (microp_i2c_is_intr(config)) {
 			if (!microp_i2c_is_supported(FUNC_MICROP_INTR_IF, cdata->version))
 				continue;
@@ -2360,8 +2386,10 @@ static int microp_i2c_config_microp(struct i2c_client *client)
 
 			data[1] = MICROP_PIN_CONFIG_INTR;
 			ret = i2c_write_block(client, MICROP_I2C_CMD_PIN_CONFIG, data, 2);
-			if (ret)
+			if (ret) {
+				pr_err("%s: write_block failed at %d\n", __func__, __LINE__);
 				goto exit;
+			}
 
 			data[1] = pdata->pin_config[i].mask[0];
 			data[2] = pdata->pin_config[i].mask[1];
@@ -2371,16 +2399,20 @@ static int microp_i2c_config_microp(struct i2c_client *client)
 			data[6] = pdata->pin_config[i].setting[2];
 			data[7] = microp_i2c_is_intr_all(config);
 			ret = i2c_write_block(client, MICROP_I2C_CMD_INTR_SETTING, data, 8);
-			if (ret)
+			if (ret) {
+				pr_err("%s: write_block failed at %d\n", __func__, __LINE__);
 				goto exit;
+			}
 		} else if (microp_i2c_is_pullup(config)) {
 			if (!microp_i2c_is_supported(FUNC_MICROP_PULL_UP, cdata->version))
 				continue;
 			data[0] = pin;
 			data[1] = 1;
 			ret = i2c_write_block(client, MICROP_I2C_CMD_PIN_PULL_UP, data, 2);
-			if (ret)
+			if (ret) {
+				pr_err("%s: write_block failed at %d\n", __func__, __LINE__);
 				goto exit;
+			}
 		} else if (microp_i2c_is_pullup1(config)) {
 			if (!microp_i2c_is_supported(FUNC_MICROP_PULL_UP1, cdata->version))
 				continue;
@@ -2388,8 +2420,10 @@ static int microp_i2c_config_microp(struct i2c_client *client)
 			data[1] = pdata->pin_config[i].mask[1];
 			data[2] = pdata->pin_config[i].mask[2];
 			ret = i2c_write_block(client, MICROP_I2C_CMD_PIN_PULL_UP1, data, 3);
-			if (ret)
+			if (ret) {
+				pr_err("%s: write_block failed at %d\n", __func__, __LINE__);
 				goto exit;
+			}
 		} else if (microp_i2c_is_ls_gpio(config)) {
 			if (!microp_i2c_is_supported(FUNC_MICROP_LS_GPIO, cdata->version))
 				continue;
@@ -2397,8 +2431,10 @@ static int microp_i2c_config_microp(struct i2c_client *client)
 			data[0] = pin;
 			data[1] = 0x1;
 			ret = i2c_write_block(client, MICROP_I2C_CMD_PIN_CONFIG, data, 2);
-			if (ret)
+			if (ret) {
+				pr_err("%s: write_block failed at %d\n", __func__, __LINE__);
 				goto err_led;
+			}
 			mutex_unlock(&cdata->led_data[led].pin_mutex);
 			led++;
 			cdata->microp_gpio_pwm_is_enabled = 1;
@@ -2408,8 +2444,10 @@ static int microp_i2c_config_microp(struct i2c_client *client)
 			data[0] = pdata->pin_config[i].intr_pin;
 			data[1] = pdata->pin_config[i].adc_pin;
 			ret = i2c_write_block(client, MICROP_I2C_CMD_ADC_INTR, data, 2);
-			if (ret)
+			if (ret) {
+				pr_err("%s: write_block failed at %d\n", __func__, __LINE__);
 				goto exit;
+			}
 
 			INIT_DELAYED_WORK(&hpin_work, microp_i2c_hpin_work_func);
 		}
@@ -2427,8 +2465,10 @@ static int microp_i2c_config_microp(struct i2c_client *client)
 				MICROP_I2C_CMD_LED_AUTO_TABLE, data, 5);
 			/* make sure FW has finished this command handle */
 			mdelay(1);
-			if (ret)
+			if (ret) {
+				pr_err("%s: write_block failed at %d\n", __func__, __LINE__);
 				goto exit;
+			}
 		}
 	}
 
