@@ -167,15 +167,16 @@ struct microp_i2c_client_data {
    Just some, to get things compiling
  -----------------------------------------*/
 
-static int microp_i2c_auto_backlight_set_interrupt_mode(struct i2c_client *client, uint8_t enabled);
+static int microp_i2c_auto_backlight_set_interrupt_mode(
+					struct i2c_client *client, uint8_t enabled);
 static void microp_lcd_backlight_gate_set(struct led_classdev *led_cdev,
-			       enum led_brightness brightness);
+					enum led_brightness brightness);
 static void microp_lcd_backlight_notifier_set(struct led_classdev *led_cdev,
-			       enum led_brightness brightness);
+					enum led_brightness brightness);
 static int lightsensor_open(struct inode *inode, struct file *file);
 static int lightsensor_release(struct inode *inode, struct file *file);
 static long lightsensor_ioctl(struct file *file, unsigned int cmd,
-		unsigned long arg);
+					unsigned long arg);
 static int microp_i2c_config_microp(struct i2c_client *client);
 
 
@@ -208,34 +209,34 @@ static struct led_classdev *ldev_lcd_backlight;
 static struct led_classdev *ldev_vkey_backlight;
 
 static struct led_classdev ldev_lcd_backlight_gate = {
-	.name = LCD_BACKLIGHT_GATE,
-	.brightness_set = microp_lcd_backlight_gate_set,
-	.brightness = 255,
+	.name            = LCD_BACKLIGHT_GATE,
+	.brightness_set  = microp_lcd_backlight_gate_set,
+	.brightness      = 255,
 	.default_trigger = LCD_BACKLIGHT_GATE,
 };
 
 static struct led_classdev ldev_lcd_backlight_notifier = {
-	.name = "lcd_notifier",
-	.brightness_set = microp_lcd_backlight_notifier_set,
-	.brightness = 0,
+	.name            = "lcd_notifier",
+	.brightness_set  = microp_lcd_backlight_notifier_set,
+	.brightness      = 0,
 	.default_trigger = LCD_BACKLIGHT_GATE,
 };
 
 static struct file_operations lightsensor_fops = {
-	.owner = THIS_MODULE,
-	.open = lightsensor_open,
-	.release = lightsensor_release,
+	.owner          = THIS_MODULE,
+	.open           = lightsensor_open,
+	.release        = lightsensor_release,
 	.unlocked_ioctl = lightsensor_ioctl
 };
 
 static struct miscdevice lightsensor_misc = {
 	.minor = MISC_DYNAMIC_MINOR,
-	.name = "lightsensor",
-	.fops = &lightsensor_fops
+	.name  = "lightsensor",
+	.fops  = &lightsensor_fops
 };
 
 static struct led_trigger light_sensor_trigger = {
-	.name     = "light-sensor-trigger",
+	.name  = "light-sensor-trigger",
 };
 
 
@@ -432,16 +433,16 @@ static int i2c_read_block(struct i2c_client *client, uint8_t addr,
 	int ret;
 	struct i2c_msg msgs[] = {
 	{
-		.addr = client->addr,
+		.addr  = client->addr,
 		.flags = 0,
-		.len = 1,
-		.buf = &addr,
+		.len   = 1,
+		.buf   = &addr,
 	},
 	{
-		.addr = client->addr,
+		.addr  = client->addr,
 		.flags = I2C_M_RD,
-		.len = length,
-		.buf = data,
+		.len   = length,
+		.buf   = data,
 	}
 	};
 
@@ -470,10 +471,10 @@ static int i2c_write_block(struct i2c_client *client, uint8_t addr,
 
 	struct i2c_msg msg[] = {
 	{
-		.addr = client->addr,
+		.addr  = client->addr,
 		.flags = 0,
-		.len = length + 1,
-		.buf = buf,
+		.len   = length + 1,
+		.buf   = buf,
 	}
 	};
 
@@ -658,8 +659,9 @@ static void microp_i2c_clear_led_data(struct i2c_client *client)
 			cdata->led_data[i].mode = 1;
 		else
 			cdata->led_data[i].mode = 0;
-		cdata->led_data[i].fade_timer = 0;
-		cdata->led_data[i].off_timer = 0;
+
+		cdata->led_data[i].fade_timer  = 0;
+		cdata->led_data[i].off_timer   = 0;
 		cdata->led_data[i].skip_config = 0;
 
 		mutex_unlock(&cdata->led_data[i].pin_mutex);
@@ -672,7 +674,7 @@ static irqreturn_t microp_i2c_intr_irq_handler(int irq, void *dev_id)
 	struct microp_i2c_client_data *cdata;
 
 	client = to_i2c_client(dev_id);
-	cdata = i2c_get_clientdata(client);
+	cdata  = i2c_get_clientdata(client);
 
 	disable_irq_nosync(client->irq);
 	queue_work(cdata->microp_queue, &cdata->work.work);
@@ -2172,6 +2174,11 @@ static void microp_i2c_auto_bl_work_func(struct work_struct *work)
 	struct microp_i2c_client_data *cdata;
 	uint8_t data[2] = {0, 0};
 	int ret = 0;
+
+	if (!client) {
+		printk(KERN_ERR "%s: dataset: client is empty\n", __func__);
+		return;
+	}
 
 	cdata = i2c_get_clientdata(client);
 
