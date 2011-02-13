@@ -409,14 +409,18 @@ int microp_i2c_is_supported(uint8_t func, uint16_t version)
 static char *hex2string(uint8_t *data, int len)
 {
 	static char buf[101];
-	int i;
+	int i, j;
+	struct i2c_client *client = private_microp_client;
 
 	i = (sizeof(buf) - 1) / 4;
-	if (len > i)
+	if (len > i) {
+		dev_info(&client->dev, "%s is called with a too large length\n",
+				__func__);
 		len = i;
+	}
 
-	for (i = 0; i < len; i++)
-		sprintf(buf + i * 4, "[%02X]", data[i]);
+	for (i = 0, j = 0; i < len; i++, j+=4)
+		sprintf(buf + j, "[%02X]", data[i]);
 
 	return buf;
 }
@@ -442,7 +446,7 @@ static int i2c_read_block(struct i2c_client *client, uint8_t addr,
 	};
 
 	mdelay(1);
-	for (retry = 0; retry <= I2C_READ_RETRY_TIMES; retry++) {
+	for (retry = 0; retry < I2C_READ_RETRY_TIMES; retry++) {
 		ret = i2c_transfer(client->adapter, msgs, 2);
 		if (ret == 2) {
 			dev_dbg(&client->dev, "R [%02X] = %s\n", addr,
@@ -485,7 +489,7 @@ static int i2c_write_block(struct i2c_client *client, uint8_t addr,
 	memcpy((void *)&buf[1], (void *)data, length);
 
 	mdelay(1);
-	for (retry = 0; retry <= I2C_WRITE_RETRY_TIMES; retry++) {
+	for (retry = 0; retry < I2C_WRITE_RETRY_TIMES; retry++) {
 		ret = i2c_transfer(client->adapter, msg, 1);
 		if (ret == 1)
 			return 0;
@@ -662,7 +666,6 @@ static void microp_i2c_clear_led_data(struct i2c_client *client)
 	}
 }
 
-/* Riemer: tracked down the system hang here */
 static irqreturn_t microp_i2c_intr_irq_handler(int irq, void *dev_id)
 {
 	struct i2c_client *client;
@@ -671,7 +674,7 @@ static irqreturn_t microp_i2c_intr_irq_handler(int irq, void *dev_id)
 	client = to_i2c_client(dev_id);
 	cdata = i2c_get_clientdata(client);
 
-	disable_irq_nosync(client->irq); // Same as irq?
+	disable_irq_nosync(client->irq);
 	queue_work(cdata->microp_queue, &cdata->work.work);
 	return IRQ_HANDLED;
 }
@@ -786,7 +789,7 @@ void get_3_button_key(void)
 			break;
 	}
 
-	memset(data, 0x00, sizeof(data));
+	memset(data, 0x00, sizeof(data)); // Required?
 	if (i2c_read_block(client, MICROP_I2C_CMD_ADC_READ_DATA, data, 3) < 0) {
 		dev_err(&client->dev, "%s: read adc fail\n", __func__);
 	} else {
@@ -842,7 +845,7 @@ int set_microp_mic_intr(int enable)
 		return -EINVAL;
 	}
 
-	memset(data, 0x00, sizeof(data));
+	memset(data, 0x00, sizeof(data)); // Required?
 	for (i = 0; i < pdata->num_pins; i++) {
 		pin = pdata->pin_config[i].pin;
 		config = pdata->pin_config[i].config;
@@ -900,7 +903,7 @@ static int microp_get_pin_status(uint8_t query_pin)
 
 	tmp_pin = -1;
 	tmp_pinset = -1;
-	memset(data, 0x0, sizeof(data));
+	memset(data, 0x0, sizeof(data)); // Required?
 	for (loop_i = 0; loop_i < 3; loop_i++) {
 		for (loop_j = 0; loop_j < 8; loop_j++) {
 			if (pin_alloc[loop_i][loop_j] == query_pin) {
@@ -2502,8 +2505,12 @@ static void microp_early_suspend(struct early_suspend *h)
 	struct i2c_client *client = private_microp_client;
 	struct microp_i2c_platform_data *pdata;
 	ldata = container_of(ldev_lcd_backlight, struct microp_led_data, ldev);
-	if (!client)
+
+	if (!client) {
+		printk(KERN_ERR "%s: dataset: client is empty\n", __func__);
 		return;
+	}
+
 	cdata = i2c_get_clientdata(client);
 	pdata = client->dev.platform_data;
 	atomic_set(&cdata->suspended_now, 1);
@@ -2560,8 +2567,12 @@ static void microp_late_resume(struct early_suspend *h)
 	struct microp_i2c_platform_data *pdata;
 	uint8_t loop_i, config;
 	int ret;
-	if (!client)
+
+	if (!client) {
+		printk(KERN_ERR "%s: dataset: client is empty\n", __func__);
 		return;
+	}
+
 	cdata = i2c_get_clientdata(client);
 	pdata = client->dev.platform_data;
 
