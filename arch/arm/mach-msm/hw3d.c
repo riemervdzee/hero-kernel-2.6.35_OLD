@@ -824,7 +824,7 @@ static int __init hw3d_probe(struct platform_device *pdev)
 		goto err_reg_client;
 	}
 
-#if defined(CONFIG_EARLYSUSPEND) && 0
+#if defined(CONFIG_EARLYSUSPEND)
 	info->early_suspend.suspend = hw3d_early_suspend;
 	info->early_suspend.resume = hw3d_late_resume;
 	info->early_suspend.level = EARLY_SUSPEND_LEVEL_DISABLE_FB;

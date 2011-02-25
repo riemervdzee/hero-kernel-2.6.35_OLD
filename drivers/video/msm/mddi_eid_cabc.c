@@ -595,7 +595,7 @@ static int samsung_cabc_probe(struct platform_device *pdev)
 	cabc->mode_bc = BC_MANUAL;
 	samsung_set_brightness(&cabc->lcd_backlight, 255);
 
-#if 0 && defined(CONFIG_HAS_EARLYSUSPEND)
+#if defined(CONFIG_HAS_EARLYSUSPEND)
 	cabc->early_suspend.suspend = samsung_cabc_suspend;
 	cabc->early_suspend.resume = samsung_cabc_resume;
 	cabc->early_suspend.level = EARLY_SUSPEND_LEVEL_BLANK_SCREEN;
