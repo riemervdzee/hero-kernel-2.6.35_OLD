@@ -1048,14 +1048,14 @@ static void __init heroc_init(void)
 	platform_add_devices(devices, ARRAY_SIZE(devices));
 
 
-	for (rc=0;rc<ARRAY_SIZE(i2c_devices);rc++){
+/*	for (rc=0;rc<ARRAY_SIZE(i2c_devices);rc++){
             if (!strcmp(i2c_devices[rc].type,AKM8973_I2C_NAME)){
                 if (!system_rev)
-                    i2c_devices[rc].irq = 0x1E; /*XA*/
+                    i2c_devices[rc].irq = 0x1E; //XA
                 else
                     i2c_devices[rc].irq = 0x1C;
             }
-        }
+        } */
 	
 	if(system_rev < 2) {
 		microp_data.num_pins   = ARRAY_SIZE(microp_pins_0);
