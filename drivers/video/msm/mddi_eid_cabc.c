@@ -210,10 +210,6 @@ static void __turn_on_backlight(struct cabc *cabc, u8 brightness)
 		CABC_OFF, 0x25);
 	__set_brightness(cabc, brightness, 0);
 
-	if(cabc->mode_cabc != CABC_OFF)
-		cabc->cabc_config->change_cabcmode(cabc->cabc_config->client,
-			cabc->mode_cabc, 0x25);
-
 	mutex_lock(&cabc->data_lock);
 	cabc->mode_bc = bc_tmp;
 	mutex_unlock(&cabc->data_lock);
@@ -422,7 +418,7 @@ samsung_store(struct device *dev, struct device_attribute *attr,
 	mutex_lock(&cabc->lock);
 	switch (off) {
 	case CABC_MODE:
-		if (res >= CABC_OFF && res < CABC_UNDEF) {
+		if (res < CABC_UNDEF) {
 			cabc->mode_cabc = res;
 			cabc->cabc_config->change_cabcmode(client_data, res, 0x25);
 		}
