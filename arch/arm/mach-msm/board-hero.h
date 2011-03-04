@@ -110,6 +110,7 @@
 #define HERO_GPIO_VSYNC                 (97)
 
 int hero_init_mmc(unsigned int sys_rev);
+int __init hero_init_panel(void);
 void config_hero_camera_on_gpios(void);
 void config_hero_camera_off_gpios(void);
 unsigned int camera_is_micron_5M(void);
