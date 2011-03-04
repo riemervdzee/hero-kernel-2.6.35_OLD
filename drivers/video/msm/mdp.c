@@ -350,7 +350,7 @@ static void mdp_dmas_to_mddi(void *priv, uint32_t addr, uint32_t stride,
 	mdp_writel(mdp, dma2_cfg, MDP_DMA_S_CONFIG);
 	mdp_writel(mdp, 0, MDP_DMA_S_START);
 }
-
+#else
 static void mdp_dmas_to_mddi(void *priv, uint32_t addr, uint32_t stride,
                 uint32_t width, uint32_t height, uint32_t x, uint32_t y)
 {
@@ -400,6 +400,7 @@ static void mdp_dmas_to_mddi(void *priv, uint32_t addr, uint32_t stride,
         mdp_writel(mdp, dma2_cfg, MDP_DMA_S_CONFIG);
         mdp_writel(mdp, 0, MDP_DMA_S_START);
 }
+#endif
 
 static void mdp_dma_to_mddi(void *priv, uint32_t addr, uint32_t stride,
 			    uint32_t width, uint32_t height, uint32_t x,
@@ -493,7 +494,6 @@ static void mdp_dma_to_mddi(void *priv, uint32_t addr, uint32_t stride,
 	mdp_writel(mdp, 0, MDP_DMA_P_START);
 #endif
 }
-#endif	/* ifndef CONFIG_MSM_MDP40 */
 
 void mdp_dma(struct mdp_device *mdp_dev, uint32_t addr, uint32_t stride,
 	     uint32_t width, uint32_t height, uint32_t x, uint32_t y,
@@ -751,6 +751,11 @@ int register_mdp_client(struct class_interface *cint)
 	return class_interface_register(cint);
 }
 
+/* leaving in for now, even if later patches remove */
+
+#include "mdp_csc_table.h"
+
+uint32_t msm_mdp_base;
 int mdp_probe(struct platform_device *pdev)
 {
 	struct resource *resource;
