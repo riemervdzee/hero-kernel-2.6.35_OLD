@@ -81,7 +81,7 @@ extern ssize_t htc_battery_show_batt_attr(struct device *dev,
 					 struct device_attribute *attr,
 					 char *buf);
 static struct htc_battery_platform_data htc_battery_pdev_data = {
-	.func_show_batt_attr = htc_battery_show_batt_attr,
+//	.func_show_batt_attr = htc_battery_show_batt_attr,
 //	.gpio_mbat_in = HERO_GPIO_MBAT_IN,
 //	.gpio_mchg_en_n = HERO_GPIO_MCHG_EN_N,
 //	.gpio_iset = HERO_GPIO_ISET,
@@ -404,43 +404,43 @@ static struct i2c_board_info i2c_bma150 = {
 
 #ifdef CONFIG_HEROC_CAMERA
 static uint32_t camera_off_gpio_table[] = {
-        /* CAMERA */
-        PCOM_GPIO_CFG(0, 0, GPIO_INPUT, GPIO_PULL_DOWN, GPIO_4MA), /* DAT0 */
-        PCOM_GPIO_CFG(1, 0, GPIO_INPUT, GPIO_PULL_DOWN, GPIO_4MA), /* DAT1 */
-        PCOM_GPIO_CFG(2, 0, GPIO_INPUT, GPIO_PULL_DOWN, GPIO_4MA), /* DAT2 */
-        PCOM_GPIO_CFG(3, 0, GPIO_INPUT, GPIO_PULL_DOWN, GPIO_4MA), /* DAT3 */
-        PCOM_GPIO_CFG(4, 0, GPIO_INPUT, GPIO_PULL_DOWN, GPIO_4MA), /* DAT4 */
-        PCOM_GPIO_CFG(5, 0, GPIO_INPUT, GPIO_PULL_DOWN, GPIO_4MA), /* DAT5 */
-        PCOM_GPIO_CFG(6, 0, GPIO_INPUT, GPIO_PULL_DOWN, GPIO_4MA), /* DAT6 */
-        PCOM_GPIO_CFG(7, 0, GPIO_INPUT, GPIO_PULL_DOWN, GPIO_4MA), /* DAT7 */
-        PCOM_GPIO_CFG(8, 0, GPIO_INPUT, GPIO_PULL_DOWN, GPIO_4MA), /* DAT8 */
-        PCOM_GPIO_CFG(9, 0, GPIO_INPUT, GPIO_PULL_DOWN, GPIO_4MA), /* DAT9 */
-        PCOM_GPIO_CFG(10, 0, GPIO_INPUT, GPIO_PULL_DOWN, GPIO_4MA), /* DAT10 */
-        PCOM_GPIO_CFG(11, 0, GPIO_INPUT, GPIO_PULL_DOWN, GPIO_4MA), /* DAT11 */
-        PCOM_GPIO_CFG(12, 0, GPIO_INPUT, GPIO_PULL_DOWN, GPIO_4MA), /* PCLK */
-        PCOM_GPIO_CFG(13, 0, GPIO_INPUT, GPIO_PULL_DOWN, GPIO_4MA), /* HSYNC */
-        PCOM_GPIO_CFG(14, 0, GPIO_INPUT, GPIO_PULL_DOWN, GPIO_4MA), /* VSYNC */
-        PCOM_GPIO_CFG(15, 0, GPIO_OUTPUT, GPIO_NO_PULL, GPIO_4MA), /* MCLK */
+	/* CAMERA */
+	PCOM_GPIO_CFG(0, 0, GPIO_OUTPUT, GPIO_NO_PULL, GPIO_4MA), /* DAT0 */
+	PCOM_GPIO_CFG(1, 0, GPIO_OUTPUT, GPIO_NO_PULL, GPIO_4MA), /* DAT1 */
+	PCOM_GPIO_CFG(2, 0, GPIO_OUTPUT, GPIO_NO_PULL, GPIO_4MA), /* DAT2 */
+	PCOM_GPIO_CFG(3, 0, GPIO_OUTPUT, GPIO_NO_PULL, GPIO_4MA), /* DAT3 */
+	PCOM_GPIO_CFG(4, 0, GPIO_OUTPUT, GPIO_NO_PULL, GPIO_4MA), /* DAT4 */
+	PCOM_GPIO_CFG(5, 0, GPIO_OUTPUT, GPIO_NO_PULL, GPIO_4MA), /* DAT5 */
+	PCOM_GPIO_CFG(6, 0, GPIO_OUTPUT, GPIO_NO_PULL, GPIO_4MA), /* DAT6 */
+	PCOM_GPIO_CFG(7, 0, GPIO_OUTPUT, GPIO_NO_PULL, GPIO_4MA), /* DAT7 */
+	PCOM_GPIO_CFG(8, 0, GPIO_OUTPUT, GPIO_NO_PULL, GPIO_4MA), /* DAT8 */
+	PCOM_GPIO_CFG(9, 0, GPIO_OUTPUT, GPIO_NO_PULL, GPIO_4MA), /* DAT9 */
+	PCOM_GPIO_CFG(10, 0, GPIO_OUTPUT, GPIO_NO_PULL, GPIO_4MA), /* DAT10 */
+	PCOM_GPIO_CFG(11, 0, GPIO_OUTPUT, GPIO_NO_PULL, GPIO_4MA), /* DAT11 */
+	PCOM_GPIO_CFG(12, 0, GPIO_OUTPUT, GPIO_NO_PULL, GPIO_4MA), /* PCLK */
+	PCOM_GPIO_CFG(13, 0, GPIO_OUTPUT, GPIO_NO_PULL, GPIO_4MA), /* HSYNC_IN */
+	PCOM_GPIO_CFG(14, 0, GPIO_OUTPUT, GPIO_NO_PULL, GPIO_4MA), /* VSYNC_IN */
+	PCOM_GPIO_CFG(15, 0, GPIO_OUTPUT, GPIO_NO_PULL, GPIO_4MA), /* MCLK */
 };
 
 static uint32_t camera_on_gpio_table[] = {
-        /* CAMERA */
-        PCOM_GPIO_CFG(0, 1, GPIO_INPUT, GPIO_PULL_UP, GPIO_2MA), /* DAT0 */
-        PCOM_GPIO_CFG(1, 1, GPIO_INPUT, GPIO_PULL_UP, GPIO_2MA), /* DAT1 */
-        PCOM_GPIO_CFG(2, 1, GPIO_INPUT, GPIO_PULL_UP, GPIO_2MA), /* DAT2 */
-        PCOM_GPIO_CFG(3, 1, GPIO_INPUT, GPIO_PULL_UP, GPIO_2MA), /* DAT3 */
-        PCOM_GPIO_CFG(4, 1, GPIO_INPUT, GPIO_PULL_UP, GPIO_2MA), /* DAT4 */
-        PCOM_GPIO_CFG(5, 1, GPIO_INPUT, GPIO_PULL_UP, GPIO_2MA), /* DAT5 */
-        PCOM_GPIO_CFG(6, 1, GPIO_INPUT, GPIO_PULL_UP, GPIO_2MA), /* DAT6 */
-        PCOM_GPIO_CFG(7, 1, GPIO_INPUT, GPIO_PULL_UP, GPIO_2MA), /* DAT7 */
-        PCOM_GPIO_CFG(8, 1, GPIO_INPUT, GPIO_PULL_UP, GPIO_2MA), /* DAT8 */
-        PCOM_GPIO_CFG(9, 1, GPIO_INPUT, GPIO_PULL_UP, GPIO_2MA), /* DAT9 */
-        PCOM_GPIO_CFG(10, 1, GPIO_INPUT, GPIO_PULL_UP, GPIO_2MA), /* DAT10 */
-        PCOM_GPIO_CFG(11, 1, GPIO_INPUT, GPIO_PULL_UP, GPIO_2MA), /* DAT11 */
-        PCOM_GPIO_CFG(12, 1, GPIO_INPUT, GPIO_PULL_UP, GPIO_16MA), /* PCLK */
-        PCOM_GPIO_CFG(13, 1, GPIO_INPUT, GPIO_PULL_UP, GPIO_2MA), /* HSYNC */
-        PCOM_GPIO_CFG(14, 1, GPIO_INPUT, GPIO_PULL_UP, GPIO_2MA), /* VSYNC */
-        PCOM_GPIO_CFG(15, 1, GPIO_OUTPUT, GPIO_PULL_UP, GPIO_8MA), /* MCLK */
+	/* CAMERA */
+	PCOM_GPIO_CFG(0, 1, GPIO_INPUT, GPIO_PULL_DOWN, GPIO_2MA), /* DAT0 */
+	PCOM_GPIO_CFG(1, 1, GPIO_INPUT, GPIO_PULL_DOWN, GPIO_2MA), /* DAT1 */
+	PCOM_GPIO_CFG(2, 1, GPIO_INPUT, GPIO_PULL_DOWN, GPIO_2MA), /* DAT2 */
+	PCOM_GPIO_CFG(3, 1, GPIO_INPUT, GPIO_PULL_DOWN, GPIO_2MA), /* DAT3 */
+	PCOM_GPIO_CFG(4, 1, GPIO_INPUT, GPIO_PULL_DOWN, GPIO_2MA), /* DAT4 */
+	PCOM_GPIO_CFG(5, 1, GPIO_INPUT, GPIO_PULL_DOWN, GPIO_2MA), /* DAT5 */
+	PCOM_GPIO_CFG(6, 1, GPIO_INPUT, GPIO_PULL_DOWN, GPIO_2MA), /* DAT6 */
+	PCOM_GPIO_CFG(7, 1, GPIO_INPUT, GPIO_PULL_DOWN, GPIO_2MA), /* DAT7 */
+	PCOM_GPIO_CFG(8, 1, GPIO_INPUT, GPIO_PULL_DOWN, GPIO_2MA), /* DAT8 */
+	PCOM_GPIO_CFG(9, 1, GPIO_INPUT, GPIO_PULL_DOWN, GPIO_2MA), /* DAT9 */
+	PCOM_GPIO_CFG(10, 1, GPIO_INPUT, GPIO_PULL_DOWN, GPIO_2MA), /* DAT10 */
+	PCOM_GPIO_CFG(11, 1, GPIO_INPUT, GPIO_PULL_DOWN, GPIO_2MA), /* DAT11 */
+	PCOM_GPIO_CFG(12, 1, GPIO_INPUT, GPIO_PULL_DOWN, GPIO_16MA), /* PCLK */
+	PCOM_GPIO_CFG(13, 1, GPIO_INPUT, GPIO_PULL_DOWN, GPIO_2MA), /* HSYNC_IN */
+	PCOM_GPIO_CFG(14, 1, GPIO_INPUT, GPIO_PULL_DOWN, GPIO_2MA), /* VSYNC_IN */
+	PCOM_GPIO_CFG(15, 1, GPIO_OUTPUT, GPIO_PULL_UP, GPIO_16MA), /* MCLK */
 };
 
 void config_camera_on_gpios(void)
@@ -463,7 +463,7 @@ static struct resource msm_camera_resources[] = {
         },
         {
                 .start  = INT_VFE,
-                 INT_VFE,
+                .end	= INT_VFE,
                 .flags  = IORESOURCE_IRQ,
         },
 };
@@ -488,21 +488,17 @@ static struct msm_camera_device_platform_data msm_camera_device_data = {
 
 static struct msm_camera_sensor_info msm_camera_sensor_s5k3e2fx_data = {
 	.sensor_name    = "s5k3e2fx",
-	.sensor_reset   = 89,
-	.sensor_pwd     = 85,
-	.vcm_pwd	= 0,
-	.pdata		= &msm_camera_device_data,
-        .resource = msm_camera_resources,
-        .num_resources = ARRAY_SIZE(msm_camera_resources),
+//      .resource = msm_camera_resources,
+//      .num_resources = ARRAY_SIZE(msm_camera_resources),
 //       .flash_cfg      = &msm_camera_sensor_flash_cfg,
-	 //.sensor_reset   = HEROC_GPIO_CAM_RST_N,
-	 //.sensor_pwd     = HEROC_CAM_PWDN,
-	 //.vcm_pwd        = HEROC_GPIO_VCM_PWDN,
-	 //.pdata          = &msm_camera_device_data,
-	 //.flash_type     = MSM_CAMERA_FLASH_NONE,
-	 //.need_suspend   = 1,
+	 .sensor_reset   = HEROC_GPIO_CAM_RST_N,
+	 .sensor_pwd     = HEROC_CAM_PWDN,
+	 .vcm_pwd        = HEROC_GPIO_VCM_PWDN,
+	 .pdata          = &msm_camera_device_data,
+	 .flash_type     = MSM_CAMERA_FLASH_NONE,
+	 .need_suspend   = 1
 	 //.waked_up	= NULL,
-	 //.event_wait	= NULL,
+	 //.event_wait	= NULL
 };
 
 static struct platform_device msm_camera_sensor_s5k3e2fx = {
@@ -911,6 +907,7 @@ static struct platform_device *devices[] __initdata = {
 #ifdef CONFIG_HTC_PWRSINK
 	&heroc_pwr_sink,
 #endif
+	&hero_snd,
 #ifdef CONFIG_HEROC_CAMERA
 	&msm_camera_sensor_s5k3e2fx,
 #endif
@@ -943,7 +940,7 @@ module_param_named(iset, cpld_iset, uint, 0);
 module_param_named(charger_en, cpld_charger_en, uint, 0);
 module_param_named(disable_uart3, opt_disable_uart3, uint, 0);
 
-static void clear_bluetooth_rx_irq_status()
+static void clear_bluetooth_rx_irq_status(void)
 {
         #define GPIO_INT_CLEAR_2 (MSM_GPIO1_BASE + 0x800 + 0x94)
         writel((1U << (HEROC_GPIO_UART1_RX-43)), GPIO_INT_CLEAR_2);
@@ -987,9 +984,9 @@ static struct msm_acpu_clock_platform_data heroc_clock_data = {
 
 
 static unsigned heroc_perf_acpu_table[] = {
-        245760000,
+        264000000,
         480000000,
-        528000000,
+        518400000,
 };
 
 static struct perflock_platform_data heroc_perflock_data = {
@@ -1017,7 +1014,7 @@ static void __init heroc_init(void)
 	msm_hw_reset_hook = heroc_reset;
 
 	msm_acpu_clock_init(&heroc_clock_data);
-//	perflock_init(&heroc_perflock_data);
+	perflock_init(&heroc_perflock_data);
 
 
 #if defined(CONFIG_MSM_SERIAL_DEBUGGER)
@@ -1055,12 +1052,12 @@ static void __init heroc_init(void)
                 else
                     i2c_devices[rc].irq = 0x1C;
             }
-        } */
+        } 
 	
 	if(system_rev < 2) {
 		microp_data.num_pins   = ARRAY_SIZE(microp_pins_0);
 		microp_data.pin_config = microp_pins_0;
-	}
+	} */
 
 	i2c_register_board_info(0, i2c_devices, ARRAY_SIZE(i2c_devices));
 

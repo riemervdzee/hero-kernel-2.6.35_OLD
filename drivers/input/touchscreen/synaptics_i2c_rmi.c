@@ -1047,7 +1047,8 @@ static int synaptics_ts_probe(
 		hrtimer_start(&ts->timer, ktime_set(1, 0), HRTIMER_MODE_REL);
 	}
 #ifdef CONFIG_HAS_EARLYSUSPEND
-	ts->early_suspend.level = EARLY_SUSPEND_LEVEL_BLANK_SCREEN + 1;
+	ts->early_suspend.level = EARLY_SUSPEND_LEVEL_STOP_DRAWING - 1;
+	// EARLY_SUSPEND_LEVEL_BLANK_SCREEN + 1;
 	ts->early_suspend.suspend = synaptics_ts_early_suspend;
 	ts->early_suspend.resume = synaptics_ts_late_resume;
 	register_early_suspend(&ts->early_suspend);
