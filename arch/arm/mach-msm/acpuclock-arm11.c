@@ -311,11 +311,15 @@ static struct cpufreq_frequency_table msm7600_freq_table[] = {
         { 9, 652800 },
         {10, 672000 },
         {11, 691200 },
+#if defined(CONFIG_JESUS_PHONE_SAFE)
+	{12, CPUFREQ_TABLE_END},
+#else
         {12, 710400 },
         {13, 729600 },
         {14, 748800 },
         {15, 768000 },
         {16, CPUFREQ_TABLE_END },
+#endif
 #else
         { 0, 19200 },
         { 1, 122880 },

@@ -399,6 +399,16 @@ config JESUS_PHONE
 	help
 	 Enable support for dangerous acpuclock frequencies/voltages.
 
+if JESUS_PHONE
+config JESUS_PHONE_SAFE
+	depends on JESUS_PHONE
+	default n
+	bool "Safe Max Jesus Phone"
+	help
+	 set max speed to 691200
+endif
+
+
 config HTC_HEADSET
 	tristate "HTC 2 Wire detection driver"
 	default n
