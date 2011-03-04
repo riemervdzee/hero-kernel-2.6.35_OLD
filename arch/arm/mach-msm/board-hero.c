@@ -1161,6 +1161,8 @@ static void __init hero_init(void)
 		microp_data.cabc_backlight_enable = 1;
 	}
 	i2c_register_board_info(0, i2c_devices, ARRAY_SIZE(i2c_devices));
+	
+	hero_init_panel();
 }
 
 static void __init hero_fixup(struct machine_desc *desc, struct tag *tags,

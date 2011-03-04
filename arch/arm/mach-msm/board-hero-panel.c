@@ -650,6 +650,11 @@ static struct msm_mddi_platform_data hero_pdata = {
 	},
 };
 
+static struct msm_mdp_platform_data mdp_pdata = {
+	.color_format = MSM_MDP_OUT_IF_FMT_RGB666,
+};
+
+
 /*
  * In boot loader, mddi is powered on already.
  * So, we just detect panel here, setting different power function for each panel.
@@ -702,6 +707,7 @@ int __init hero_init_panel(void)
 		return -EIO;
 	}
 
+	msm_device_mdp.dev.platform_data = &mdp_pdata;
 	rc = platform_device_register(&msm_device_mdp);
 	if (rc)
 		return rc;
@@ -717,5 +723,4 @@ int __init hero_init_panel(void)
 
 	return 0;
 }
-device_initcall(hero_init_panel);
 
