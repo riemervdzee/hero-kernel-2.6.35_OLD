@@ -63,6 +63,7 @@ obj-$(CONFIG_MACH_HEROC) += board-heroc-panel.o board-heroc-keypad.o
 obj-$(CONFIG_MACH_HEROC) += board-heroc-rfkill.o msm_vibrator.o
 obj-$(CONFIG_MACH_HEROC) += board-heroc-mmc.o board-heroc-wifi.o 
 obj-$(CONFIG_MACH_HEROC) += htc_wifi_nvs.o
+obj-$(CONFIG_MACH_HEROC) += board-heroc-tpa6130.o
 
 obj-$(CONFIG_MACH_HERO) += devices_htc.o
 obj-$(CONFIG_MACH_HEROC) += devices_htc.o
