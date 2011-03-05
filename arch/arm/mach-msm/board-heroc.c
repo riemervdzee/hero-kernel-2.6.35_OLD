@@ -69,7 +69,7 @@
 #include "board-heroc.h"
 //#include <mach/htc_headset.h>
 //#include <mach/i2c-msm.h>
-//#include <mach/audio_jack.h>
+#include <mach/audio_jack.h>
 #include <mach/perflock.h>
 // msm_hsusb
 
