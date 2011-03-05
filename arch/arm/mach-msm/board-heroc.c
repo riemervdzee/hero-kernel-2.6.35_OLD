@@ -613,13 +613,23 @@ static uint32_t uart3_on_gpio_table[] = {
 };
 
 /* default TX,RX to GPI */
-static uint32_t uart3_off_gpio_table[] = {
+static uint32_t uart3_off_gpi_table[] = {
 	/* RX, H2W DATA */
 	PCOM_GPIO_CFG(HEROC_GPIO_H2W_DATA, 0,
 		      GPIO_INPUT, GPIO_NO_PULL, GPIO_2MA),
 	/* TX, H2W CLK */
 	PCOM_GPIO_CFG(HEROC_GPIO_H2W_CLK, 0,
 		      GPIO_INPUT, GPIO_NO_PULL, GPIO_2MA),
+};
+
+/* set TX,RX to GPO */
+static uint32_t uart3_off_gpo_table[] = {
+        /* RX, H2W DATA */
+        PCOM_GPIO_CFG(HEROC_GPIO_H2W_DATA, 0,
+                      GPIO_OUTPUT, GPIO_NO_PULL, GPIO_2MA),
+        /* TX, H2W CLK */
+        PCOM_GPIO_CFG(HEROC_GPIO_H2W_CLK, 0,
+                      GPIO_OUTPUT, GPIO_NO_PULL, GPIO_2MA),
 };
 
 #ifdef CONFIG_HEROC_H2W
@@ -629,22 +639,23 @@ static void h2w_configure(int route)
 {
 	printk(KERN_INFO "H2W route = %d \n", route);
 	switch (route) {
-		case H2W_UART3:
-			msm_proc_comm(PCOM_RPC_GPIO_TLMM_CONFIG_EX,
-				      uart3_on_gpio_table+0, 0);
-			msm_proc_comm(PCOM_RPC_GPIO_TLMM_CONFIG_EX,
-				      uart3_on_gpio_table+1, 0);
-			heroc_h2w_path = H2W_UART3;
-			printk(KERN_INFO "H2W -> UART3\n");
-			break;
-		case H2W_GPIO:
-			msm_proc_comm(PCOM_RPC_GPIO_TLMM_CONFIG_EX,
-				      uart3_off_gpio_table+0, 0);
-			msm_proc_comm(PCOM_RPC_GPIO_TLMM_CONFIG_EX,
-				      uart3_off_gpio_table+1, 0);
-			heroc_h2w_path = H2W_GPIO;
-			printk(KERN_INFO "H2W -> GPIO\n");
-			break;
+	case H2W_UART3:
+		msm_proc_comm(PCOM_RPC_GPIO_TLMM_CONFIG_EX,
+			      uart3_on_gpio_table+0, 0);
+		msm_proc_comm(PCOM_RPC_GPIO_TLMM_CONFIG_EX,
+			      uart3_on_gpio_table+1, 0);
+		heroc_h2w_path = H2W_UART3;
+		printk(KERN_INFO "H2W -> UART3\n");
+		break;
+	case H2W_GPIO:
+	default:
+		msm_proc_comm(PCOM_RPC_GPIO_TLMM_CONFIG_EX,
+			      uart3_off_gpi_table+0, 0);
+		msm_proc_comm(PCOM_RPC_GPIO_TLMM_CONFIG_EX,
+			      uart3_off_gpi_table+1, 0);
+		heroc_h2w_path = H2W_GPIO;
+		printk(KERN_INFO "H2W -> GPIO\n");
+		break;
 	}
 }
 
@@ -673,10 +684,10 @@ static void set_h2w_dat_dir(int n)
 #else
 	if (n == 0) /* input */
 		msm_proc_comm(PCOM_RPC_GPIO_TLMM_CONFIG_EX,
-			      uart3_off_gpio_table+0, 0);
+			      uart3_off_gpi_table+0, 0);
 	else
 		msm_proc_comm(PCOM_RPC_GPIO_TLMM_CONFIG_EX,
-			      uart3_off_gpio_table+0, 0);
+			      uart3_off_gpo_table+0, 0);
 #endif
 }
 
@@ -690,10 +701,10 @@ static void set_h2w_clk_dir(int n)
 #else
 	if (n == 0) /* input */
 		msm_proc_comm(PCOM_RPC_GPIO_TLMM_CONFIG_EX,
-			      uart3_off_gpio_table+1, 0);
+			      uart3_off_gpi_table+1, 0);
 	else
 		msm_proc_comm(PCOM_RPC_GPIO_TLMM_CONFIG_EX,
-			      uart3_off_gpio_table+1, 0);
+			      uart3_off_gpo_table+1, 0);
 #endif
 }
 
