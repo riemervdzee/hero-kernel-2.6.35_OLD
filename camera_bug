@@ -18,14 +18,14 @@ Kernel: 2.6.35.10,
 	While frame stucks on screen and after a lock/unlock procedure,
 	camera backs to *work*.
 	
-	After some investigation, understandig there is problem
-	on AF (auto focus) procedure and with /proc/kmesg know that
-	when AF fails trhows some I2C exceptions ("error during data xfer").
+	After some investigation i know  there are problem
+	on AF (auto focus) procedure and with /proc/kmesg and the
+	AF fails throws some I2C exceptions ("error during data xfer").
 	Looked that if camera_settings->widescreen option is enable the
-	zoom work bad. (When zoom is max there are many artefacts on screen.
+	zoom works bad. (When zoom is max there are many artefacts on screen.
 	
 	To repeat the *fail* situation, open camera app and enable AF option.
-	With ADB shell command "cat /proc/kmesg" looking to log outputs 
+	With ADB shell command "cat /proc/kmesg", looking to log outputs 
 	while camera is pointed somewhere.
 	
 	Ex. kmesg output:
@@ -42,18 +42,18 @@ Kernel: 2.6.35.10,
 	
    March 3, 2011.
 
-	Into drivers/i2c/busses/i2c.c from legend there is an include 
+	Into drivers/i2c/busses/i2c-msm.c from legend there is an include 
 	that isn't into cm-kernel:
 
 		#include <linux/i2c-msm.h>
 
-	than added include above but the header was miss so 
-	impored it from legend kernel. 
+	than added include above but the header missed so 
+	imported it from legend kernel. 
 	Building fails 'cause a method into system.h was bad.
 	The system.h was different from old .29 and legend .35
 	Than corrected mach/system.h and rebuild cm-kernel.
 	Another error during build process. 
-	The i2c.c call kzalloc() and kfree() implicit declarate functions.
+	The i2c-msm.c call kzalloc() and kfree() implicit declarate functions.
 	Corrected error by including include/slab.h into i2c.c file.
 
 	Now while taking a photo the app crashes and quit, so no long
