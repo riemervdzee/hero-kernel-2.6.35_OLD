@@ -1,7 +1,7 @@
 #
 # Automatically generated make config: don't edit
 # Linux kernel version: 2.6.35.10
-# Sat Mar  5 12:18:53 2011
+# Mon Mar  7 11:49:12 2011
 #
 CONFIG_ARM=y
 CONFIG_SYS_SUPPORTS_APM_EMULATION=y
@@ -940,7 +940,16 @@ CONFIG_SCSI_MOD=y
 # CONFIG_ATA is not set
 CONFIG_MD=y
 # CONFIG_BLK_DEV_MD is not set
-# CONFIG_BLK_DEV_DM is not set
+CONFIG_BLK_DEV_DM=y
+# CONFIG_DM_DEBUG is not set
+CONFIG_DM_CRYPT=y
+CONFIG_DM_CRYPT_GLOBAL_WORKQUEUES=y
+# CONFIG_DM_SNAPSHOT is not set
+# CONFIG_DM_MIRROR is not set
+# CONFIG_DM_ZERO is not set
+# CONFIG_DM_MULTIPATH is not set
+# CONFIG_DM_DELAY is not set
+# CONFIG_DM_UEVENT is not set
 CONFIG_NETDEVICES=y
 # CONFIG_DUMMY is not set
 # CONFIG_BONDING is not set
