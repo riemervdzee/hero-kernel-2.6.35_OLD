@@ -1,0 +1,80 @@
+			PERSONAL KERNEL DEBUG FILE 
+	       Matteo Benetti (MrBang) - mathew.benetti@gmail.com
+		===============================================
+
+Device: HTC Hero
+Kernel: 2.6.35.10, 
+
+**Camera Problems**
+
+   March 2, 2011.
+	
+	Booted my Hero with kernel builded on hero_defconf config file.
+	Speed issue (cpu freq), bad screen on/off (power management).
+	
+	Try to take a photo and the frame stucks on screen. Even press
+	"return" hw button and no response, only way to exit is 
+	to press "home" hw button and activity was push underground. 
+	While frame stucks on screen and after a lock/unlock procedure,
+	camera backs to *work*.
+	
+	After some investigation, understandig there is problem
+	on AF (auto focus) procedure and with /proc/kmesg know that
+	when AF fails trhows some I2C exceptions ("error during data xfer").
+	Looked that if camera_settings->widescreen option is enable the
+	zoom work bad. (When zoom is max there are many artefacts on screen.
+	
+	To repeat the *fail* situation, open camera app and enable AF option.
+	With ADB shell command "cat /proc/kmesg" looking to log outputs 
+	while camera is pointed somewhere.
+	
+	Ex. kmesg output:
+		
+	|	msm_open_common: open control0
+	|	msm_i2c msm_i2c.0: error, status 43c8
+	|	msm_i2c msm_i2c.0: Error during data xfer c (-5)
+	|	i2c_transfer_retry: try 1/20: i2c_transfer sent: -5, len 1
+	|	msm_i2c msm_i2c.0: error, status c8
+	
+	My opinion is there are some bugs about i2c driver maybe caused
+	by missing header and/or minor porting errors.
+		
+	
+   March 3, 2011.
+
+	Into drivers/i2c/busses/i2c.c from legend there is an include 
+	that isn't into cm-kernel:
+
+		#include <linux/i2c-msm.h>
+
+	than added include above but the header was miss so 
+	impored it from legend kernel. 
+	Building fails 'cause a method into system.h was bad.
+	The system.h was different from old .29 and legend .35
+	Than corrected mach/system.h and rebuild cm-kernel.
+	Another error during build process. 
+	The i2c.c call kzalloc() and kfree() implicit declarate functions.
+	Corrected error by including include/slab.h into i2c.c file.
+
+	Now while taking a photo the app crashes and quit, so no long
+	stucking frame on screen and unresponive terminal.
+	
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
