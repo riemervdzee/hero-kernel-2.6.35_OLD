@@ -68,7 +68,7 @@
 #include "gpio_chip.h"
 #include "board-heroc.h"
 //#include <mach/htc_headset.h>
-//#include <mach/i2c-msm.h>
+#include <linux/i2c-msm.h>
 #include <mach/audio_jack.h>
 #include <mach/perflock.h>
 // msm_hsusb
@@ -488,8 +488,8 @@ static struct msm_camera_device_platform_data msm_camera_device_data = {
 
 static struct msm_camera_sensor_info msm_camera_sensor_s5k3e2fx_data = {
 	.sensor_name    = "s5k3e2fx",
-//      .resource = msm_camera_resources,
-//      .num_resources = ARRAY_SIZE(msm_camera_resources),
+      .resource = msm_camera_resources,
+      .num_resources = ARRAY_SIZE(msm_camera_resources),
 //       .flash_cfg      = &msm_camera_sensor_flash_cfg,
 	 .sensor_reset   = HEROC_GPIO_CAM_RST_N,
 	 .sensor_pwd     = HEROC_CAM_PWDN,
@@ -898,12 +898,12 @@ static struct platform_device *core_devices[] __initdata = {
 	&msm_device_smd,
         &msm_device_nand,
 };
-/*
+
 static struct msm_i2c_device_platform_data heroc_i2c_device_data = {
         .i2c_clock = 100000,
         .clock_strength = GPIO_8MA,
         .data_strength = GPIO_4MA,
-};*/
+};
 
 static struct platform_device *devices[] __initdata = {
         &msm_device_i2c,
@@ -1052,7 +1052,7 @@ static void __init heroc_init(void)
 		printk(KERN_CRIT "%s: MMC init failure (%d)\n", __func__, rc);
 
 	// This requires a ported msm_i2c driver that supports overrides
-//	msm_device_i2c.dev.platform_data = &heroc_i2c_device_data; 
+	msm_device_i2c.dev.platform_data = &heroc_i2c_device_data; 
 	platform_add_devices(devices, ARRAY_SIZE(devices));
 
 
