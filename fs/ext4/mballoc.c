@@ -2439,24 +2439,6 @@ int ext4_mb_init(struct super_block *sb, int needs_recovery)
 		i++;
 	} while (i <= sb->s_blocksize_bits + 1);
 
-	/* init file for buddy data */
-	ret = ext4_mb_init_backend(sb);
-	if (ret != 0) {
-		kfree(sbi->s_mb_offsets);
-		kfree(sbi->s_mb_maxs);
-		return ret;
-	}
-
-	spin_lock_init(&sbi->s_md_lock);
-	spin_lock_init(&sbi->s_bal_lock);
-
-	sbi->s_mb_max_to_scan = MB_DEFAULT_MAX_TO_SCAN;
-	sbi->s_mb_min_to_scan = MB_DEFAULT_MIN_TO_SCAN;
-	sbi->s_mb_stats = MB_DEFAULT_STATS;
-	sbi->s_mb_stream_request = MB_DEFAULT_STREAM_THRESHOLD;
-	sbi->s_mb_order2_reqs = MB_DEFAULT_ORDER2_REQS;
-	sbi->s_mb_group_prealloc = MB_DEFAULT_GROUP_PREALLOC;
-
 	sbi->s_locality_groups = alloc_percpu(struct ext4_locality_group);
 	if (sbi->s_locality_groups == NULL) {
 		kfree(sbi->s_mb_offsets);
@@ -2471,6 +2453,26 @@ int ext4_mb_init(struct super_block *sb, int needs_recovery)
 			INIT_LIST_HEAD(&lg->lg_prealloc_list[j]);
 		spin_lock_init(&lg->lg_prealloc_lock);
 	}
+
+	/* init file for buddy data */
+	ret = ext4_mb_init_backend(sb);
+	if (ret != 0) {
+		kfree(sbi->s_mb_offsets);
+		kfree(sbi->s_mb_maxs);
+		free_percpu(sbi->s_locality_groups);
+		return ret;
+	}
+
+	spin_lock_init(&sbi->s_md_lock);
+	spin_lock_init(&sbi->s_bal_lock);
+
+	sbi->s_mb_max_to_scan = MB_DEFAULT_MAX_TO_SCAN;
+	sbi->s_mb_min_to_scan = MB_DEFAULT_MIN_TO_SCAN;
+	sbi->s_mb_stats = MB_DEFAULT_STATS;
+	sbi->s_mb_stream_request = MB_DEFAULT_STREAM_THRESHOLD;
+	sbi->s_mb_order2_reqs = MB_DEFAULT_ORDER2_REQS;
+	sbi->s_mb_group_prealloc = MB_DEFAULT_GROUP_PREALLOC;
+
 
 	if (sbi->s_proc)
 		proc_create_data("mb_groups", S_IRUGO, sbi->s_proc,
