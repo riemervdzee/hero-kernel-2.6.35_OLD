@@ -1130,6 +1130,7 @@ static void __init hero_init(void)
 	if (rc)
 		printk(KERN_CRIT "%s: MMC init failure (%d)\n", __func__, rc);
 
+	msm_i2c_gpio_init();
 	msm_device_i2c.dev.platform_data = &hero_i2c_device_data;
 
 	platform_add_devices(devices, ARRAY_SIZE(devices));
