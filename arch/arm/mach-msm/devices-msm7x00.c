@@ -28,7 +28,7 @@
 #include <linux/mtd/nand.h>
 #include <linux/mtd/partitions.h>
 
-
+#include <asm/gpio.h>
 #include "clock.h"
 #include <mach/mmc.h>
 
@@ -200,6 +200,13 @@ struct platform_device msm_device_i2c = {
 
 #define GPIO_I2C_CLK 60
 #define GPIO_I2C_DAT 61
+
+void msm_i2c_gpio_init(void)
+{
+	gpio_request(GPIO_I2C_CLK, "i2c_clk");
+	gpio_request(GPIO_I2C_DAT, "i2c_data");
+}
+
 void msm_set_i2c_mux(bool gpio, int *gpio_clk, int *gpio_dat)
 {
 	unsigned id;
