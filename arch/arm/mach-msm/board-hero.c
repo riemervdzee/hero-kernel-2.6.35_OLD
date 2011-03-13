@@ -18,6 +18,7 @@
 #include <linux/input.h>
 #include <linux/interrupt.h>
 #include <linux/i2c.h>
+#include <linux/i2c-msm.h>
 #include <linux/irq.h>
 #include <linux/leds.h>
 #include <linux/switch.h>
@@ -522,11 +523,9 @@ static struct i2c_board_info i2c_devices[] = {
 		.platform_data = &compass_platform_data,
 		.irq = MSM_GPIO_TO_INT(HERO_GPIO_COMPASS_INT_N),
 	},
-#ifdef CONFIG_MT9P012
 	{
 		I2C_BOARD_INFO("mt9p012", 0x6C >> 1),
 	},
-#endif
 };
 
 static struct i2c_board_info i2c_bma150 = {
@@ -535,7 +534,6 @@ static struct i2c_board_info i2c_bma150 = {
 	.irq = MSM_GPIO_TO_INT(HERO_GPIO_GSENSOR_INT_N),
 };
 
-#ifdef CONFIG_MT9P012
 static struct msm_camera_device_platform_data msm_camera_device_data = {
 	.camera_gpio_on  = config_hero_camera_on_gpios,
 	.camera_gpio_off = config_hero_camera_off_gpios,
@@ -559,7 +557,6 @@ static struct platform_device msm_camera_sensor_mt9p012 = {
 		.platform_data = &msm_camera_sensor_mt9p012_data,
 	},
 };
-#endif
 
 static void hero_phy_reset(void)
 {
@@ -939,6 +936,12 @@ static struct platform_device hero_snd = {
 	},
 };
 
+static struct msm_i2c_device_platform_data hero_i2c_device_data = {
+	.i2c_clock = 100000,
+	.clock_strength = GPIO_8MA,
+	.data_strength = GPIO_4MA,
+};
+
 static struct platform_device *devices[] __initdata = {
 	&msm_device_smd,
 	&msm_device_nand,
@@ -949,9 +952,7 @@ static struct platform_device *devices[] __initdata = {
 	&msm_device_uart1,
 #endif
 	&msm_device_uart3,
-#ifdef CONFIG_MT9P012
 	&msm_camera_sensor_mt9p012,
-#endif
 	&htc_battery_pdev,
 	&hero_rfkill,
 #ifdef CONFIG_HTC_PWRSINK
@@ -1128,6 +1129,8 @@ static void __init hero_init(void)
 	rc = hero_init_mmc(system_rev);
 	if (rc)
 		printk(KERN_CRIT "%s: MMC init failure (%d)\n", __func__, rc);
+
+	msm_device_i2c.dev.platform_data = &hero_i2c_device_data;
 
 	platform_add_devices(devices, ARRAY_SIZE(devices));
 
