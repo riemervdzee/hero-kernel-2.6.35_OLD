@@ -1041,7 +1041,8 @@ static void __init heroc_init(void)
 	rc = heroc_init_mmc(system_rev);
 	if (rc)
 		printk(KERN_CRIT "%s: MMC init failure (%d)\n", __func__, rc);
-
+	
+	msm_i2c_gpio_init();
 	// This requires a ported msm_i2c driver that supports overrides
 	msm_device_i2c.dev.platform_data = &heroc_i2c_device_data; 
 	platform_add_devices(devices, ARRAY_SIZE(devices));
