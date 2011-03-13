@@ -138,7 +138,6 @@ extern int board_mfg_mode(void);
 #ifdef CONFIG_HTC_PWR_TEST
 extern char * board_get_mfg_sleep_gpio_table(void);
 extern void gpio_set_diag_gpio_table(unsigned long * dwMFG_gpio_table);
-#warning hoi!
 #endif
 
 #ifdef CONFIG_AXI_SCREEN_POLICY
