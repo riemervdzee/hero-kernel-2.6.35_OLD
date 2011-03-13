@@ -82,7 +82,6 @@ struct msm_i2c_dev {
 	bool                is_suspended;
 	int                 clk_drv_str;
 	int                 dat_drv_str;
-	int                 skip_recover;
 };
 
 #if DEBUG
@@ -353,11 +352,9 @@ msm_i2c_xfer(struct i2c_adapter *adap, struct i2c_msg msgs[], int num)
 	if (ret) {
 		dev_err(dev->dev, "Still busy in starting xfer(%02X)\n",
 			msgs->addr);
-		if (!dev->skip_recover) {
-			ret = msm_i2c_recover_bus_busy(dev);
-			if (ret)
-				goto err;
-		}
+		ret = msm_i2c_recover_bus_busy(dev);
+		if (ret)
+			goto err;
 	}
 
 	spin_lock_irqsave(&dev->lock, flags);
@@ -409,15 +406,12 @@ msm_i2c_xfer(struct i2c_adapter *adap, struct i2c_msg msgs[], int num)
 	if (ret < 0) {
 		dev_err(dev->dev, "Error during data xfer (%d) (%02X)\n",
 			ret, msgs->addr);
-		if (!dev->skip_recover)
-			msm_i2c_recover_bus_busy(dev);
+		msm_i2c_recover_bus_busy(dev);
 	}
 err:
 	disable_irq(dev->irq);
 	clk_disable(dev->clk);
-	if (dev->is_suspended)
-		wake_unlock(&dev->wakelock);
-
+	wake_unlock(&dev->wakelock);
 	return ret;
 }
 
@@ -502,12 +496,10 @@ msm_i2c_probe(struct platform_device *pdev)
 		dev->clk_drv_str = 0;
 		dev->dat_drv_str = 0;
 		i2c_clock = 100000;
-		dev->skip_recover = 1;
 	}
 
-	if (!dev->skip_recover)
-		msm_set_i2c_mux(false, NULL, NULL,
-			dev->clk_drv_str, dev->dat_drv_str);
+	msm_set_i2c_mux(false, NULL, NULL,
+		dev->clk_drv_str, dev->dat_drv_str);
 
 	clk_enable(clk);
 
