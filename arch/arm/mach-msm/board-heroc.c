@@ -443,13 +443,13 @@ static uint32_t camera_on_gpio_table[] = {
 	PCOM_GPIO_CFG(15, 1, GPIO_OUTPUT, GPIO_PULL_UP, GPIO_16MA), /* MCLK */
 };
 
-void config_camera_on_gpios(void)
+void config_heroc_camera_on_gpios(void)
 {
         config_gpio_table(camera_on_gpio_table,
                 ARRAY_SIZE(camera_on_gpio_table));
 }
 
-void config_camera_off_gpios(void)
+void config_heroc_camera_off_gpios(void)
 {
         config_gpio_table(camera_off_gpio_table,
                 ARRAY_SIZE(camera_off_gpio_table));
@@ -463,14 +463,14 @@ static struct resource msm_camera_resources[] = {
         },
         {
                 .start  = INT_VFE,
-                .end	= INT_VFE,
+                 INT_VFE,
                 .flags  = IORESOURCE_IRQ,
         },
 };
 
 static struct msm_camera_device_platform_data msm_camera_device_data = {
-	.camera_gpio_on  = config_camera_on_gpios,
-	.camera_gpio_off = config_camera_off_gpios,
+	.camera_gpio_on  = config_heroc_camera_on_gpios,
+	.camera_gpio_off = config_heroc_camera_off_gpios,
 	.ioext.mdcphy = MSM_MDC_PHYS,
 	.ioext.mdcsz  = MSM_MDC_SIZE,
 	.ioext.appphy = MSM_CLK_CTL_PHYS,
@@ -478,27 +478,22 @@ static struct msm_camera_device_platform_data msm_camera_device_data = {
 
 };
 
-/*static struct camera_flash_cfg msm_camera_sensor_flash_cfg = {
+/* static struct camera_flash_cfg msm_camera_sensor_flash_cfg = {
         .camera_flash           = flashlight_control,
         .num_flash_levels       = FLASHLIGHT_NUM,
         .low_temp_limit         = 5,
         .low_cap_limit          = 15,
 
-};*/
+}; */
 
 static struct msm_camera_sensor_info msm_camera_sensor_s5k3e2fx_data = {
 	.sensor_name    = "s5k3e2fx",
-      .resource = msm_camera_resources,
-      .num_resources = ARRAY_SIZE(msm_camera_resources),
-//       .flash_cfg      = &msm_camera_sensor_flash_cfg,
-	 .sensor_reset   = HEROC_GPIO_CAM_RST_N,
-	 .sensor_pwd     = HEROC_CAM_PWDN,
-	 .vcm_pwd        = HEROC_GPIO_VCM_PWDN,
+	 .sensor_reset   = 92, 			/* HEROC CAM RESET */
+	 .sensor_pwd 	 = 107,  		/* HEROC CAM PWD */
+	 .vcm_pwd        = 91, 			/* HEROC CAM VCM PWD */
 	 .pdata          = &msm_camera_device_data,
-	 .flash_type     = MSM_CAMERA_FLASH_NONE,
-	 .need_suspend   = 1
-	 //.waked_up	= NULL,
-	 //.event_wait	= NULL
+	 .resource = msm_camera_resources,
+	 .num_resources = ARRAY_SIZE(msm_camera_resources),
 };
 
 static struct platform_device msm_camera_sensor_s5k3e2fx = {
@@ -977,7 +972,7 @@ static uint32_t gpio_table[] = {
 static void __init config_gpios(void)
 {
 	config_gpio_table(gpio_table, ARRAY_SIZE(gpio_table));
-//	config_heroc_camera_off_gpios();
+	config_heroc_camera_off_gpios();
 }
 
 
