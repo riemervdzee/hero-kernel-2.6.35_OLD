@@ -64,6 +64,9 @@ obj-$(CONFIG_MACH_HEROC) += board-heroc-rfkill.o msm_vibrator.o
 obj-$(CONFIG_MACH_HEROC) += board-heroc-mmc.o board-heroc-wifi.o 
 obj-$(CONFIG_MACH_HEROC) += htc_wifi_nvs.o
 obj-$(CONFIG_MACH_HEROC) += board-heroc-tpa6130.o
+obj-$(CONFIG_MACH_HEROC) += board-heroc-headset_v1.o
+obj-$(CONFIG_MACH_HEROC) += board-heroc-35mm_remote_v1.o
+obj-$(CONFIG_MACH_HEROC) += board-heroc-audio_jack_v1.o
 
 obj-$(CONFIG_MACH_HERO) += devices_htc.o
 obj-$(CONFIG_MACH_HEROC) += devices_htc.o

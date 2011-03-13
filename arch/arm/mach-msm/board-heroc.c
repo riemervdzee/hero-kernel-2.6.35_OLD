@@ -58,7 +58,7 @@
 #include <mach/msm_serial_hs.h>
 #include <mach/htc_pwrsink.h>
 #include <mach/msm_fb.h>
-#include <mach/h2w_v1.h>
+#include "board-heroc-mach-h2w_v1.h"
 #include <mach/microp_i2c.h>
 #include <mach/htc_battery.h>
 #include <mach/drv_callback.h>
@@ -69,7 +69,7 @@
 #include "board-heroc.h"
 //#include <mach/htc_headset.h>
 #include <linux/i2c-msm.h>
-#include <mach/audio_jack.h>
+#include "board-heroc-mach-audio_jack.h"
 #include <mach/perflock.h>
 // msm_hsusb
 
@@ -333,9 +333,7 @@ static void heroc_microp_intr_function(uint8_t *pin_status)
 	if (last_insert != insert) {
 		printk(KERN_INFO "heroc_microp_intr_function : %s\n", insert ? "inserted" : "not inserted");
 		microp_i2c_set_pin_mode(4, insert, microp_data.dev_id);
-#ifdef CONFIG_HTC_HEADSET_V1
 		cnf_driver_event("H2W_extend_headset", &insert);
-#endif
 		last_insert = insert;
 	}
 }
@@ -627,7 +625,6 @@ static uint32_t uart3_off_gpo_table[] = {
                       GPIO_OUTPUT, GPIO_NO_PULL, GPIO_2MA),
 };
 
-#ifdef CONFIG_HEROC_H2W
 static int heroc_h2w_path = H2W_GPIO;
 
 static void h2w_configure(int route)
@@ -643,7 +640,6 @@ static void h2w_configure(int route)
 		printk(KERN_INFO "H2W -> UART3\n");
 		break;
 	case H2W_GPIO:
-	default:
 		msm_proc_comm(PCOM_RPC_GPIO_TLMM_CONFIG_EX,
 			      uart3_off_gpi_table+0, 0);
 		msm_proc_comm(PCOM_RPC_GPIO_TLMM_CONFIG_EX,
@@ -713,7 +709,6 @@ static int get_h2w_clk(void)
 	return gpio_get_value(HEROC_GPIO_H2W_CLK);
 }
 
-#ifdef CONFIG_HTC_HEADSET_V1
 static int set_h2w_path(const char *val, struct kernel_param *kp)
 {
 	int ret = -EINVAL;
@@ -744,7 +739,6 @@ static int set_h2w_path(const char *val, struct kernel_param *kp)
 module_param_call(h2w_path, set_h2w_path, param_get_int,
 		  &heroc_h2w_path, S_IWUSR | S_IRUGO);
 
-#endif
 static struct h2w_platform_data heroc_h2w_data = {
 	.h2w_power	 	= HEROC_GPIO_H2W_POWER,
 	.cable_in1	 	= HEROC_GPIO_CABLE_IN1,
@@ -752,7 +746,7 @@ static struct h2w_platform_data heroc_h2w_data = {
 	.h2w_clk 		= HEROC_GPIO_H2W_CLK,
 	.h2w_data 		= HEROC_GPIO_H2W_DATA,
 	.headset_mic_35mm 	= HEROC_GPIO_HEADSET_MIC,
-//	.ext_mic_sel 		= HEROC_GPIO_AUD_EXTMIC_SEL,
+	.ext_mic_sel 		= HEROC_GPIO_AUD_EXTMIC_SEL,
 	.debug_uart 		= H2W_UART3,
 	.config 		= h2w_configure,
 	.defconfig 		= h2w_defconfig,
@@ -762,14 +756,13 @@ static struct h2w_platform_data heroc_h2w_data = {
 	.set_clk_dir 		= set_h2w_clk_dir,
 	.get_dat 		= get_h2w_dat,
 	.get_clk 		= get_h2w_clk,
-	.headset_mic_sel        = heroc_headset_mic_select,
-	.flags 			= REVERSE_MIC_SEL,
+	.flags 			= REVERSE_MIC_SEL, 
 };
 
 static struct platform_device heroc_h2w = {
-	.name = "h2w",
-	.id = -1,
-	.dev = {
+	.name 	= "htc_headset",
+	.id 	= -1,
+	.dev 	= {
 		.platform_data = &heroc_h2w_data,
 	},
 };
@@ -783,9 +776,7 @@ void config_h2w_gpios(void)
         config_gpio_table(h2w_gpio_table, ARRAY_SIZE(h2w_gpio_table));
 }
 
-#endif
 
-#ifdef CONFIG_HEROC_AUDIO_JACK
 static struct audio_jack_platform_data heroc_jack_data = {
         .gpio   = HEROC_GPIO_35MM_HEADSET_DET,
 };
@@ -797,7 +788,6 @@ static struct platform_device heroc_audio_jack = {
 		.platform_data	= &heroc_jack_data,
 	},
 };
-#endif
 
 static struct platform_device heroc_rfkill = {
 	.name = "heroc_rfkill",
@@ -902,13 +892,9 @@ static struct msm_i2c_device_platform_data heroc_i2c_device_data = {
 
 static struct platform_device *devices[] __initdata = {
         &msm_device_i2c,
-#ifdef CONFIG_HEROC_H2W
 	&heroc_h2w,
-#endif
 	&htc_battery_pdev,
-#ifdef CONFIG_HEROC_AUDIO_JACK
 	&heroc_audio_jack,
-#endif
 	&heroc_rfkill,
 #ifdef CONFIG_HTC_PWRSINK
 	&heroc_pwr_sink,
@@ -1015,13 +1001,18 @@ static void __init heroc_init(void)
 	printk(KERN_INFO "heroc_init() revision=%d\n", system_rev);
 
 	config_gpios();
-	config_h2w_gpios();
 
+	gpio_request(HEROC_GPIO_H2W_POWER, "heroc_gpio_h2w_power");
+	gpio_request(HEROC_GPIO_CABLE_IN2, "heroc_gpio_cable_in2");
+        gpio_request(HEROC_GPIO_AUD_EXTMIC_SEL, "heroc_gpio_aud_extmic_sel");
+
+	config_h2w_gpios();
+	if (system_rev < 2)
+                heroc_h2w.name = "h2w";
 	msm_hw_reset_hook = heroc_reset;
 
 	msm_acpu_clock_init(&heroc_clock_data);
 	perflock_init(&heroc_perflock_data);
-
 
 #if defined(CONFIG_MSM_SERIAL_DEBUGGER)
 	if (!opt_disable_uart3)
@@ -1030,11 +1021,16 @@ static void __init heroc_init(void)
 #endif
 
 	platform_add_devices(core_devices, ARRAY_SIZE(core_devices));
+
 	clear_bluetooth_rx_irq_status();
 
 #ifdef CONFIG_SERIAL_MSM_HS
 	msm_device_uart_dm1.dev.platform_data = &msm_uart_dm1_pdata;
 #endif
+	
+	
+	
+	
 	platform_add_devices(serial_devices, ARRAY_SIZE(serial_devices));	
 
 	msm_add_usb_devices(heroc_phy_reset);
@@ -1049,7 +1045,6 @@ static void __init heroc_init(void)
 	// This requires a ported msm_i2c driver that supports overrides
 	msm_device_i2c.dev.platform_data = &heroc_i2c_device_data; 
 	platform_add_devices(devices, ARRAY_SIZE(devices));
-
 
 /*	for (rc=0;rc<ARRAY_SIZE(i2c_devices);rc++){
             if (!strcmp(i2c_devices[rc].type,AKM8973_I2C_NAME)){
