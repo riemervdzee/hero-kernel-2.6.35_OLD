@@ -342,8 +342,8 @@ restart:
 
 	sleeping = msmfb->sleeping;
 	/* on a full update, if the last frame has not completed, wait for it */
-	if (pan_display && (msmfb->frame_requested != msmfb->frame_done ||
-			    sleeping == UPDATING)) {
+	if ((pan_display && msmfb->frame_requested != msmfb->frame_done) ||
+			    sleeping == UPDATING) {
 		int ret;
 		spin_unlock_irqrestore(&msmfb->update_lock, irq_flags);
 		ret = wait_event_interruptible_timeout(msmfb->frame_wq,
@@ -523,7 +523,6 @@ static void msmfb_suspend(struct early_suspend *h)
 	struct msm_panel_data *panel = msmfb->panel;
 	/* suspend the panel */
 #ifdef CONFIG_FB_MSM_OVERLAY
-#warning got overlay
 	/*check whether overlay done*/
 	wait_event_interruptible_timeout(
 		overlay_event.event_wait,
@@ -1013,7 +1012,7 @@ static void setup_fb_info(struct msmfb_info *msmfb)
 	fb_info->var.blue.msb_right = 0;
 
 	mdp->set_output_format(mdp, fb_info->var.bits_per_pixel);
-#if !defined(CONFIG_MACH_HERO)
+#if !defined(CONFIG_MACH_HERO) && !defined(CONFIG_MACH_HEROC)
 	mdp->set_panel_size(mdp, msmfb->xres, msmfb->yres);
 #endif
 
