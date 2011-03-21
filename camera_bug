@@ -7,7 +7,7 @@ Kernel: 2.6.35.10,
 
 **Camera Problems**
 
-   March 2, 2011.
+   March 2, 2011. Matteo Benetti (MrBang)
 	
 	Booted my Hero with kernel builded on hero_defconf config file.
 	Speed issue (cpu freq), bad screen on/off (power management).
@@ -40,7 +40,8 @@ Kernel: 2.6.35.10,
 	by missing header and/or minor porting errors.
 		
 	
-   March 3, 2011.
+
+   March 3, 2011. Matteo Benetti (MrBang)
 
 	Into drivers/i2c/busses/i2c-msm.c from legend there is an include 
 	that isn't into cm-kernel:
@@ -61,7 +62,16 @@ Kernel: 2.6.35.10,
 	
 
 
+   March 21, 2011. Riemer van der Zee
 
+	i2c problems are caused as I disabled the AF acuator earlier.
+	It seems with disabling this device, it is sometimes able to take a picture.
+	However disabling it, also disables the focusing a little.
+	I have reverted the driver totally to act like the original .29 HTC Hero drv
+	
+	The problem seems to be somekind of timing problem or so?
+	Another possible lead is that it reports the gain and/or line is zero?
+	Getting quite clueless actually...
 
 
 
