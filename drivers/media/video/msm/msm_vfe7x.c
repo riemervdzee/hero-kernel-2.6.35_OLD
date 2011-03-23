@@ -248,6 +248,13 @@ static void vfe_7x_release(struct platform_device *pdev)
 {
 	struct msm_sensor_ctrl *sctrl =
 		&((struct msm_sync *)vfe_syncdata)->sctrl;
+
+	if (ebi1_clk) {
+		clk_set_rate(ebi1_clk, 0);
+		clk_put(ebi1_clk);
+		ebi1_clk = 0;
+	}
+
 	mutex_lock(&vfe_lock);
 	vfe_syncdata = NULL;
 	mutex_unlock(&vfe_lock);
@@ -261,22 +268,25 @@ static void vfe_7x_release(struct platform_device *pdev)
 	msm_adsp_disable(qcam_mod);
 	msm_adsp_disable(vfe_mod);
 
+#if defined(CONFIG_ARCH_MSM7X00A)
 	if (sctrl)
 		sctrl->s_release();
 
+	/* for HERO power sequence of standby mode */
 	msm_adsp_put(qcam_mod);
 	msm_adsp_put(vfe_mod);
+#else
+	msm_adsp_put(qcam_mod);
+	msm_adsp_put(vfe_mod);
+
+	if (sctrl)
+		sctrl->s_release();
+#endif
 
 	msm_camio_disable(pdev);
 
 	kfree(extdata);
 	extdata = 0;
-
-	if (ebi1_clk) {
-		clk_set_rate(ebi1_clk, 0);
-		clk_put(ebi1_clk);
-		ebi1_clk = 0;
-	}
 }
 
 static int vfe_7x_init(struct msm_vfe_callback *presp,
