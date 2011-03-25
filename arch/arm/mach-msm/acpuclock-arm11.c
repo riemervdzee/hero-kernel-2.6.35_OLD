@@ -685,11 +685,12 @@ out:
 
 static void __init acpuclk_init(void)
 {
-	pr_info("acpuclk_init()\n");
 	struct clkctl_acpu_speed *speed;
-	struct clkctl_acpu_speed *max_s;
+//	struct clkctl_acpu_speed *max_s;
 	uint32_t div, sel;
 	int rc;
+
+	pr_info("acpuclk_init()\n");
 
 	/*
 	 * Determine the rate of ACPU clock
@@ -757,11 +758,12 @@ uint32_t acpuclk_get_switch_time(void)
 static ssize_t acpuclk_tbl_show(struct device *dev,
                 struct device_attribute *attr, char *buffer)
 {
-        char buf[16];
         ssize_t result = 0;
-        int i = 0;
 
 #ifdef MSM_CPU_FREQ_SET_MIN_MAX
+        char buf[16];
+        int i = 0;
+
         if (freq_table == NULL) {
                 pr_info("No frequency table!\n");
                 return 0;

@@ -874,7 +874,7 @@ err_alloc:
 	return ret;
 }
 
-static struct platform_driver msm_hw3d_driver = {
+static struct platform_driver msm_hw3d_driver __initdata = {
 	.probe		= hw3d_probe,
 	.resume		= hw3d_resume,
 	.driver		= {

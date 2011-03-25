@@ -271,7 +271,6 @@ struct smem_msm_id {
 static int debug_read_build_id(char *buf, int max)
 {
 	unsigned size;
-	void *data;
 	struct smem_msm_id *msm_id;
 
 	msm_id = smem_item(SMEM_HW_SW_BUILD_ID, &size);

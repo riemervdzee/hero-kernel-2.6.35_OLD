@@ -270,7 +270,7 @@ static int __init heroc_init_keypad(void)
 	}
 
 	if (platform_device_register(&heroc_reset_keys_device))
-		printk(KERN_WARNING "register reset key fail\n", __func__);
+		printk(KERN_WARNING "%s: register reset key fail\n", __func__);
 
 	return platform_device_register(&heroc_keypad_device);
 }

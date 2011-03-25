@@ -271,7 +271,7 @@ static struct dev_pm_ops htc_pwrsink_pm_ops = {
 	.resume_noirq = htc_pwrsink_resume_early,
 };
 
-static struct platform_driver htc_pwrsink_driver = {
+static struct platform_driver htc_pwrsink_driver __initdata = {
 	.probe = htc_pwrsink_probe,
 	.driver = {
 		.name = "htc_pwrsink",

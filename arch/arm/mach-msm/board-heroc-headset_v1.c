@@ -249,11 +249,12 @@ void disable_h2w_irq(void)
 
 int h2w_enable_irq(void *argu)
 {
+	int * enable = (int *)argu;
+
 	if (FS_USB_ENABLE)
 		return 1;
 
-	int *enable = (int *) argu;
-	if (*enable)
+	if (enable)
 		enable_h2w_irq();
 	else
 		disable_h2w_irq();
@@ -410,6 +411,7 @@ ack_resend:
 		udelay(hi->speed);
 		return 0;
 	}
+	return 0;
 }
 
 static unsigned char h2w_readc(void)
@@ -1131,7 +1133,7 @@ static enum hrtimer_restart unplug_35mm_event_timer_func(struct hrtimer *data)
 	return HRTIMER_NORESTART;
 }
 
-static void button_35mm_detection_work(void)
+static void button_35mm_detection_work(struct work_struct *work)
 {
 	int key, ret;
 
@@ -1281,7 +1283,7 @@ static void button_work(struct work_struct *work)
 		} /* end switch */
 	}
 
-	return HRTIMER_NORESTART;
+	return;
 }
 
 static enum hrtimer_restart detect_event_timer_func(struct hrtimer *data)
@@ -1544,7 +1546,7 @@ int extended_headset(void *argu)
 	return 0;
 }
 
-void h2w_get_3button(void *argu)
+int h2w_get_3button(void *argu)
 {
 	int key;
 	int *key_level = (int *) argu;
@@ -1575,6 +1577,8 @@ void h2w_get_3button(void *argu)
 exit_one_btn_headset_press:
 	if (hi->is_wake_lock_ready)
 		wake_lock_timeout(&hi->headset_wake_lock, 1.5*HZ);
+
+	return 0;
 }
 
 #if defined(CONFIG_DEBUG_FS)

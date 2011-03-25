@@ -180,7 +180,7 @@ static uint32_t wifi_off_gpio_table[] = {
 
 static struct vreg *vreg_wifi_osc;	/* WIFI 32khz oscilator */
 static int heroc_wifi_cd;		/* WIFI virtual 'card detect' status */
-static struct vreg *vreg_wifi_batpa;	/* WIFI main power */
+//static struct vreg *vreg_wifi_batpa;	/* WIFI main power */
 
 static struct sdio_embedded_func wifi_func = {
 	.f_class 	= SDIO_CLASS_WLAN,
@@ -323,7 +323,7 @@ int heroc_wifi_reset(int on)
 	/* HRRO use power off/on instead wifi reset*/
 	heroc_wifi_reset_state = on;
 	/* mdelay(50); */
-	//return 0;
+	return 0;
 }
 
 #ifndef CONFIG_WIFI_CONTROL_FUNC
