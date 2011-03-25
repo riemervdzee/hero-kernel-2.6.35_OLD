@@ -1589,7 +1589,6 @@ static struct notifier_block ds2784_notifier = {
 
 static int htc_battery_probe(struct platform_device *pdev)
 {
-	int rc = 0;
 	struct htc_battery_platform_data *pdata = pdev->dev.platform_data;
 
 	htc_batt_info.device_id = pdev->id;
