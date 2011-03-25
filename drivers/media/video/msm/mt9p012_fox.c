@@ -1008,9 +1008,9 @@ static int mt9p012_probe_init_done(const struct msm_camera_sensor_info *data)
 	/*++ update 20100111 ++*/
 #if 0
 	gpio_direction_output(data->sensor_reset, 0);
+	gpio_free(data->sensor_reset);
 #endif
 	/*-- update 20100111 --*/
-	gpio_free(data->sensor_reset);
 	return 0;
 }
 
@@ -1026,7 +1026,8 @@ static int mt9p012_probe_init_sensor(const struct msm_camera_sensor_info *data)
 		gpio_direction_output(data->sensor_reset, 0);
 		mdelay(5);
 		gpio_direction_output(data->sensor_reset, 1);
-		}
+		gpio_free(data->sensor_reset);
+	}
 	/*-- update 20100111 --*/
 	else
 		goto init_probe_done;
@@ -1352,9 +1353,9 @@ int mt9p012_sensor_release(void)
 	/*++ update 20100111 ++*/
 #if 0
 	gpio_direction_output(mt9p012_ctrl->sensordata->sensor_reset, 0);
+	gpio_free(mt9p012_ctrl->sensordata->sensor_reset);
 #endif
 	/*-- update 20100111 --*/
-	gpio_free(mt9p012_ctrl->sensordata->sensor_reset);
 
 	gpio_direction_output(mt9p012_ctrl->sensordata->vcm_pwd, 0);
 	gpio_free(mt9p012_ctrl->sensordata->vcm_pwd);
