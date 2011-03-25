@@ -175,7 +175,8 @@ static struct synaptics_i2c_rmi_platform_data heroc_ts_data[] = {
 	}
 };
 #endif
-
+#if 0
+// Is there any pre revision 1 CDMA Hero hardware out there?
 static struct microp_pin_config microp_pins_0[] = {
 	MICROP_PIN(0, MICROP_PIN_CONFIG_GPO),
 	MICROP_PIN(1, MICROP_PIN_CONFIG_GPO),
@@ -231,6 +232,7 @@ static struct microp_pin_config microp_pins_0[] = {
                 .init_intr_function = 0,
 	}
 };
+#endif
 
 static struct microp_pin_config microp_pins_1[] = {
 	MICROP_PIN(2, MICROP_PIN_CONFIG_GPO),
@@ -316,6 +318,8 @@ void heroc_headset_mic_select(uint8_t select)
 	microp_i2c_set_pin_mode(4, select, microp_data.dev_id);
 }
 
+#if 0
+// Stolen from GSM Hero, good candidate for snippage.
 static void heroc_microp_intr_function(uint8_t *pin_status)
 {
 	static int last_insert = 0;
@@ -337,6 +341,7 @@ static void heroc_microp_intr_function(uint8_t *pin_status)
 		last_insert = insert;
 	}
 }
+#endif
 
 static struct akm8973_platform_data compass_platform_data = {
 	.layouts = HEROC_LAYOUTS,
@@ -391,12 +396,14 @@ static struct i2c_board_info i2c_devices[] = {
 	}
 };
 
+#if 0
+// Not sure where this came from
 static struct i2c_board_info i2c_bma150 = {
         I2C_BOARD_INFO(BMA150_I2C_NAME, 0x38),
         .platform_data = &gsensor_platform_data,
         .irq = MSM_GPIO_TO_INT(HEROC_GPIO_GSENSOR_INT_N),
 };
-
+#endif
 
 static uint32_t camera_off_gpio_table[] = {
 	/* CAMERA */

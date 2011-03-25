@@ -161,7 +161,7 @@ samsung_send_cmd(struct msm_mddi_client_data *client_data, unsigned cmd,
 
 static int
 samsung_change_cabcmode(struct msm_mddi_client_data *client_data,
-		enum cabc_mode mode, u8 dimming)
+		int mode, u8 dimming)
 {
 	u8 prm[20];
 
@@ -306,10 +306,13 @@ samsung_set_brightness(struct led_classdev *led_cdev,
 static enum led_brightness
 samsung_get_brightness(struct led_classdev *led_cdev)
 {
+	struct cabc *cabc;
+	struct msm_mddi_client_data *client_data;
+	u32 val = 0;
+
 	B(KERN_DEBUG "%s enter\n", __func__);
-	struct cabc *cabc = to_cabc(led_cdev, lcd_backlight);
-       struct msm_mddi_client_data *client_data = cabc_get_client(cabc);
-       u32 val = 0;
+	cabc = to_cabc(led_cdev, lcd_backlight);
+	client_data = cabc_get_client(cabc);
 
        wake_lock(&cabc->wakelock);
 

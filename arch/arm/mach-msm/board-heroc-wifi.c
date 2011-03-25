@@ -84,14 +84,13 @@ static struct platform_device wifi_ctrl_dev = {
 static int __init heroc_wifi_init(void)
 {
 	int ret;
+	int rc = 0;
+	if (!machine_is_heroc())
+		return 0;
 
-//	if (!machine_is_heroc())
-//		return 0;
-
-	printk("%s: start\n", __func__);
 
 #ifdef CONFIG_WIFI_MEM_PREALLOC
-	int rc = heroc_init_wifi_mem();
+	rc = heroc_init_wifi_mem();
 	if (rc) {
 		printk(KERN_CRIT "%s: WiFi memory init failure (%d)\n",
 		       __func__, rc);
