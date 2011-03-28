@@ -1597,7 +1597,7 @@ msmsdcc_suspend(struct platform_device *dev, pm_message_t state)
 
 
 		if (mmc->card && mmc->card->type != MMC_TYPE_SDIO)
-			rc = mmc_suspend_host(mmc, state);
+			rc = mmc_suspend_host(mmc);
 		if (!rc)
 			msmsdcc_writel(host, 0, MMCIMASK0);
 #if BUSCLK_PWRSAVE
