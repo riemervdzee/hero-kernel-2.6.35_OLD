@@ -1363,6 +1363,19 @@ static int unix_attach_fds(struct scm_cookie *scm, struct sk_buff *skb)
 	return max_level;
 }
 
+static int unix_scm_to_skb(struct scm_cookie *scm, struct sk_buff *skb, bool send_fds)
+{
+	int err = 0;
+	UNIXCB(skb).pid  = get_pid(scm->pid);
+	UNIXCB(skb).cred = get_cred(scm->cred);
+	UNIXCB(skb).fp = NULL;
+	if (scm->fp && send_fds)
+		err = unix_attach_fds(scm, skb);
+
+	skb->destructor = unix_destruct_scm;
+	return err;
+}
+
 /*
  *	Send AF_UNIX data.
  */
@@ -1420,12 +1433,9 @@ static int unix_dgram_sendmsg(struct kiocb *kiocb, struct socket *sock,
 	if (skb == NULL)
 		goto out;
 
-	memcpy(UNIXCREDS(skb), &siocb->scm->creds, sizeof(struct ucred));
-	if (siocb->scm->fp) {
-		err = unix_attach_fds(siocb->scm, skb);
-		if (err < 0)
-			goto out_free;
-	}
+	err = unix_scm_to_skb(siocb->scm, skb, true);
+	if (err < 0)
+		goto out_free;
 	max_level = err + 1;
 	unix_get_secdata(siocb->scm, skb);
 
@@ -1601,14 +1611,10 @@ static int unix_stream_sendmsg(struct kiocb *kiocb, struct socket *sock,
 
 
 		/* Only send the fds in the first buffer */
-		if (siocb->scm->fp && !fds_sent) {
-			err = unix_attach_fds(siocb->scm, skb);
-			if (err < 0) {
-				kfree_skb(skb);
-				goto out_err;
-			}
-			max_level = err + 1;
-			fds_sent = true;
+		err = unix_scm_to_skb(siocb->scm, skb, !fds_sent);
+		if (err < 0) {
+			kfree_skb(skb);
+			goto out_err;
 		}
 		max_level = err + 1;
 		fds_sent = true;
