@@ -298,18 +298,18 @@ static void cpufreq_interactive_timer(unsigned long data)
 
 	if (new_freq < pcpu->target_freq) {
 		pcpu->target_freq = new_freq;
-		spin_lock(&down_cpumask_lock);
+		spin_lock_irqsave(&down_cpumask_lock, flags);
 		cpumask_set_cpu(data, &down_cpumask);
-		spin_unlock(&down_cpumask_lock);
+		spin_unlock_irqrestore(&down_cpumask_lock, flags);
 		queue_work(down_wq, &freq_scale_down_work);
 	} else {
 		pcpu->target_freq = new_freq;
 #if DEBUG
 		up_request_time = ktime_to_us(ktime_get());
 #endif
-		spin_lock(&up_cpumask_lock);
+		spin_lock_irqsave(&up_cpumask_lock, flags);
 		cpumask_set_cpu(data, &up_cpumask);
-		spin_unlock(&up_cpumask_lock);
+		spin_unlock_irqrestore(&up_cpumask_lock, flags);
 		wake_up_process(up_task);
 	}
 
@@ -322,7 +322,7 @@ rearm_if_notmax:
 		goto exit;
 
 rearm:
-	if (!timer_pending(&pcpu->cpu_timer) && pcpu->governor_enabled) {
+	if (!timer_pending(&pcpu->cpu_timer)) {
 		/*
 		 * If already at min: if that CPU is idle, don't set timer.
 		 * Else cancel the timer if that CPU goes idle.  We don't
@@ -364,10 +364,45 @@ static void cpufreq_interactive_idle(void)
 	smp_wmb();
 	pending = timer_pending(&pcpu->cpu_timer);
 
-	if (delta_time == 0)
-	  return policy->cur;
-
-	cpu_load = 100 * (delta_time - idle_time) / delta_time;
+	if (pcpu->target_freq != pcpu->policy->min) {
+#ifdef CONFIG_SMP
+		/*
+		 * Entering idle while not at lowest speed.  On some
+		 * platforms this can hold the other CPU(s) at that speed
+		 * even though the CPU is idle. Set a timer to re-evaluate
+		 * speed so this idle CPU doesn't hold the other CPUs above
+		 * min indefinitely.  This should probably be a quirk of
+		 * the CPUFreq driver.
+		 */
+		if (!pending) {
+			pcpu->time_in_idle = get_cpu_idle_time_us(
+				smp_processor_id(), &pcpu->idle_exit_time);
+			pcpu->timer_idlecancel = 0;
+			mod_timer(&pcpu->cpu_timer, jiffies + 2);
+			dbgpr("idle: enter at %d, set timer for %lu exit=%llu\n",
+			      pcpu->target_freq, pcpu->cpu_timer.expires,
+			      pcpu->idle_exit_time);
+		}
+#endif
+	} else {
+		/*
+		 * If at min speed and entering idle after load has
+		 * already been evaluated, and a timer has been set just in
+		 * case the CPU suddenly goes busy, cancel that timer.  The
+		 * CPU didn't go busy; we'll recheck things upon idle exit.
+		 */
+		if (pending && pcpu->timer_idlecancel) {
+			dbgpr("idle: cancel timer for %lu\n", pcpu->cpu_timer.expires);
+			del_timer(&pcpu->cpu_timer);
+			/*
+			 * Ensure last timer run time is after current idle
+			 * sample start time, so next idle exit will always
+			 * start a new idle sampling period.
+			 */
+			pcpu->idle_exit_time = 0;
+			pcpu->timer_idlecancel = 0;
+		}
+	}
 
 	pm_idle_old();
 	pcpu->idling = 0;
@@ -418,16 +453,16 @@ static int cpufreq_interactive_up_task(void *data)
 
 	while (1) {
 		set_current_state(TASK_INTERRUPTIBLE);
-		spin_lock(&up_cpumask_lock);
+		spin_lock_irqsave(&up_cpumask_lock, flags);
 
 		if (cpumask_empty(&up_cpumask)) {
-			spin_unlock(&up_cpumask_lock);
+			spin_unlock_irqrestore(&up_cpumask_lock, flags);
 			schedule();
 
 			if (kthread_should_stop())
 				break;
 
-			spin_lock(&up_cpumask_lock);
+			spin_lock_irqsave(&up_cpumask_lock, flags);
 		}
 
 		set_current_state(TASK_RUNNING);
@@ -446,7 +481,7 @@ static int cpufreq_interactive_up_task(void *data)
 
 		tmp_mask = up_cpumask;
 		cpumask_clear(&up_cpumask);
-		spin_unlock(&up_cpumask_lock);
+		spin_unlock_irqrestore(&up_cpumask_lock, flags);
 
 		for_each_cpu(cpu, &tmp_mask) {
 			pcpu = &per_cpu(cpuinfo, cpu);
@@ -455,6 +490,8 @@ static int cpufreq_interactive_up_task(void *data)
 				dbgpr("up %d: tgt=%d nothing else running\n", cpu,
 				      pcpu->target_freq);
 			}
+
+			smp_rmb();
 
 			if (!pcpu->governor_enabled)
 				continue;
@@ -476,15 +513,18 @@ static void cpufreq_interactive_freq_down(struct work_struct *work)
 {
 	unsigned int cpu;
 	cpumask_t tmp_mask;
+	unsigned long flags;
 	struct cpufreq_interactive_cpuinfo *pcpu;
 
-	spin_lock(&down_cpumask_lock);
+	spin_lock_irqsave(&down_cpumask_lock, flags);
 	tmp_mask = down_cpumask;
 	cpumask_clear(&down_cpumask);
-	spin_unlock(&down_cpumask_lock);
+	spin_unlock_irqrestore(&down_cpumask_lock, flags);
 
 	for_each_cpu(cpu, &tmp_mask) {
 		pcpu = &per_cpu(cpuinfo, cpu);
+
+		smp_rmb();
 
 		if (!pcpu->governor_enabled)
 			continue;
@@ -578,6 +618,7 @@ static int cpufreq_governor_interactive(struct cpufreq_policy *new_policy,
 
 	case CPUFREQ_GOV_STOP:
 		pcpu->governor_enabled = 0;
+		smp_wmb();
 		del_timer_sync(&pcpu->cpu_timer);
 		flush_work(&freq_scale_down_work);
 		/*
