@@ -73,6 +73,7 @@ struct clock_state
 
 static struct clk *ebi1_clk;
 static struct clock_state drv_state = { 0 };
+static unsigned long max_axi_rate;
 
 static void __init acpuclk_init(void);
 
@@ -104,8 +105,6 @@ struct clkctl_acpu_speed {
 	short		up;
 	short		pll2_lval;
 };
-
-static unsigned long max_axi_rate;
 
 /*
  * ACPU speed table. Complete table is shown but certain speeds are commented
@@ -401,12 +400,11 @@ module_param_call(wfi_khz, param_set_int, param_get_int,
                 &drv_state.wait_for_irq_khz, S_IWUSR | S_IRUGO);
 
 unsigned long acpuclk_power_collapse(int from_idle) {
-	int ret = acpuclk_get_rate() * 1000;
-	if (ret > drv_state.power_collapse_khz) {
+	int ret = acpuclk_get_rate();
+	if (ret > drv_state.power_collapse_khz)
 		acpuclk_set_rate(drv_state.power_collapse_khz * 1000,
-		        (from_idle ? SETRATE_PC_IDLE : SETRATE_PC));
-	}
-	return ret;
+        (from_idle ? SETRATE_PC_IDLE : SETRATE_PC));
+	return ret * 1000;
 }
 
 unsigned long acpuclk_get_wfi_rate(void)
@@ -415,11 +413,11 @@ unsigned long acpuclk_get_wfi_rate(void)
 }
 
 unsigned long acpuclk_wait_for_irq(void) {
-	int ret = acpuclk_get_rate() * 1000;
+	int ret = acpuclk_get_rate();
 	if (ret > drv_state.wait_for_irq_khz)
 		acpuclk_set_rate(drv_state.wait_for_irq_khz * 1000,
-				 SETRATE_SWFI);
-	return ret;
+				SETRATE_SWFI);
+	return ret * 1000;
 }
 
 static int acpuclk_set_vdd_level(int vdd)
@@ -586,7 +584,7 @@ int acpuclk_set_rate(unsigned long rate, enum setrate_reason reason)
 
 	/* Set wait states for CPU in/between frequency changes */
 	reg_clkctl = readl(A11S_CLK_CNTL_ADDR);
-	reg_clkctl |= (100 << 16); /* set WT_ST_CNT | was 14 on HERO??? */
+	reg_clkctl |= (100 << 16); /* set WT_ST_CNT */
 	writel(reg_clkctl, A11S_CLK_CNTL_ADDR);
 
 	if (acpu_debug_mask & PERF_SWITCH_DEBUG)
@@ -643,16 +641,11 @@ int acpuclk_set_rate(unsigned long rate, enum setrate_reason reason)
 		return 0;
 
 	/* Change the AXI bus frequency if we can. */
-        if (strt_s->axiclk_khz != tgt_s->axiclk_khz) {
-                rc = clk_set_rate(ebi1_clk, tgt_s->axiclk_khz * 1000);
-                if (rc < 0)
-                        pr_err("Setting AXI min rate failed!\n");
-        }
-
-#if !defined(CONFIG_ARCH_MSM7227)
-        if (reason == SETRATE_PC)
-                return 0;
-#endif
+	if (strt_s->axiclk_khz != tgt_s->axiclk_khz) {
+		rc = clk_set_rate(ebi1_clk, tgt_s->axiclk_khz * 1000);
+		if (rc < 0)
+			pr_err("Setting AXI min rate failed!\n");
+	}
 
 	/* Disable PLLs we are not using anymore. */
 	plls_enabled &= ~(1 << tgt_s->pll);
@@ -664,9 +657,6 @@ int acpuclk_set_rate(unsigned long rate, enum setrate_reason reason)
 				goto out;
 			}
 		}
-
-
-
 
 	/* Drop VDD level if we can. */
 	if (tgt_s->vdd < strt_s->vdd) {
