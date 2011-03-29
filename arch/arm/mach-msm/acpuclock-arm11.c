@@ -567,7 +567,7 @@ static void __init acpuclk_init(void)
 /* TODO return the max value the user wants the CPU to run */
 unsigned long acpuclk_get_max_axi_rate(void)
 {
-	return 0;
+	return CONFIG_MSM_CPU_FREQ_MAX;
 }
 EXPORT_SYMBOL(acpuclk_get_max_axi_rate);
 
