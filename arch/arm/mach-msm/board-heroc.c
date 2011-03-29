@@ -315,7 +315,7 @@ static struct microp_i2c_platform_data microp_data = {
 
 void heroc_headset_mic_select(uint8_t select)
 {
-	microp_i2c_set_pin_mode(4, select, microp_data.dev_id);
+//	microp_i2c_set_pin_mode(4, select, microp_data.dev_id);
 }
 
 #if 0
