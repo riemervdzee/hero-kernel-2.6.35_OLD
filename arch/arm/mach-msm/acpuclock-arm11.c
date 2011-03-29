@@ -52,9 +52,6 @@
 #define PERF_SWITCH_DEBUG 0
 #define PERF_SWITCH_STEP_DEBUG 0
 
-static int force_turbo = 0;
-module_param_named(force_turbo, force_turbo, int, S_IRUGO | S_IWUSR | S_IWGRP);
-
 struct clock_state
 {
 	struct clkctl_acpu_speed	*current_speed;
@@ -68,7 +65,6 @@ struct clock_state
 
 static struct clk *ebi1_clk;
 static struct clock_state drv_state = { 0 };
-static unsigned long max_axi_rate;
 
 static void __init acpuclk_init(void);
 
@@ -93,7 +89,7 @@ struct clkctl_acpu_speed {
 	unsigned int	ahbclk_khz;
 	unsigned int	ahbclk_div;
 	int		vdd;
-	unsigned int 	axiclk_khz;
+	unsigned int	axiclk_khz;
 	unsigned long	lpj; /* loops_per_jiffy */
 /* Index in acpu_freq_tbl[] for steppings. */
 	short		down;
@@ -236,7 +232,8 @@ static int pc_pll_request(unsigned id, unsigned on)
  * ARM11 'owned' clock control
  *---------------------------------------------------------------------------*/
 
-unsigned long acpuclk_power_collapse(int from_idle) {
+unsigned long acpuclk_power_collapse(int from_idle)
+{
 	int ret = acpuclk_get_rate();
 	if (ret > drv_state.power_collapse_khz)
 		acpuclk_set_rate(drv_state.power_collapse_khz * 1000,
@@ -249,7 +246,8 @@ unsigned long acpuclk_get_wfi_rate(void)
 	return drv_state.wait_for_irq_khz * 1000;
 }
 
-unsigned long acpuclk_wait_for_irq(void) {
+unsigned long acpuclk_wait_for_irq(void)
+{
 	int ret = acpuclk_get_rate();
 	if (ret > drv_state.wait_for_irq_khz)
 		acpuclk_set_rate(drv_state.wait_for_irq_khz * 1000,
@@ -283,20 +281,22 @@ static int acpuclk_set_vdd_level(int vdd)
 }
 
 /* Set proper dividers for the given clock speed. */
-static void acpuclk_set_div(const struct clkctl_acpu_speed *hunt_s) {
+static void acpuclk_set_div(const struct clkctl_acpu_speed *hunt_s)
+{
 	uint32_t reg_clkctl, reg_clksel, clk_div, a11_div;
 
 	/* AHB_CLK_DIV */
 	clk_div = (readl(A11S_CLK_SEL_ADDR) >> 1) & 0x03;
 
-	 a11_div=hunt_s->a11clk_src_div;
+	/* OC BEGIN */
+	a11_div=hunt_s->a11clk_src_div;
 
-	 if (hunt_s->a11clk_khz > 528000 && hunt_s->pll2_lval > 0) {
-	 	a11_div=0;
-	        writel(hunt_s->a11clk_khz/19200, MSM_CLK_CTL_BASE+0x33C);
-	        udelay(50);
-	 }
-
+	if (hunt_s->a11clk_khz >= 518400 && hunt_s->pll2_lval > 0) {
+		a11_div = 0;
+		writel(hunt_s->a11clk_khz/19200, MSM_CLK_CTL_BASE+0x33c);
+		udelay(50);
+	}
+	/* OC END */
 
 	/*
 	 * If the new clock divider is higher than the previous, then
@@ -385,7 +385,8 @@ int acpuclk_set_rate(unsigned long rate, enum setrate_reason reason)
 		return -EINVAL;
 
 	/* Choose the highest speed speed at or below 'rate' with same PLL. */
-	if (reason != SETRATE_CPUFREQ && tgt_s->a11clk_khz < cur_s->a11clk_khz) {
+	if (reason != SETRATE_CPUFREQ
+	    && tgt_s->a11clk_khz < cur_s->a11clk_khz) {
 		while (tgt_s->pll != ACPU_PLL_TCXO && tgt_s->pll != cur_s->pll)
 			tgt_s--;
 	}
@@ -405,6 +406,14 @@ int acpuclk_set_rate(unsigned long rate, enum setrate_reason reason)
 			plls_enabled |= 1 << tgt_s->pll;
 		}
 		/* Increase VDD if needed. */
+		if (tgt_s->vdd > cur_s->vdd) {
+			if ((rc = acpuclk_set_vdd_level(tgt_s->vdd)) < 0) {
+				printk(KERN_ERR "Unable to switch ACPU vdd\n");
+				goto out;
+			}
+		}
+	} else {
+		/* Power collapse should also increase VDD. */
 		if (tgt_s->vdd > cur_s->vdd) {
 			if ((rc = acpuclk_set_vdd_level(tgt_s->vdd)) < 0) {
 				printk(KERN_ERR "Unable to switch ACPU vdd\n");
@@ -448,7 +457,8 @@ int acpuclk_set_rate(unsigned long rate, enum setrate_reason reason)
 		printk(KERN_DEBUG "%s: STEP khz = %u, pll = %d\n",
 			__FUNCTION__, cur_s->a11clk_khz, cur_s->pll);
 #endif
-		if (reason == SETRATE_CPUFREQ && cur_s->pll != ACPU_PLL_TCXO
+		/* Power collapse should also request pll.(19.2->528) */
+		if (cur_s->pll != ACPU_PLL_TCXO
 		    && !(plls_enabled & (1 << cur_s->pll))) {
 			rc = pc_pll_request(cur_s->pll, 1);
 			if (rc < 0) {
@@ -467,7 +477,7 @@ int acpuclk_set_rate(unsigned long rate, enum setrate_reason reason)
 	}
 
 	/* Nothing else to do for power collapse. */
-	if (reason != SETRATE_CPUFREQ)
+	if (reason == SETRATE_SWFI || reason == SETRATE_PC_IDLE)
 		return 0;
 
 	/* Change the AXI bus frequency if we can. */
@@ -476,6 +486,11 @@ int acpuclk_set_rate(unsigned long rate, enum setrate_reason reason)
 		if (rc < 0)
 			pr_err("Setting AXI min rate failed!\n");
 	}
+
+#if !defined(CONFIG_ARCH_MSM7227)
+	if (reason == SETRATE_PC)
+		return 0;
+#endif
 
 	/* Disable PLLs we are not using anymore. */
 	plls_enabled &= ~(1 << tgt_s->pll);
@@ -488,6 +503,10 @@ int acpuclk_set_rate(unsigned long rate, enum setrate_reason reason)
 			}
 		}
 
+#if defined(CONFIG_ARCH_MSM7227)
+	if (reason == SETRATE_PC)
+		return 0;
+#endif
 
 	/* Drop VDD level if we can. */
 	if (tgt_s->vdd < strt_s->vdd) {
@@ -506,7 +525,7 @@ out:
 
 static void __init acpuclk_init(void)
 {
-	struct clkctl_acpu_speed *speed, *max_s;
+	struct clkctl_acpu_speed *speed;
 	uint32_t div, sel;
 	int rc;
 
@@ -542,18 +561,13 @@ static void __init acpuclk_init(void)
 	if (rc < 0)
 		pr_err("Setting AXI min rate failed!\n");
 
-	for (speed = acpu_freq_tbl; speed->a11clk_khz != 0; speed++)
-		;
-	
-	max_s = speed - 1;
-	max_axi_rate = max_s->axiclk_khz * 1000;
-
 	printk(KERN_INFO "ACPU running at %d KHz\n", speed->a11clk_khz);
 }
 
+/* TODO return the max value the user wants the CPU to run */
 unsigned long acpuclk_get_max_axi_rate(void)
 {
-	return max_axi_rate;
+	return 0;
 }
 EXPORT_SYMBOL(acpuclk_get_max_axi_rate);
 
