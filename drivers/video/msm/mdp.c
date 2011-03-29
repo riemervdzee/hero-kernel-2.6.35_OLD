@@ -729,7 +729,6 @@ int mdp_probe(struct platform_device *pdev)
 
 	mdp->base = ioremap(resource->start,
 			    resource->end - resource->start);
-	msm_mdp_base = (int)mdp->base;
 	if (mdp->base == 0) {
 		printk(KERN_ERR "msmfb: cannot allocate mdp regs!\n");
 		ret = -ENOMEM;
