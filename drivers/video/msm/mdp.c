@@ -755,7 +755,6 @@ int register_mdp_client(struct class_interface *cint)
 
 #include "mdp_csc_table.h"
 
-uint32_t msm_mdp_base;
 int mdp_probe(struct platform_device *pdev)
 {
 	struct resource *resource;
@@ -784,7 +783,7 @@ int mdp_probe(struct platform_device *pdev)
 
 	mdp->base = ioremap(resource->start,
 			    resource->end - resource->start);
-	msm_mdp_base = (int)mdp->base;
+	
 	if (mdp->base == 0) {
 		printk(KERN_ERR "msmfb: cannot allocate mdp regs!\n");
 		ret = -ENOMEM;
