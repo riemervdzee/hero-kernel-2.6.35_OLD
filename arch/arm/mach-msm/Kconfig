@@ -192,7 +192,7 @@ config HOLES_IN_ZONE
 config MACH_HALIBUT
 	depends on ARCH_MSM
 	depends on ARCH_MSM7X00A
-        select SMS_SMD_PKG3
+        select MSM_SMD_PKG3
 	bool "Halibut Board (QCT SURF7201A)"
 	help
 	  Support for the Qualcomm SURF7201A eval board.
@@ -200,16 +200,16 @@ config MACH_HALIBUT
 config MACH_TROUT
 	depends on ARCH_MSM
 	depends on ARCH_MSM7X00A
-        select SMS_SMD_PKG3
+	select MSM_SMD_PKG3
 	bool "HTC Dream (aka trout)"
 	help
 	  Support for the HTC Dream, T-Mobile G1, Android ADP1 devices.
 
 config MACH_SAPPHIRE
-        depends on ARCH_MSM7X00A
-        select SMS_SMD_PKG3
-        default y
-        bool "Sapphire"
+	depends on ARCH_MSM7X00A
+	select MSM_SMD_PKG3
+	default y
+	bool "Sapphire"
 
 choice
         depends on ARCH_MSM7X00A
@@ -221,11 +221,11 @@ choice
         config MACH_HERO_NONE
                 bool "None"
 
-        config MACH_HERO
-                bool "GSM"
-                select SMS_SMD_PKG3
-                help
-                  Select this to support the Hero GSM device
+	config MACH_HERO
+		bool "GSM"
+		select MSM_SMD_PKG3
+		help
+		  Select this to support the Hero GSM device
 
         config MACH_HEROC
                 bool "CDMA"
