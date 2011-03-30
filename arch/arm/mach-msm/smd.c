@@ -1090,7 +1090,7 @@ static int msm_smd_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static struct platform_driver msm_smd_driver __initdata = {
+static struct platform_driver msm_smd_driver = {
 	.probe = msm_smd_probe,
 	.driver = {
 		.name = MODULE_NAME,
