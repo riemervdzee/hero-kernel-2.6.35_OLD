@@ -425,9 +425,11 @@ static int spi_gsensor_initial(void)
 		goto err_set_mode;
 	}
 
+#ifdef CONFIG_EARLYSUSPEND
 	bma_early_suspend.suspend = bma150_early_suspend;
 	bma_early_suspend.resume = bma150_early_resume;
 	register_early_suspend(&bma_early_suspend);
+#endif
 
 	return 0;
 

@@ -111,7 +111,7 @@
 
 #elif (CONFIG_MSM_AMSS_VERSION == 4001)
 #define INT_ADSP                               INT_ADSP_A9_A11
-#define MSM_ADSP_DRIVER_NAME                       "rs3000000a:71d1094b"
+#define MSM_ADSP_DRIVER_NAME                   "rs3000000a:71d1094b"
 #define RPC_ADSP_RTOS_ATOM_VERS                0x71d1094b /* 1909524811 */
 #define RPC_ADSP_RTOS_MTOA_VERS                0xf2441eae /* 4064550574 */
 #define AUDMGR_VERS                            0xe94e8f0c /* 3914239756 */
@@ -126,7 +126,7 @@
 
 #elif (CONFIG_MSM_AMSS_VERSION == 1320)
 #define INT_ADSP                               INT_ADSP_A11
-#define MSM_ADSP_DRIVER_NAME                       "rs3000000a:00010001"
+#define MSM_ADSP_DRIVER_NAME                   "rs3000000a:00010001"
 #define RPC_ADSP_RTOS_ATOM_VERS                0x10001 /* 65537 */
 #define RPC_ADSP_RTOS_MTOA_VERS                0x10001 /* 65537 */
 #define AUDMGR_VERS                            0x10001 /* 65537 */
@@ -141,7 +141,7 @@
 
 #elif (CONFIG_MSM_AMSS_VERSION == 1330)
 #define INT_ADSP                               INT_ADSP_A11
-#define MSM_ADSP_DRIVER_NAME                       "rs3000000a:00010001"
+#define MSM_ADSP_DRIVER_NAME                   "rs3000000a:00010001"
 #define RPC_ADSP_RTOS_ATOM_VERS                0x10001
 #define RPC_ADSP_RTOS_MTOA_VERS                0x10001
 #define AUDMGR_VERS                            0x10002
@@ -156,7 +156,7 @@
 
 #elif (CONFIG_MSM_AMSS_VERSION == 1340)
 #define INT_ADSP                               INT_ADSP_A11
-#define MSM_ADSP_DRIVER_NAME                       "rs3000000a:00010001"
+#define MSM_ADSP_DRIVER_NAME                   "rs3000000a:00010001"
 #define RPC_ADSP_RTOS_ATOM_VERS                0x10001
 #define RPC_ADSP_RTOS_MTOA_VERS                0x10001
 #define AUDMGR_VERS                            0x10002
@@ -171,7 +171,7 @@
 
 #elif (CONFIG_MSM_AMSS_VERSION == 1355)
 #define INT_ADSP                               INT_ADSP_A9_A11
-#define MSM_ADSP_DRIVER_NAME                       "rs3000000a:00010000"
+#define MSM_ADSP_DRIVER_NAME                   "rs3000000a:00010000"
 #define RPC_ADSP_RTOS_ATOM_VERS                0x10001
 #define RPC_ADSP_RTOS_MTOA_VERS                0x10001
 #define AUDMGR_VERS                            0x10002
@@ -186,7 +186,7 @@
 
 #elif (CONFIG_MSM_AMSS_VERSION == 4110)
 #define INT_ADSP                               INT_ADSP_A11
-#define MSM_ADSP_DRIVER_NAME                       "rs3000000a:00010001"
+#define MSM_ADSP_DRIVER_NAME                   "rs3000000a:00010001"
 #define RPC_ADSP_RTOS_ATOM_VERS                0x10001
 #define RPC_ADSP_RTOS_MTOA_VERS                0x20001
 #define AUDMGR_VERS                            0x10001
@@ -216,7 +216,7 @@
 
 #elif (CONFIG_MSM_AMSS_VERSION == 4410)
 #define INT_ADSP                               INT_ADSP_A9_A11
-#define MSM_ADSP_DRIVER_NAME                       "rs3000000a:00010001"
+#define MSM_ADSP_DRIVER_NAME                   "rs3000000a:00010001"
 #define RPC_ADSP_RTOS_ATOM_VERS                0x10001
 #define RPC_ADSP_RTOS_MTOA_VERS                0x20001
 #define AUDMGR_VERS                            0x10002

@@ -1088,18 +1088,7 @@ void mmc_rescan(struct work_struct *work)
 		container_of(work, struct mmc_host, detect.work);
 	u32 ocr;
 	int err;
-	unsigned long flags;
 	int extend_wakelock = 0;
-
-	spin_lock_irqsave(&host->lock, flags);
-
-	if (host->rescan_disable) {
-		spin_unlock_irqrestore(&host->lock, flags);
-		return;
-	}
-
-	spin_unlock_irqrestore(&host->lock, flags);
-
 
 	mmc_bus_get(host);
 
@@ -1180,10 +1169,10 @@ void mmc_rescan(struct work_struct *work)
 	mmc_power_off(host);
 
 out:
-	if (extend_wakelock)
-		wake_lock_timeout(&mmc_delayed_work_wake_lock, HZ / 2);
-	else
-		wake_unlock(&mmc_delayed_work_wake_lock);
+        if (extend_wakelock)
+                wake_lock_timeout(&mmc_delayed_work_wake_lock, HZ / 2);
+        else
+                wake_unlock(&mmc_delayed_work_wake_lock);
 
 	if (host->caps & MMC_CAP_NEEDS_POLL)
 		mmc_schedule_delayed_work(&host->detect, HZ);
@@ -1310,7 +1299,7 @@ EXPORT_SYMBOL(mmc_card_can_sleep);
  *	mmc_suspend_host - suspend a host
  *	@host: mmc host
  */
-int mmc_suspend_host(struct mmc_host *host, pm_message_t state)
+int mmc_suspend_host(struct mmc_host *host)
 {
 	int err = 0;
 
@@ -1336,12 +1325,13 @@ int mmc_suspend_host(struct mmc_host *host, pm_message_t state)
 			mmc_claim_host(host);
 			mmc_detach_bus(host);
 			mmc_release_host(host);
+			host->pm_flags = 0;
 			err = 0;
 		}
 	}
 	mmc_bus_put(host);
 
-	if (!err)
+	if (!err && !(host->pm_flags & MMC_PM_KEEP_POWER))
 		mmc_power_off(host);
 
 	return err;
@@ -1379,6 +1369,12 @@ int mmc_resume_host(struct mmc_host *host)
 		}
 	}
 	mmc_bus_put(host);
+	
+	/*
+	 * We add a slight delay here so that resume can progress
+	 * in parallel
+	 */
+	mmc_detect_change(host, 1);
 
 	return err;
 }
@@ -1401,11 +1397,11 @@ int mmc_pm_notify(struct notifier_block *notify_block,
 	case PM_SUSPEND_PREPARE:
 
 		spin_lock_irqsave(&host->lock, flags);
+		host->rescan_disable = 1;
 		if (mmc_bus_needs_resume(host)) {
 			spin_unlock_irqrestore(&host->lock, flags);
 			break;
 		}
-		host->rescan_disable = 1;
 		spin_unlock_irqrestore(&host->lock, flags);
 		cancel_delayed_work_sync(&host->detect);
 
@@ -1424,13 +1420,14 @@ int mmc_pm_notify(struct notifier_block *notify_block,
 
 	case PM_POST_SUSPEND:
 	case PM_POST_HIBERNATION:
+	case PM_POST_RESTORE:
 
 		spin_lock_irqsave(&host->lock, flags);
+		host->rescan_disable = 0;
 		if (mmc_bus_manual_resume(host)) {
 			spin_unlock_irqrestore(&host->lock, flags);
 			break;
 		}
-		host->rescan_disable = 0;
 		spin_unlock_irqrestore(&host->lock, flags);
 		mmc_detect_change(host, 0);
 
@@ -1460,7 +1457,7 @@ static int __init mmc_init(void)
 {
 	int ret;
 
-	wake_lock_init(&mmc_delayed_work_wake_lock, WAKE_LOCK_SUSPEND, "mmc_delayed_work");
+        wake_lock_init(&mmc_delayed_work_wake_lock, WAKE_LOCK_SUSPEND, "mmc_delayed_work");
 
 	workqueue = create_singlethread_workqueue("kmmcd");
 	if (!workqueue)

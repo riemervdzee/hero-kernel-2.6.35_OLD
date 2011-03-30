@@ -64,7 +64,13 @@ static unsigned long go_maxspeed_load;
 /*
  * The minimum amount of time to spend at a frequency before we can ramp down.
  */
+#if defined (CONFIG_ARCH_MSM7X00A)
+#define DEFAULT_MIN_SAMPLE_TIME 65000;
+#elif defined (CONFIG_ARCH_MSM_SCORPION)
+#define DEFAULT_MIN_SAMPLE_TIME 75000;
+#else
 #define DEFAULT_MIN_SAMPLE_TIME 80000;
+#endif
 static unsigned long min_sample_time;
 
 #define DEBUG 0
@@ -163,7 +169,13 @@ static
 struct cpufreq_governor cpufreq_gov_interactive = {
 	.name = "interactive",
 	.governor = cpufreq_governor_interactive,
+#if defined (CONFIG_ARCH_MSM7X00A)
+	.max_transition_latency = 7000000,
+#elif defined (CONFIG_ARCH_MSM_SCORPION)
+	.max_transition_latency = 8000000,
+#else
 	.max_transition_latency = 10000000,
+#endif
 	.owner = THIS_MODULE,
 };
 
@@ -181,6 +193,11 @@ static void cpufreq_interactive_timer(unsigned long data)
 	unsigned int new_freq;
 	unsigned int index;
 	unsigned long flags;
+
+	smp_rmb();
+
+	if (!pcpu->governor_enabled)
+		goto exit;
 
 	/*
 	 * Once pcpu->timer_run_time is updated to >= pcpu->idle_exit_time,
@@ -305,7 +322,7 @@ rearm_if_notmax:
 		goto exit;
 
 rearm:
-	if (!timer_pending(&pcpu->cpu_timer) && pcpu->governor_enabled) {
+	if (!timer_pending(&pcpu->cpu_timer)) {
 		/*
 		 * If already at min: if that CPU is idle, don't set timer.
 		 * Else cancel the timer if that CPU goes idle.  We don't
@@ -474,6 +491,8 @@ static int cpufreq_interactive_up_task(void *data)
 				      pcpu->target_freq);
 			}
 
+			smp_rmb();
+
 			if (!pcpu->governor_enabled)
 				continue;
 
@@ -504,6 +523,8 @@ static void cpufreq_interactive_freq_down(struct work_struct *work)
 
 	for_each_cpu(cpu, &tmp_mask) {
 		pcpu = &per_cpu(cpuinfo, cpu);
+
+		smp_rmb();
 
 		if (!pcpu->governor_enabled)
 			continue;
@@ -578,6 +599,7 @@ static int cpufreq_governor_interactive(struct cpufreq_policy *new_policy,
 			get_cpu_idle_time_us(new_policy->cpu,
 					     &pcpu->freq_change_time);
 		pcpu->governor_enabled = 1;
+		smp_wmb();
 		/*
 		 * Do not register the idle hook and create sysfs
 		 * entries if we have already done so.
@@ -596,6 +618,7 @@ static int cpufreq_governor_interactive(struct cpufreq_policy *new_policy,
 
 	case CPUFREQ_GOV_STOP:
 		pcpu->governor_enabled = 0;
+		smp_wmb();
 		del_timer_sync(&pcpu->cpu_timer);
 		flush_work(&freq_scale_down_work);
 		/*

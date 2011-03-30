@@ -85,7 +85,7 @@
 #define idleprio_task(p)	unlikely((p)->policy == SCHED_IDLEPRIO)
 #define iso_task(p)		unlikely((p)->policy == SCHED_ISO)
 #define iso_queue(rq)		unlikely((rq)->rq_policy == SCHED_ISO)
-#define ISO_PERIOD		((5 * HZ * num_online_cpus()) + 1)
+#define ISO_PERIOD		((5 * HZ * grq.noc) + 1)
 
 /*
  * Convert user-nice values [ -20 ... 0 ... 19 ]
@@ -167,6 +167,7 @@ struct global_rq {
 	cpumask_t cpu_idle_map;
 	int idle_cpus;
 #endif
+	int noc; /* num_online_cpus stored and updated when it changes */
 	u64 niffies; /* Nanosecond jiffies */
 	unsigned long last_jiffy; /* Last jiffy we updated niffies */
 
@@ -200,6 +201,7 @@ struct rq {
 	u64 rq_last_ran;
 	int rq_prio;
 	int rq_running; /* There is a task running */
+	struct task_struct * (*edt)(struct rq *, struct task_struct *);
 
 	/* Accurate timekeeping data */
 	u64 timekeep_clock;
@@ -366,6 +368,31 @@ static inline void update_clocks(struct rq *rq)
 	grq.niffies += ndiff;
 	rq->last_niffy = grq.niffies;
 }
+
+static inline void set_skip_count(struct task_struct *p)
+{
+	p->cpu_skip = grq.noc - 1;
+}
+
+static inline void reset_skip_count(struct task_struct *p)
+{
+	p->cpu_skip = 0;
+}
+
+static inline int skip_count(struct task_struct *p)
+{
+	return p->cpu_skip;
+}
+
+static inline void dec_skip_count(struct task_struct *p)
+{
+	p->cpu_skip--;
+}
+
+static inline void inc_skip_count(struct task_struct *p)
+{
+	p->cpu_skip++;
+}
 #else /* CONFIG_SMP */
 static struct rq *uprq;
 #define cpu_rq(cpu)	(uprq)
@@ -390,7 +417,23 @@ static inline void update_clocks(struct rq *rq)
 	grq.last_jiffy += jdiff;
 	grq.niffies += ndiff;
 }
+
+static inline void set_skip_count(struct task_struct *__unused)
+{
+}
+
+static inline void reset_skip_count(struct task_struct *__unused)
+{
+}
+
+static inline void dec_skip_count(struct task_struct *__unused)
+{
+}
 #endif
+
+EXPORT_SYMBOL_GPL(cpu_scales);
+EXPORT_SYMBOL_GPL(cpu_nonscaling);
+
 #define raw_rq()	(&__raw_get_cpu_var(runqueues))
 
 #include "sched_stats.h"
@@ -960,6 +1003,7 @@ static inline void deactivate_task(struct task_struct *p)
 {
 	if (task_contributes_to_load(p))
 		grq.nr_uninterruptible++;
+	reset_skip_count(p);
 	grq.nr_running--;
 }
 
@@ -1000,6 +1044,7 @@ static inline void return_task(struct task_struct *p, int deactivate)
 	if (deactivate)
 		deactivate_task(p);
 	else {
+		set_skip_count(p);
 		inc_qnr();
 		enqueue_task(p);
 	}
@@ -1521,6 +1566,7 @@ void sched_fork(struct task_struct *p, int clone_flags)
 		time_slice_expired(p);
 	}
 	p->last_ran = rq->rq_last_ran;
+	reset_skip_count(p);
 	task_grq_unlock_irq();
 out:
 	put_cpu();
@@ -1836,7 +1882,7 @@ unsigned long this_cpu_load(void)
 {
 	return this_rq()->rq_running +
 		(queued_notrunning() + nr_uninterruptible()) /
-		(1 + num_online_cpus());
+		(grq.noc ? : 1);
 }
 
 /* Variables and functions for calc_load */
@@ -1870,7 +1916,7 @@ calc_load(unsigned long load, unsigned long exp, unsigned long active)
 /*
  * calc_load - update the avenrun load estimates every LOAD_FREQ seconds.
  */
-void calc_global_load(void)
+void calc_global_load(unsigned long ticks)
 {
 	long active;
 
@@ -2500,7 +2546,7 @@ static inline void check_deadline(struct task_struct *p)
  * Finally if no SCHED_NORMAL tasks are found, SCHED_IDLEPRIO tasks are
  * selected by the earliest deadline.
  */
-static inline struct
+static struct
 task_struct *earliest_deadline_task(struct rq *rq, struct task_struct *idle)
 {
 	u64 dl, earliest_deadline = 0; /* Initialise to silence compiler */
@@ -2547,6 +2593,110 @@ out_take:
 out:
 	return edt;
 }
+
+#ifdef CONFIG_SMP
+/*
+ * This is an alternate version of earliest_deadline_task that is used once
+ * this CPU has loaded a load-scaled CPU frequency governor.
+ */
+static struct task_struct *scaled_edt(struct rq *rq, struct task_struct *idle)
+{
+	u64 dl, earliest_deadline = 0;
+	struct task_struct *p, *edt = idle;
+	unsigned int cpu = cpu_of(rq);
+	struct list_head candidates, *queue;
+	int idx = 0;
+
+retry:
+	idx = find_next_bit(grq.prio_bitmap, PRIO_LIMIT, idx);
+	if (idx >= PRIO_LIMIT)
+		goto out;
+
+	INIT_LIST_HEAD(&candidates);
+	queue = grq.queue + idx;
+	list_for_each_entry(p, queue, run_list) {
+		/* Make sure cpu affinity is ok */
+		if (needs_other_cpu(p, cpu))
+			continue;
+		if (idx < MAX_RT_PRIO) {
+			/* We found an rt task */
+			edt = p;
+			goto out_take;
+		}
+			list_add(&p->cand_list, &candidates);
+	}
+
+retry_same:
+	list_for_each_entry(p, &candidates, cand_list) {
+		dl = p->deadline + cache_distance(task_rq(p), rq, p);
+
+		if (edt == idle ||
+		    deadline_before(dl, earliest_deadline)) {
+			earliest_deadline = dl;
+			edt = p;
+		} else if (task_cpu(p) == cpu)
+			inc_skip_count(p);
+	}
+	/*
+	 * If this task is a CPU bound task and was not bound to this CPU last
+	 * time it ran, we skip over it up to cpu_skip count (one per CPU that
+	 * it's not bound to) times. This makes it much more likely to go back
+	 * to the same CPU it came from. When we are using a scaling CPU
+	 * governor, this will make the CPU it's bound to far more likely to
+	 * speed up to high frequency, allowing the task to finish in less time
+	 * and use less power overall. If we do this with fixed frequency CPUs
+	 * it costs us in latency and performance.
+	 */
+	if (task_cpu(edt) != cpu && skip_count(edt) && !rt_task(edt)) {
+		dec_skip_count(edt);
+		list_del(&edt->cand_list);
+		edt = idle;
+		if (!list_empty(&candidates))
+			goto retry_same;
+	}
+	if (edt == idle) {
+		if (++idx < PRIO_LIMIT)
+			goto retry;
+		goto out;
+	}
+out_take:
+	take_task(rq, edt);
+out:
+	return edt;
+}
+
+/*
+ * Each runqueue in SMP decides what version of earliest_deadline_task to use
+ * according to whether it's being managed by a CPU frequency governor that
+ * scales with load or is static.
+ */
+void cpu_scales(int cpu)
+{
+	unsigned long flags;
+
+	grq_lock_irqsave(&flags);
+	cpu_rq(cpu)->edt = scaled_edt;
+	grq_unlock_irqrestore(&flags);
+}
+
+void cpu_nonscaling(int cpu)
+{
+	unsigned long flags;
+
+	grq_lock_irqsave(&flags);
+	cpu_rq(cpu)->edt = earliest_deadline_task;
+	grq_unlock_irqrestore(&flags);
+}
+#else
+void cpu_scales(int __unused)
+{
+}
+
+void cpu_nonscaling(int __unused)
+{
+}
+
+#endif
 
 /*
  * Print scheduling while atomic bug:
@@ -2702,10 +2852,12 @@ need_resched_nonpreemptible:
 		schedstat_inc(rq, sched_goidle);
 		set_cpuidle_map(cpu);
 	} else {
-		next = earliest_deadline_task(rq, idle);
-		prefetch(next);
-		prefetch_stack(next);
-		clear_cpuidle_map(cpu);
+		next = rq->edt(rq, idle);
+		if (likely(next->prio != PRIO_LIMIT)) {
+			prefetch(next);
+			prefetch_stack(next);
+			clear_cpuidle_map(cpu);
+		}
 	}
 
 	if (likely(prev != next)) {
@@ -3083,6 +3235,19 @@ void __sched wait_for_completion(struct completion *x)
 	wait_for_common(x, MAX_SCHEDULE_TIMEOUT, TASK_UNINTERRUPTIBLE);
 }
 EXPORT_SYMBOL(wait_for_completion);
+
+/*
+ * wait_for_completion_io: - waits for completion of a task
+ * @x:  holds the state of this particular completion
+ *
+ * This waits for completion of a specific task to be signaled. Treats any
+ * sleeping as waiting for IO for the purposes of process accounting.
+ */
+void __sched wait_for_completion_io(struct completion *x)
+{
+        wait_for_common(x, MAX_SCHEDULE_TIMEOUT, TASK_UNINTERRUPTIBLE);
+}
+EXPORT_SYMBOL(wait_for_completion_io);
 
 /**
  * wait_for_completion_timeout: - waits for completion of a task (w/timeout)
@@ -4088,9 +4253,9 @@ void __sched io_schedule(void)
 
 	delayacct_blkio_start();
 	atomic_inc(&rq->nr_iowait);
-	current->in_iowait = 1;
+	current->sched_in_iowait = 1;
 	schedule();
-	current->in_iowait = 0;
+	current->sched_in_iowait = 0;
 	atomic_dec(&rq->nr_iowait);
 	delayacct_blkio_end();
 }
@@ -4103,9 +4268,9 @@ long __sched io_schedule_timeout(long timeout)
 
 	delayacct_blkio_start();
 	atomic_inc(&rq->nr_iowait);
-	current->in_iowait = 1;
+	current->sched_in_iowait = 1;
 	ret = schedule_timeout(timeout);
-	current->in_iowait = 0;
+	current->sched_in_iowait = 0;
 	atomic_dec(&rq->nr_iowait);
 	delayacct_blkio_end();
 	return ret;
@@ -4951,6 +5116,7 @@ migration_call(struct notifier_block *nfb, unsigned long action, void *hcpu)
 
 			set_rq_online(rq);
 		}
+		grq.noc = num_online_cpus();
 		grq_unlock_irqrestore(&flags);
 		break;
 
@@ -4977,6 +5143,7 @@ migration_call(struct notifier_block *nfb, unsigned long action, void *hcpu)
 			BUG_ON(!cpumask_test_cpu(cpu, rq->rd->span));
 			set_rq_offline(rq);
 		}
+		grq.noc = num_online_cpus();
 		grq_unlock_irqrestore(&flags);
 		break;
 #endif
@@ -6641,6 +6808,7 @@ void __init sched_init_smp(void)
 			rq->cache_idle = cache_cpu_idle;
 #endif
 	}
+	grq.noc = num_online_cpus();
 	grq_unlock_irq();
 }
 #else
@@ -6685,6 +6853,7 @@ void __init sched_init(void)
 		rq->user_pc = rq->nice_pc = rq->softirq_pc = rq->system_pc =
 			      rq->iowait_pc = rq->idle_pc = 0;
 		rq->dither = 0;
+		rq->edt = earliest_deadline_task;
 #ifdef CONFIG_SMP
 		rq->last_niffy = 0;
 		rq->sd = NULL;

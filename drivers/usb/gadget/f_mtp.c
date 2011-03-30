@@ -662,10 +662,6 @@ static void send_file_work(struct work_struct *data) {
 		ret = wait_event_interruptible(dev->write_wq,
 			(req = req_get(dev, &dev->tx_idle))
 			|| dev->state != STATE_BUSY);
-		if (dev->state == STATE_CANCELED) {
-			r = -ECANCELED;
-			break;
-		}
 		if (!req) {
 			r = ret;
 			break;
@@ -760,8 +756,10 @@ static void receive_file_work(struct work_struct *data)
 			/* wait for our last read to complete */
 			ret = wait_event_interruptible(dev->read_wq,
 				dev->rx_done || dev->state != STATE_BUSY);
-			if (ret < 0 || dev->state != STATE_BUSY) {
-				r = ret;
+			if (dev->state == STATE_CANCELED) {
+				r = -ECANCELED;
+				if (!dev->rx_done)
+					usb_ep_dequeue(dev->ep_out, read_req);
 				break;
 			}
 			/* if xfer_file_length is 0xFFFFFFFF, then we read until
@@ -1100,13 +1098,14 @@ static int mtp_function_setup(struct usb_function *f,
 			/* device status is "busy" until we report
 			 * the cancelation to userspace
 			 */
-			if (dev->state == STATE_CANCELED)
+			if (dev->state == STATE_BUSY
+					|| dev->state == STATE_CANCELED)
 				status->wCode =
 					__cpu_to_le16(MTP_RESPONSE_DEVICE_BUSY);
 			else
 				status->wCode =
 					__cpu_to_le16(MTP_RESPONSE_OK);
-			spin_unlock_irqrestore(&dev->lock, flags);
+				spin_unlock_irqrestore(&dev->lock, flags);
 			value = sizeof(*status);
 		}
 	}

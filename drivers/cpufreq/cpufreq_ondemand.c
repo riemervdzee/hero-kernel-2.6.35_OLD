@@ -28,15 +28,43 @@
  * It helps to keep variable names smaller, simpler
  */
 
+#if defined (CONFIG_ARCH_MSM7X00A)
+
+#define DEF_FREQUENCY_DOWN_DIFFERENTIAL         (10)
+#define DEF_FREQUENCY_UP_THRESHOLD              (65)
+#define DEF_SAMPLING_DOWN_FACTOR		(1)
+#define MAX_SAMPLING_DOWN_FACTOR		(85000)
+#define MICRO_FREQUENCY_DOWN_DIFFERENTIAL       (3)
+#define MICRO_FREQUENCY_UP_THRESHOLD            (80)
+#define MICRO_FREQUENCY_MIN_SAMPLE_RATE         (8500)
+#define MIN_FREQUENCY_UP_THRESHOLD              (11)
+#define MAX_FREQUENCY_UP_THRESHOLD              (100)
+
+#elif defined (CONFIG_ARCH_MSM_SCORPION)
+
 #define DEF_FREQUENCY_DOWN_DIFFERENTIAL		(10)
 #define DEF_FREQUENCY_UP_THRESHOLD		(80)
 #define DEF_SAMPLING_DOWN_FACTOR		(1)
 #define MAX_SAMPLING_DOWN_FACTOR		(100000)
 #define MICRO_FREQUENCY_DOWN_DIFFERENTIAL	(3)
-#define MICRO_FREQUENCY_UP_THRESHOLD		(95)
-#define MICRO_FREQUENCY_MIN_SAMPLE_RATE		(10000)
+#define MICRO_FREQUENCY_UP_THRESHOLD		(85)
+#define MICRO_FREQUENCY_MIN_SAMPLE_RATE		(9500)
 #define MIN_FREQUENCY_UP_THRESHOLD		(11)
 #define MAX_FREQUENCY_UP_THRESHOLD		(100)
+
+#else
+
+#define DEF_FREQUENCY_DOWN_DIFFERENTIAL         (10)
+#define DEF_FREQUENCY_UP_THRESHOLD              (80)
+#define DEF_SAMPLING_DOWN_FACTOR		(1)
+#define MAX_SAMPLING_DOWN_FACTOR		(100000)
+#define MICRO_FREQUENCY_DOWN_DIFFERENTIAL       (3)
+#define MICRO_FREQUENCY_UP_THRESHOLD            (95)
+#define MICRO_FREQUENCY_MIN_SAMPLE_RATE         (10000)
+#define MIN_FREQUENCY_UP_THRESHOLD              (11)
+#define MAX_FREQUENCY_UP_THRESHOLD              (100)
+
+#endif
 
 /*
  * The polling frequency of this governor depends on the capability of
@@ -780,6 +808,7 @@ static int cpufreq_governor_dbs(struct cpufreq_policy *policy,
 
 		mutex_init(&this_dbs_info->timer_mutex);
 		dbs_timer_init(this_dbs_info);
+		cpu_scales(cpu);
 		break;
 
 	case CPUFREQ_GOV_STOP:
@@ -794,6 +823,7 @@ static int cpufreq_governor_dbs(struct cpufreq_policy *policy,
 			sysfs_remove_group(cpufreq_global_kobject,
 					   &dbs_attr_group);
 
+		cpu_nonscaling(cpu);
 		break;
 
 	case CPUFREQ_GOV_LIMITS:

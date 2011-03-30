@@ -568,7 +568,7 @@ void check_preempt_curr(struct rq *rq, struct task_struct *p, int flags)
 	 * A queue event has occurred, and we're going to schedule.  In
 	 * this case, we can save a useless back to back clock update.
 	 */
-	if (test_tsk_need_resched(p))
+	if (rq->curr->se.on_rq && test_tsk_need_resched(rq->curr))
 		rq->skip_clock_update = 1;
 }
 
@@ -1972,6 +1972,9 @@ task_hot(struct task_struct *p, u64 now, struct sched_domain *sd)
 	if (p->sched_class != &fair_sched_class)
 		return 0;
 
+	if (p->policy == SCHED_IDLE)
+		return 0;
+
 	/*
 	 * Buddy candidates are cache hot:
 	 */
@@ -2894,6 +2897,15 @@ static long calc_load_fold_active(struct rq *this_rq)
 	return delta;
 }
 
+static unsigned long
+calc_load(unsigned long load, unsigned long exp, unsigned long active)
+{
+	load *= exp;
+	load += active * (FIXED_1 - exp);
+	load += 1UL << (FSHIFT - 1);
+	return load >> FSHIFT;
+}
+
 #ifdef CONFIG_NO_HZ
 /*
  * For NO_HZ we delay the active fold to the next LOAD_FREQ update.
@@ -2923,6 +2935,128 @@ static long calc_load_fold_idle(void)
 
 	return delta;
 }
+
+/**
+ * fixed_power_int - compute: x^n, in O(log n) time
+ *
+ * @x:         base of the power
+ * @frac_bits: fractional bits of @x
+ * @n:         power to raise @x to.
+ *
+ * By exploiting the relation between the definition of the natural power
+ * function: x^n := x*x*...*x (x multiplied by itself for n times), and
+ * the binary encoding of numbers used by computers: n := \Sum n_i * 2^i,
+ * (where: n_i \elem {0, 1}, the binary vector representing n),
+ * we find: x^n := x^(\Sum n_i * 2^i) := \Prod x^(n_i * 2^i), which is
+ * of course trivially computable in O(log_2 n), the length of our binary
+ * vector.
+ */
+static unsigned long
+fixed_power_int(unsigned long x, unsigned int frac_bits, unsigned int n)
+{
+	unsigned long result = 1UL << frac_bits;
+
+	if (n) for (;;) {
+		if (n & 1) {
+			result *= x;
+			result += 1UL << (frac_bits - 1);
+			result >>= frac_bits;
+		}
+		n >>= 1;
+		if (!n)
+			break;
+		x *= x;
+		x += 1UL << (frac_bits - 1);
+		x >>= frac_bits;
+	}
+
+	return result;
+}
+
+/*
+ * a1 = a0 * e + a * (1 - e)
+ *
+ * a2 = a1 * e + a * (1 - e)
+ *    = (a0 * e + a * (1 - e)) * e + a * (1 - e)
+ *    = a0 * e^2 + a * (1 - e) * (1 + e)
+ *
+ * a3 = a2 * e + a * (1 - e)
+ *    = (a0 * e^2 + a * (1 - e) * (1 + e)) * e + a * (1 - e)
+ *    = a0 * e^3 + a * (1 - e) * (1 + e + e^2)
+ *
+ *  ...
+ *
+ * an = a0 * e^n + a * (1 - e) * (1 + e + ... + e^n-1) [1]
+ *    = a0 * e^n + a * (1 - e) * (1 - e^n)/(1 - e)
+ *    = a0 * e^n + a * (1 - e^n)
+ *
+ * [1] application of the geometric series:
+ *
+ *              n         1 - x^(n+1)
+ *     S_n := \Sum x^i = -------------
+ *             i=0          1 - x
+ */
+static unsigned long
+calc_load_n(unsigned long load, unsigned long exp,
+	    unsigned long active, unsigned int n)
+{
+
+	return calc_load(load, fixed_power_int(exp, FSHIFT, n), active);
+}
+
+/*
+ * NO_HZ can leave us missing all per-cpu ticks calling
+ * calc_load_account_active(), but since an idle CPU folds its delta into
+ * calc_load_tasks_idle per calc_load_account_idle(), all we need to do is fold
+ * in the pending idle delta if our idle period crossed a load cycle boundary.
+ *
+ * Once we've updated the global active value, we need to apply the exponential
+ * weights adjusted to the number of cycles missed.
+ */
+static void calc_global_nohz(unsigned long ticks)
+{
+	long delta, active, n;
+
+	if (time_before(jiffies, calc_load_update))
+		return;
+
+	/*
+	 * If we crossed a calc_load_update boundary, make sure to fold
+	 * any pending idle changes, the respective CPUs might have
+	 * missed the tick driven calc_load_account_active() update
+	 * due to NO_HZ.
+	 */
+	delta = calc_load_fold_idle();
+	if (delta)
+		atomic_long_add(delta, &calc_load_tasks);
+
+	/*
+	 * If we were idle for multiple load cycles, apply them.
+	 */
+	if (ticks >= LOAD_FREQ) {
+		n = ticks / LOAD_FREQ;
+
+		active = atomic_long_read(&calc_load_tasks);
+		active = active > 0 ? active * FIXED_1 : 0;
+
+		avenrun[0] = calc_load_n(avenrun[0], EXP_1, active, n);
+		avenrun[1] = calc_load_n(avenrun[1], EXP_5, active, n);
+		avenrun[2] = calc_load_n(avenrun[2], EXP_15, active, n);
+
+		calc_load_update += n * LOAD_FREQ;
+	}
+
+	/*
+	 * Its possible the remainder of the above division also crosses
+	 * a LOAD_FREQ period, the regular check in calc_global_load()
+	 * which comes after this will take care of that.
+	 *
+	 * Consider us being 11 ticks before a cycle completion, and us
+	 * sleeping for 4*LOAD_FREQ + 22 ticks, then the above code will
+	 * age us 4 cycles, and the test in calc_global_load() will
+	 * pick up the final one.
+	 */
+}
 #else
 static void calc_load_account_idle(struct rq *this_rq)
 {
@@ -2931,6 +3065,10 @@ static void calc_load_account_idle(struct rq *this_rq)
 static inline long calc_load_fold_idle(void)
 {
 	return 0;
+}
+
+static void calc_global_nohz(unsigned long ticks)
+{
 }
 #endif
 
@@ -2949,24 +3087,17 @@ void get_avenrun(unsigned long *loads, unsigned long offset, int shift)
 	loads[2] = (avenrun[2] + offset) << shift;
 }
 
-static unsigned long
-calc_load(unsigned long load, unsigned long exp, unsigned long active)
-{
-	load *= exp;
-	load += active * (FIXED_1 - exp);
-	return load >> FSHIFT;
-}
-
 /*
  * calc_load - update the avenrun load estimates 10 ticks after the
  * CPUs have updated calc_load_tasks.
  */
-void calc_global_load(void)
+void calc_global_load(unsigned long ticks)
 {
-	unsigned long upd = calc_load_update + 10;
 	long active;
 
-	if (time_before(jiffies, upd))
+	calc_global_nohz(ticks);
+
+	if (time_before(jiffies, calc_load_update + 10))
 		return;
 
 	active = atomic_long_read(&calc_load_tasks);
@@ -3533,7 +3664,6 @@ static void put_prev_task(struct rq *rq, struct task_struct *prev)
 {
 	if (prev->se.on_rq)
 		update_rq_clock(rq);
-	rq->skip_clock_update = 0;
 	prev->sched_class->put_prev_task(rq, prev);
 }
 
@@ -3596,7 +3726,6 @@ need_resched_nonpreemptible:
 		hrtick_clear(rq);
 
 	raw_spin_lock_irq(&rq->lock);
-	clear_tsk_need_resched(prev);
 
 	if (prev->state && !(preempt_count() & PREEMPT_ACTIVE)) {
 		if (unlikely(signal_pending_state(prev->state, prev)))
@@ -3613,6 +3742,8 @@ need_resched_nonpreemptible:
 
 	put_prev_task(rq, prev);
 	next = pick_next_task(rq);
+	clear_tsk_need_resched(prev);
+	rq->skip_clock_update = 0;
 
 	if (likely(prev != next)) {
 		sched_info_switch(prev, next);
@@ -3929,7 +4060,7 @@ void complete_all(struct completion *x)
 EXPORT_SYMBOL(complete_all);
 
 static inline long __sched
-do_wait_for_common(struct completion *x, long timeout, int state)
+do_wait_for_common(struct completion *x, long timeout, int state, int iowait)
 {
 	if (!x->done) {
 		DECLARE_WAITQUEUE(wait, current);
@@ -3942,7 +4073,10 @@ do_wait_for_common(struct completion *x, long timeout, int state)
 			}
 			__set_current_state(state);
 			spin_unlock_irq(&x->wait.lock);
-			timeout = schedule_timeout(timeout);
+			if (iowait)
+				timeout = io_schedule_timeout(timeout);
+			else
+				timeout = schedule_timeout(timeout);
 			spin_lock_irq(&x->wait.lock);
 		} while (!x->done && timeout);
 		__remove_wait_queue(&x->wait, &wait);
@@ -3954,12 +4088,12 @@ do_wait_for_common(struct completion *x, long timeout, int state)
 }
 
 static long __sched
-wait_for_common(struct completion *x, long timeout, int state)
+wait_for_common(struct completion *x, long timeout, int state, int iowait)
 {
 	might_sleep();
 
 	spin_lock_irq(&x->wait.lock);
-	timeout = do_wait_for_common(x, timeout, state);
+	timeout = do_wait_for_common(x, timeout, state, iowait);
 	spin_unlock_irq(&x->wait.lock);
 	return timeout;
 }
@@ -3976,9 +4110,22 @@ wait_for_common(struct completion *x, long timeout, int state)
  */
 void __sched wait_for_completion(struct completion *x)
 {
-	wait_for_common(x, MAX_SCHEDULE_TIMEOUT, TASK_UNINTERRUPTIBLE);
+	wait_for_common(x, MAX_SCHEDULE_TIMEOUT, TASK_UNINTERRUPTIBLE, 0);
 }
 EXPORT_SYMBOL(wait_for_completion);
+
+/**
+ * wait_for_completion_io: - waits for completion of a task
+ * @x:  holds the state of this particular completion
+ *
+ * This waits for completion of a specific task to be signaled. Treats any
+ * sleeping as waiting for IO for the purposes of process accounting.
+ */
+void __sched wait_for_completion_io(struct completion *x)
+{
+	wait_for_common(x, MAX_SCHEDULE_TIMEOUT, TASK_UNINTERRUPTIBLE, 1);
+}
+EXPORT_SYMBOL(wait_for_completion_io);
 
 /**
  * wait_for_completion_timeout: - waits for completion of a task (w/timeout)
@@ -3992,7 +4139,7 @@ EXPORT_SYMBOL(wait_for_completion);
 unsigned long __sched
 wait_for_completion_timeout(struct completion *x, unsigned long timeout)
 {
-	return wait_for_common(x, timeout, TASK_UNINTERRUPTIBLE);
+	return wait_for_common(x, timeout, TASK_UNINTERRUPTIBLE, 0);
 }
 EXPORT_SYMBOL(wait_for_completion_timeout);
 
@@ -4005,7 +4152,8 @@ EXPORT_SYMBOL(wait_for_completion_timeout);
  */
 int __sched wait_for_completion_interruptible(struct completion *x)
 {
-	long t = wait_for_common(x, MAX_SCHEDULE_TIMEOUT, TASK_INTERRUPTIBLE);
+	long t =
+	  wait_for_common(x, MAX_SCHEDULE_TIMEOUT, TASK_INTERRUPTIBLE, 0);
 	if (t == -ERESTARTSYS)
 		return t;
 	return 0;
@@ -4024,7 +4172,7 @@ unsigned long __sched
 wait_for_completion_interruptible_timeout(struct completion *x,
 					  unsigned long timeout)
 {
-	return wait_for_common(x, timeout, TASK_INTERRUPTIBLE);
+	return wait_for_common(x, timeout, TASK_INTERRUPTIBLE, 0);
 }
 EXPORT_SYMBOL(wait_for_completion_interruptible_timeout);
 
@@ -4037,7 +4185,7 @@ EXPORT_SYMBOL(wait_for_completion_interruptible_timeout);
  */
 int __sched wait_for_completion_killable(struct completion *x)
 {
-	long t = wait_for_common(x, MAX_SCHEDULE_TIMEOUT, TASK_KILLABLE);
+	long t = wait_for_common(x, MAX_SCHEDULE_TIMEOUT, TASK_KILLABLE, 0);
 	if (t == -ERESTARTSYS)
 		return t;
 	return 0;
@@ -4057,7 +4205,7 @@ unsigned long __sched
 wait_for_completion_killable_timeout(struct completion *x,
 				     unsigned long timeout)
 {
-	return wait_for_common(x, timeout, TASK_KILLABLE);
+	return wait_for_common(x, timeout, TASK_KILLABLE, 0);
 }
 EXPORT_SYMBOL(wait_for_completion_killable_timeout);
 
@@ -4953,9 +5101,9 @@ void __sched io_schedule(void)
 
 	delayacct_blkio_start();
 	atomic_inc(&rq->nr_iowait);
-	current->in_iowait = 1;
+	current->sched_in_iowait = 1;
 	schedule();
-	current->in_iowait = 0;
+	current->sched_in_iowait = 0;
 	atomic_dec(&rq->nr_iowait);
 	delayacct_blkio_end();
 }
@@ -4968,9 +5116,9 @@ long __sched io_schedule_timeout(long timeout)
 
 	delayacct_blkio_start();
 	atomic_inc(&rq->nr_iowait);
-	current->in_iowait = 1;
+	current->sched_in_iowait = 1;
 	ret = schedule_timeout(timeout);
-	current->in_iowait = 0;
+	current->sched_in_iowait = 0;
 	atomic_dec(&rq->nr_iowait);
 	delayacct_blkio_end();
 	return ret;

@@ -528,7 +528,7 @@ static void dhd_set_packet_filter(int value, dhd_pub_t *dhd)
 #if defined(CONFIG_HAS_EARLYSUSPEND)
 static int dhd_set_suspend(int value, dhd_pub_t *dhd)
 {
-	int power_mode = PM_MAX;
+	int power_mode = PM_FAST;
 	/* wl_pkt_filter_enable_t	enable_parm; */
 	char iovbuf[32];
 	int bcn_li_dtim = 3;
@@ -3075,6 +3075,15 @@ void dhd_bus_country_set(struct net_device *dev, char *country_code)
 
 	if (dhd && dhd->pub.up)
 		strncpy(dhd->pub.country_code, country_code, WLC_CNTRY_BUF_SZ);
+}
+
+char *dhd_bus_country_get(struct net_device *dev)
+{
+	dhd_info_t *dhd = *(dhd_info_t **)netdev_priv(dev);
+
+	if (dhd && (dhd->pub.country_code[0] != 0))
+		return dhd->pub.country_code;
+	return NULL;
 }
 
 void dhd_os_start_lock(dhd_pub_t *pub)

@@ -519,7 +519,7 @@ static int smd_packet_write(smd_channel_t *ch, const void *_data, int len)
 {
 	unsigned hdr[5];
 
-	if (len <= 0)
+	if (len < 0)
 		return -EINVAL;
 
 	if (smd_stream_write_avail(ch) < (len + SMD_HEADER_SIZE))

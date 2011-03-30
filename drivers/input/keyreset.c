@@ -33,6 +33,7 @@ struct keyreset_state {
 	int key_down;
 	int key_up;
 	int restart_disabled;
+	int (*reset_fn)(void);
 };
 
 static int restart_requested;
@@ -194,6 +195,10 @@ static int keyreset_probe(struct platform_device *pdev)
 			__set_bit(key, state->upbit);
 		}
 	}
+
+	if (pdata->reset_fn)
+		state->reset_fn = pdata->reset_fn;
+
 	state->input_handler.event = keyreset_event;
 	state->input_handler.connect = keyreset_connect;
 	state->input_handler.disconnect = keyreset_disconnect;

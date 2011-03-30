@@ -301,6 +301,7 @@ static int config_buf(struct usb_configuration *config,
 {
 	struct usb_config_descriptor	*c = buf;
 	struct usb_interface_descriptor *intf;
+	struct usb_interface_assoc_descriptor *iad = NULL;
 	void				*next = buf + USB_DT_CONFIG_SIZE;
 	int				len = USB_BUFSIZ - USB_DT_CONFIG_SIZE;
 	struct usb_function		*f;
@@ -354,6 +355,20 @@ static int config_buf(struct usb_configuration *config,
 					intf->bInterfaceNumber = interfaceCount++;
 				else
 					intf->bInterfaceNumber = interfaceCount - 1;
+				if (iad) {
+					iad->bFirstInterface =
+							intf->bInterfaceNumber;
+					iad = NULL;
+				}
+			} else if (intf->bDescriptorType ==
+					USB_DT_INTERFACE_ASSOCIATION) {
+				/* This will be first if it exists. Save
+				 * a pointer to it so we can properly set
+				 * bFirstInterface when we process the first
+				 * interface.
+				 */
+				iad = (struct usb_interface_assoc_descriptor *)
+						dest;
 			}
 			dest += intf->bLength;
 		}
@@ -890,11 +905,11 @@ composite_setup(struct usb_gadget *gadget, const struct usb_ctrlrequest *ctrl)
 	case USB_REQ_GET_CONFIGURATION:
 		if (ctrl->bRequestType != USB_DIR_IN)
 			goto unknown;
-		if (cdev->config)
+		if (cdev->config) {
 			*(u8 *)req->buf = cdev->config->bConfigurationValue;
-		else
+			value = min(w_length, (u16) 1);
+		} else
 			*(u8 *)req->buf = 0;
-		value = min(w_length, (u16) 1);
 		break;
 
 	/* function drivers must handle get/set altsetting; if there's
@@ -1165,14 +1180,6 @@ static int composite_bind(struct usb_gadget *gadget)
 	 */
 	usb_ep_autoconfig_reset(cdev->gadget);
 
-	/* standardized runtime overrides for device ID data */
-	if (idVendor)
-		cdev->desc.idVendor = cpu_to_le16(idVendor);
-	if (idProduct)
-		cdev->desc.idProduct = cpu_to_le16(idProduct);
-	if (bcdDevice)
-		cdev->desc.bcdDevice = cpu_to_le16(bcdDevice);
-
 	/* composite gadget needs to assign strings for whole device (like
 	 * serial number), register function drivers, potentially update
 	 * power state and consumption, etc
@@ -1189,6 +1196,14 @@ static int composite_bind(struct usb_gadget *gadget)
 
 	cdev->desc = *composite->dev;
 	cdev->desc.bMaxPacketSize0 = gadget->ep0->maxpacket;
+
+	/* standardized runtime overrides for device ID data */
+	if (idVendor)
+		cdev->desc.idVendor = cpu_to_le16(idVendor);
+	if (idProduct)
+		cdev->desc.idProduct = cpu_to_le16(idProduct);
+	if (bcdDevice)
+		cdev->desc.bcdDevice = cpu_to_le16(bcdDevice);
 
 	/* strings can't be assigned before bind() allocates the
 	 * releavnt identifiers

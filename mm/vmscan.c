@@ -124,7 +124,7 @@ struct scan_control {
 /*
  * From 0 .. 100.  Higher means more swappy.
  */
-int vm_swappiness = 60;
+int vm_swappiness;
 long vm_total_pages;	/* The total number of pages which the VM controls */
 
 static LIST_HEAD(shrinker_list);
@@ -588,6 +588,17 @@ static enum page_references page_check_references(struct page *page,
 	if (referenced_ptes) {
 		if (PageAnon(page))
 			return PAGEREF_ACTIVATE;
+
+		/*
+		 * Identify referenced, file-backed active pages and move them
+		 * to the active list. We know that this page has been
+		 * referenced since being put on the inactive list. VM_EXEC
+		 * pages are only moved to the inactive list when they have not
+		 * been referenced between scans (see shrink_active_list).
+		 */
+		if ((vm_flags & VM_EXEC) && page_is_file_cache(page))
+			return PAGEREF_ACTIVATE;
+
 		/*
 		 * All mapped pages start out with page table
 		 * references from the instantiating fault, so we need
@@ -1126,6 +1137,7 @@ static inline bool should_reclaim_stall(unsigned long nr_taken,
 
 	return priority <= lumpy_stall_priority;
 }
+
 
 /*
  * shrink_inactive_list() is a helper for shrink_zone().  It returns the number

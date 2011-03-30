@@ -366,8 +366,7 @@ static void vfe_write_lens_roll_off_table(struct vfe_cmd_roll_off_config *in)
 		writel(data, ctrl->vfebase + VFE_DMI_DATA_LO);
 
 		data = (((uint32_t) (*initB)) & 0x0000FFFF) |
-		/* 20101011: fix mesh LSC */
-		    (((uint32_t) (*initGb)) << 16);
+		    (((uint32_t) (*initGr)) << 16);
 		initB++;
 		initGb++;
 
@@ -380,17 +379,13 @@ static void vfe_write_lens_roll_off_table(struct vfe_cmd_roll_off_config *in)
 
 	/* pack and write delta table */
 	for (i = 0; i < VFE_ROLL_OFF_DELTA_TABLE_SIZE; i++) {
-		/* 20101011: fix mesh LSC */
-		data = (((int32_t)(*pDeltaR)) & 0x0000FFFF) |
-			(((int32_t)(*pDeltaGr))<<16);
+		data = *pDeltaR | (*pDeltaGr << 16);
 		pDeltaR++;
 		pDeltaGr++;
 
 		writel(data, ctrl->vfebase + VFE_DMI_DATA_LO);
-		/* 20101011: fix mesh LSC */
-		data = (((int32_t)(*pDeltaB)) & 0x0000FFFF) |
-			(((int32_t)(*pDeltaGb))<<16);
 
+		data = *pDeltaB | (*pDeltaGb << 16);
 		pDeltaB++;
 		pDeltaGb++;
 
@@ -1797,8 +1792,6 @@ static void vfe_process_output_path_irq(struct vfe_interrupt_status *irqstatus)
 	}
 }
 
-static int preview_skipframe;
-#define FRAME_SKIP 2
 static void __vfe_do_tasklet(struct isr_queue_cmd *qcmd)
 {
 	if (qcmd->vfeInterruptStatus.regUpdateIrq) {
@@ -1808,7 +1801,6 @@ static void __vfe_do_tasklet(struct isr_queue_cmd *qcmd)
 
 	if (qcmd->vfeInterruptStatus.resetAckIrq) {
 		CDBG("%s: process resetAckIrq\n", __func__);
-		preview_skipframe = 0;
 		vfe_process_reset_irq();
 	}
 
@@ -1827,11 +1819,7 @@ static void __vfe_do_tasklet(struct isr_queue_cmd *qcmd)
 	/* next, check output path related interrupts. */
 	if (qcmd->vfeInterruptStatus.anyOutputPathIrqs) {
 		CDBG("irq: anyOutputPathIrqs\n");
-		if(preview_skipframe > FRAME_SKIP ||
-			ctrl->vfeOperationMode == VFE_START_OPERATION_MODE_SNAPSHOT)
-			vfe_process_output_path_irq(&qcmd->vfeInterruptStatus);
-		else
-			preview_skipframe ++;
+		vfe_process_output_path_irq(&qcmd->vfeInterruptStatus);
 	}
 
 	if (qcmd->vfeInterruptStatus.afPingpongIrq)

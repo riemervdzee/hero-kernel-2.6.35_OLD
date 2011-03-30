@@ -36,7 +36,7 @@ config MT9T013
 
 config MT9D112
 	bool "Sensor mt9d112 (YUV 2M)"
-	depends on MSM_CAMERA
+	depends on MSM_CAMERA 
 	---help---
 	  MICRON 2M YUV Sensor
 
@@ -58,6 +58,7 @@ config S5K3E2FX
 	---help---
 	  Samsung 5M with Autofocus
 
+<<<<<<< HEAD
 config S5K4E1GX
 	bool "Sensor s5k4e1gx (Samsung 5M)"
 	depends on MSM_CAMERA
@@ -72,6 +73,8 @@ config S5K6AAFX
 	---help---
 	  Samsung 1.3M without Autofocus
 
+=======
+>>>>>>> f405e37f8cff646d4b4e
 config OV8810
 	bool "Sensor ov8810"
 	depends on MSM_CAMERA
@@ -85,6 +88,7 @@ config OV9665
 	default n
 	---help---
 	  OmniVision 3M YUV Sensor
+<<<<<<< HEAD
 
 config S5K3H1GX
 	bool "Sensor s5k3h1gx"
@@ -93,3 +97,5 @@ config S5K3H1GX
 	---help---
 	  Samsung 8M 3H1 MIPI AF Sensor
 
+=======
+>>>>>>> f405e37f8cff646d4b4e

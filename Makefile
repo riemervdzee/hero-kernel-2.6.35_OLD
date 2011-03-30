@@ -1,7 +1,11 @@
 VERSION = 2
 PATCHLEVEL = 6
 SUBLEVEL = 35
+<<<<<<< HEAD
 EXTRAVERSION = .10
+=======
+EXTRAVERSION = .11
+>>>>>>> f405e37f8cff646d4b4e
 NAME = Yokohama
 
 # *DOCUMENTATION*
@@ -336,8 +340,8 @@ MODFLAGS	= -DMODULE
 CFLAGS_MODULE   = $(MODFLAGS)
 AFLAGS_MODULE   = $(MODFLAGS)
 LDFLAGS_MODULE  = -T $(srctree)/scripts/module-common.lds
-CFLAGS_KERNEL	=
-AFLAGS_KERNEL	=
+CFLAGS_KERNEL   =
+AFLAGS_KERNEL   =
 CFLAGS_GCOV	= -fprofile-arcs -ftest-coverage
 
 

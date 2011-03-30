@@ -66,7 +66,7 @@ int nr_pdflush_threads;
  */
 int writeback_in_progress(struct backing_dev_info *bdi)
 {
-	return !list_empty(&bdi->work_list);
+	return test_bit(BDI_writeback_running, &bdi->state);
 }
 
 static inline struct backing_dev_info *inode_to_bdi(struct inode *inode)

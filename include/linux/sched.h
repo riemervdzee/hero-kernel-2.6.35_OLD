@@ -150,7 +150,7 @@ extern unsigned long nr_iowait_cpu(int cpu);
 extern unsigned long this_cpu_load(void);
 
 
-extern void calc_global_load(void);
+extern void calc_global_load(unsigned long ticks);
 
 extern unsigned long get_parent_ip(unsigned long addr);
 
@@ -1029,14 +1029,14 @@ struct sched_domain;
 /*
  * wake flags
  */
-#define WF_SYNC		0x01		/* waker goes to sleep after wakup */
-#define WF_FORK		0x02		/* child wakeup after fork */
+#define WF_SYNC    0x01    /* waker goes to sleep after wakup */
+#define WF_FORK    0x02    /* child wakeup after fork */
 
-#define ENQUEUE_WAKEUP		1
-#define ENQUEUE_WAKING		2
-#define ENQUEUE_HEAD		4
+#define ENQUEUE_WAKEUP    1
+#define ENQUEUE_WAKING    2
+#define ENQUEUE_HEAD    4
 
-#define DEQUEUE_SLEEP		1
+#define DEQUEUE_SLEEP    1
 
 struct sched_class {
 	const struct sched_class *next;
@@ -1129,7 +1129,7 @@ struct sched_entity {
 	struct load_weight	load;		/* for load-balancing */
 	struct rb_node		run_node;
 	struct list_head	group_node;
-	unsigned int		on_rq;
+	unsigned int    	on_rq;
 
 	u64			exec_start;
 	u64			sum_exec_runtime;
@@ -1193,11 +1193,12 @@ struct task_struct {
 #ifdef CONFIG_SCHED_BFS
 	int time_slice;
 	u64 deadline;
-	struct list_head run_list;
+	struct list_head run_list, cand_list;
 	u64 last_ran;
 	u64 sched_time; /* sched_clock time spent running */
 
 	unsigned long rt_timeout;
+	int cpu_skip;
 #else /* CONFIG_SCHED_BFS */
 	const struct sched_class *sched_class;
 	struct sched_entity se;
@@ -1225,12 +1226,17 @@ struct task_struct {
 	unsigned int policy;
 	cpumask_t cpus_allowed;
 
-#ifdef CONFIG_TREE_PREEMPT_RCU
+#ifdef CONFIG_PREEMPT_RCU
 	int rcu_read_lock_nesting;
 	char rcu_read_unlock_special;
-	struct rcu_node *rcu_blocked_node;
 	struct list_head rcu_node_entry;
+#endif /* #ifdef CONFIG_PREEMPT_RCU */
+#ifdef CONFIG_TREE_PREEMPT_RCU
+	struct rcu_node *rcu_blocked_node;
 #endif /* #ifdef CONFIG_TREE_PREEMPT_RCU */
+#ifdef CONFIG_RCU_BOOST
+	struct rt_mutex *rcu_boost_mutex;
+#endif /* #ifdef CONFIG_RCU_BOOST */
 
 #if defined(CONFIG_SCHEDSTATS) || defined(CONFIG_TASK_DELAY_ACCT)
 	struct sched_info sched_info;
@@ -1252,11 +1258,10 @@ struct task_struct {
 	unsigned did_exec:1;
 	unsigned in_execve:1;	/* Tell the LSMs that the process is doing an
 				 * execve */
-	unsigned in_iowait:1;
 
-
-	/* Revert to default priority/policy when forking */
-	unsigned sched_reset_on_fork:1;
+	unsigned sched_in_iowait:1;		/* Called io_schedule() */
+	unsigned sched_reset_on_fork:1;		/* Revert to default
+						 * priority/policy on fork */
 
 	pid_t pid;
 	pid_t tgid;
@@ -1532,6 +1537,8 @@ struct task_struct {
 #ifdef CONFIG_SCHED_BFS
 extern int grunqueue_is_locked(void);
 extern void grq_unlock_wait(void);
+extern void cpu_scales(int cpu);
+extern void cpu_nonscaling(int cpu);
 #define tsk_seruntime(t)		((t)->sched_time)
 #define tsk_rttimeout(t)		((t)->rt_timeout)
 
@@ -1548,7 +1555,7 @@ static inline void tsk_cpus_current(struct task_struct *p)
 
 static inline void print_scheduler_version(void)
 {
-	printk(KERN_INFO"BFS CPU scheduler v0.363 by Con Kolivas.\n");
+	printk(KERN_INFO"BFS CPU scheduler v0.370 by Con Kolivas.\n");
 }
 
 static inline int iso_task(struct task_struct *p)
@@ -1558,6 +1565,13 @@ static inline int iso_task(struct task_struct *p)
 extern void remove_cpu(unsigned long cpu);
 #else /* CFS */
 extern int runqueue_is_locked(int cpu);
+static inline void cpu_scales(int cpu)
+{
+}
+
+static inline void cpu_nonscaling(int cpu)
+{
+}
 #define tsk_seruntime(t)	((t)->se.sum_exec_runtime)
 #define tsk_rttimeout(t)	((t)->rt.timeout)
 
@@ -1846,16 +1860,22 @@ extern int task_free_unregister(struct notifier_block *n);
 #define tsk_used_math(p) ((p)->flags & PF_USED_MATH)
 #define used_math() tsk_used_math(current)
 
-#ifdef CONFIG_TREE_PREEMPT_RCU
+#ifdef CONFIG_PREEMPT_RCU
 
 #define RCU_READ_UNLOCK_BLOCKED (1 << 0) /* blocked while in RCU read-side. */
-#define RCU_READ_UNLOCK_NEED_QS (1 << 1) /* RCU core needs CPU response. */
+#define RCU_READ_UNLOCK_BOOSTED (1 << 1) /* boosted while in RCU read-side. */
+#define RCU_READ_UNLOCK_NEED_QS (1 << 2) /* RCU core needs CPU response. */
 
 static inline void rcu_copy_process(struct task_struct *p)
 {
 	p->rcu_read_lock_nesting = 0;
 	p->rcu_read_unlock_special = 0;
+#ifdef CONFIG_TREE_PREEMPT_RCU
 	p->rcu_blocked_node = NULL;
+#endif /* #ifdef CONFIG_TREE_PREEMPT_RCU */
+#ifdef CONFIG_RCU_BOOST
+	p->rcu_boost_mutex = NULL;
+#endif /* #ifdef CONFIG_RCU_BOOST */
 	INIT_LIST_HEAD(&p->rcu_node_entry);
 }
 

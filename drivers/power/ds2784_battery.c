@@ -827,7 +827,7 @@ static int battery_adjust_charge_state(struct ds2784_device_info *di)
 	if (di->status.current_uA > 1024)
 		di->last_charge_seen = di->last_poll;
 	else if (di->last_charge_mode != CHARGE_OFF &&
-		 check_timeout(di->last_poll, di->last_charge_seen, 60 * 60)) {
+		 check_timeout(di->last_poll, di->last_charge_seen, 3 * 60 * 60)) {
 		if (di->last_charge_mode == CHARGE_BATT_DISABLE) {
 			/* The charger is only powering the phone. Toggle the
 			 * enable line periodically to prevent auto shutdown.

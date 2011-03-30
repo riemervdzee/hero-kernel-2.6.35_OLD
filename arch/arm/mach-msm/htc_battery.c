@@ -42,6 +42,8 @@
 #include <linux/ds2784_battery.h>
 #include <linux/smb329.h>
 
+#include <linux/smb329.h>
+
 static struct wake_lock vbus_wake_lock;
 
 enum {

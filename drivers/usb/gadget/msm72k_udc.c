@@ -206,6 +206,7 @@ static int usb_ep_get_stall(struct msm_endpoint *ept)
 		return (CTRL_RXS & n) ? 1 : 0;
 }
 
+#ifdef CONFIG_ARCH_QSD8X50
 static unsigned ulpi_read(struct usb_info *ui, unsigned reg)
 {
 	unsigned timeout = 100000;
@@ -223,6 +224,7 @@ static unsigned ulpi_read(struct usb_info *ui, unsigned reg)
 	}
 	return ULPI_DATA_READ(readl(USB_ULPI_VIEWPORT));
 }
+#endif
 
 static int ulpi_write(struct usb_info *ui, unsigned val, unsigned reg)
 {
@@ -1015,10 +1017,11 @@ static void usb_suspend_phy(struct usb_info *ui)
  * cable disconnect/reconnect to bring the phy back */
 static int usb_phy_reset(struct usb_info *ui)
 {
+#if defined(CONFIG_ARCH_QSD8X50)
 	u32 val;
 	int ret;
 	int retries;
-
+#endif
 	if (!ui->phy_reset)
 		return 0;
 
@@ -1286,7 +1289,7 @@ static void usb_do_work(struct work_struct *w)
 			 * present when we received the signal, go online.
 			 */
 			if ((flags & USB_FLAG_VBUS_ONLINE) && _vbus) {
-				pr_info("msm72k_udc: OFFLINE -> ONLINE\n");
+				pr_info("msm72k_udc: OFFLINE -> ONLINE vbus\n");
 				clk_set_rate(ui->ebi1clk, 128000000);
 				udelay(10);
 				if (ui->coreclk)

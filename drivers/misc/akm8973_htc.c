@@ -728,9 +728,11 @@ int akm8973_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	atomic_set(&t_flag, 0);
 	atomic_set(&mv_flag, 0);
 
+#ifdef CONFIG_EARLYSUSPEND
 	akm->early_suspend_akm.suspend = akm8973_early_suspend;
 	akm->early_suspend_akm.resume = akm8973_early_resume;
 	register_early_suspend(&akm->early_suspend_akm);
+#endif
 
 	return 0;
 
