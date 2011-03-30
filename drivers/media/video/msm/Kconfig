@@ -58,23 +58,6 @@ config S5K3E2FX
 	---help---
 	  Samsung 5M with Autofocus
 
-<<<<<<< HEAD
-config S5K4E1GX
-	bool "Sensor s5k4e1gx (Samsung 5M)"
-	depends on MSM_CAMERA
-	default n
-	---help---
-	  Samsung 5M with Autofocus
-
-config S5K6AAFX
-	bool "Sensor s5k6aafx (Samsung 1.3M)"
-	depends on MSM_CAMERA
-	default n
-	---help---
-	  Samsung 1.3M without Autofocus
-
-=======
->>>>>>> f405e37f8cff646d4b4e
 config OV8810
 	bool "Sensor ov8810"
 	depends on MSM_CAMERA
@@ -88,14 +71,3 @@ config OV9665
 	default n
 	---help---
 	  OmniVision 3M YUV Sensor
-<<<<<<< HEAD
-
-config S5K3H1GX
-	bool "Sensor s5k3h1gx"
-	depends on MSM_CAMERA
-	default n
-	---help---
-	  Samsung 8M 3H1 MIPI AF Sensor
-
-=======
->>>>>>> f405e37f8cff646d4b4e
