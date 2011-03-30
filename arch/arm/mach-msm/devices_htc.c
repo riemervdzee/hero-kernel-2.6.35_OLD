@@ -304,7 +304,7 @@ void __init msm_add_mem_devices(struct msm_pmem_setting *setting)
 		pmem_adsp_pdata.size = setting->pmem_adsp_size;
 		platform_device_register(&pmem_adsp_device);
 	}
-	printk("hw3d_device ")
+	printk("hw3d_device ");
 
 	if (setting->pmem_gpu0_size && setting->pmem_gpu1_size) {
 		struct resource *res;
