@@ -216,21 +216,21 @@ choice
 	prompt "Hero"
 	default MACH_HERO_NONE
 	help
-		Select this to support the Hero GSM or CDMA device
+	  Select this to support the Hero GSM or CDMA device
 
-		config MACH_HERO_NONE
-			bool "None"
+	config MACH_HERO_NONE
+		bool "None"
 
-		config MACH_HERO
-			bool "GSM"
-			select SMS_SMD_PKG3
-			help
-				Select this to support the Hero GSM device
+	config MACH_HERO
+		bool "GSM"
+		select SMS_SMD_PKG3
+		help
+		  Select this to support the Hero GSM device
 
-		config MACH_HEROC
-			bool "CDMA"
-			help
-				Select this to support the Hero CDMA device
+	config MACH_HEROC
+		bool "CDMA"
+		help
+		  Select this to support the Hero CDMA device
 endchoice
 
 menu "HeroC specific devices"
