@@ -78,7 +78,9 @@ module_param_named(msmfb_debug_mask, msmfb_debug_mask, int,
 		   S_IRUGO | S_IWUSR | S_IWGRP);
 
 struct mdp_device *mdp;
+#ifdef CONFIG_FB_MSM_OVERLAY
 static atomic_t mdpclk_on = ATOMIC_INIT(1);
+#endif
 
 struct msmfb_info {
 	struct fb_info *fb;
@@ -626,7 +628,9 @@ static void msmfb_resume(struct work_struct *work)
 	msmfb->fb_resumed = 1;
 	wake_up(&msmfb->frame_wq);
 
+#ifdef CONFIG_FB_MSM_OVERLAY
 	atomic_set(&mdpclk_on, 1);
+#endif
 }
 #endif
 
