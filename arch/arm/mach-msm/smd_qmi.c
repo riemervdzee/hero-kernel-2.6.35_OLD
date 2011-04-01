@@ -648,7 +648,7 @@ static int qmi_print_state(struct qmi_ctxt *ctxt, char *buf, int max)
 	}
 
 	i = scnprintf(buf, max, "STATE=%s\n", statename);
-	i += scnprintf(buf + i, max - i, "CID=%d\n",ctxt->wds_client_id);
+	i += scnprintf(buf + i, max - i, "CID=%d\n",ctxt->misc.minor); //wds_client_id);
 
 	if (ctxt->state != STATE_ONLINE){
 		return i;

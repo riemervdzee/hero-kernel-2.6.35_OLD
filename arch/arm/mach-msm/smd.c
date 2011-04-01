@@ -35,6 +35,8 @@
 #include "smd_private.h"
 #include "proc_comm.h"
 
+#define D printk("smem_alloc from %s\n", __func__)
+
 #if defined(CONFIG_ARCH_QSD8X50)
 #define CONFIG_QDSP6 1
 #endif
@@ -194,7 +196,8 @@ static int smd_packet_write_avail(struct smd_channel *ch)
 
 static int ch_is_open(struct smd_channel *ch)
 {
-	return (ch->recv->state == SMD_SS_OPENED) &&
+	return ((ch->recv->state == SMD_SS_OPENED) ||
+                (ch->recv->state == SMD_SS_FLUSHING)) &&
 		(ch->send->state == SMD_SS_OPENED);
 }
 
@@ -333,11 +336,23 @@ static void smd_state_change(struct smd_channel *ch,
 
 	switch (next) {
 	case SMD_SS_OPENING:
-		ch->recv->tail = 0;
+		if (ch->send->state == SMD_SS_CLOSING ||
+			ch->send->state == SMD_SS_CLOSED) {
+			ch->recv->tail = 0;
+			ch->send->head = 0;
+			ch_set_state(ch, SMD_SS_OPENING);
+		}
+		break;	
 	case SMD_SS_OPENED:
 		if (ch->send->state != SMD_SS_OPENED)
 			ch_set_state(ch, SMD_SS_OPENED);
 		ch->notify(ch->priv, SMD_EVENT_OPEN);
+		break;
+	case SMD_SS_CLOSED:
+		if (ch->send->state == SMD_SS_OPENED) {
+			ch_set_state(ch, SMD_SS_CLOSING);
+			ch->notify(ch->priv, SMD_EVENT_CLOSE);
+		}
 		break;
 	case SMD_SS_FLUSHING:
 	case SMD_SS_RESET:
@@ -661,14 +676,14 @@ static int smd_alloc_channel(const char *name, uint32_t cid, uint32_t type)
 		ch->update_state = update_stream_state;
 	}
 
-	if ((type & 0xff) == 0)
+	if ((type & SMD_TYPE_MASK) == SMD_TYPE_APPS_MODEM)
 		memcpy(ch->name, "SMD_", 4);
 	else
 		memcpy(ch->name, "DSP_", 4);
 	memcpy(ch->name + 4, name, 20);
 	ch->name[23] = 0;
 	ch->pdev.name = ch->name;
-	ch->pdev.id = -1;
+	ch->pdev.id = ch->type & SMD_TYPE_MASK;
 
 	pr_info("smd_alloc_channel() cid=%02d size=%05d '%s'\n",
 		ch->n, ch->fifo_size, ch->name);
@@ -687,6 +702,7 @@ static void smd_channel_probe_worker(struct work_struct *work)
 	unsigned ctype;
 	unsigned type;
 	unsigned n;
+	unsigned ret = -EAGAIN;
 
 	shared = smem_find(ID_CH_ALLOC_TBL, sizeof(*shared) * 64);
 	if (!shared) {
@@ -712,8 +728,9 @@ static void smd_channel_probe_worker(struct work_struct *work)
 		type = shared[n].ctype & SMD_TYPE_MASK;
 		if ((type == SMD_TYPE_APPS_MODEM) ||
 		    (type == SMD_TYPE_APPS_DSP))
-			if (!smd_alloc_channel(shared[n].name, shared[n].cid, ctype))
-				smd_ch_allocated[n] = 1;
+			ret = smd_alloc_channel(shared[n].name, shared[n].cid, ctype);
+		if(!ret)
+			smd_ch_allocated[n] = 1;
 	}
 }
 
@@ -799,6 +816,9 @@ int smd_close(smd_channel_t *ch)
 	if (ch == 0)
 		return -1;
 
+	ch->recv->head = 0;
+	ch->recv->tail = 0;
+
 	spin_lock_irqsave(&smd_lock, flags);
 	ch->notify = do_nothing_notify;
 	list_del(&ch->ch_list);
@@ -850,6 +870,26 @@ int smd_wait_until_readable(smd_channel_t *ch, int bytes)
 int smd_wait_until_writable(smd_channel_t *ch, int bytes)
 {
 	return -1;
+}
+
+int smd_wait_until_opened(smd_channel_t *ch, int timeout_us)
+{
+#define POLL_INTERVAL_USEC     200
+       int count = 0;
+
+       if (timeout_us)
+               count = timeout_us / (POLL_INTERVAL_USEC + 1) + 1;
+
+       do {
+               if (ch_is_open(ch))
+                       return 0;
+               if (count--)
+                       udelay(POLL_INTERVAL_USEC);
+               else
+                       break;
+       } while (1);
+
+       return -1;
 }
 
 int smd_cur_packet_size(smd_channel_t *ch)
@@ -985,6 +1025,22 @@ int smsm_set_sleep_duration(uint32_t delay)
 	return 0;
 }
 
+int smsm_set_sleep_limit(uint32_t sleep_limit)
+{
+       struct msm_dem_slave_data *ptr;
+
+       ptr = smem_find(SMEM_APPS_DEM_SLAVE_DATA, sizeof(*ptr));
+       if (ptr == NULL) {
+               pr_err("smsm_set_sleep_limit <SM NO APPS_DEM_SLAVE_DATA>\n");
+               return -EIO;
+       }
+       if (msm_smd_debug_mask & MSM_SMSM_DEBUG)
+               pr_info("smsm_set_sleep_limit %d -> %d\n",
+                      ptr->resources_used, sleep_limit);
+       ptr->resources_used = sleep_limit;
+       return 0;
+}
+
 #else
 
 int smsm_set_sleep_duration(uint32_t delay)
@@ -1001,6 +1057,11 @@ int smsm_set_sleep_duration(uint32_t delay)
 		       *ptr, delay);
 	*ptr = delay;
 	return 0;
+}
+
+inline int smsm_set_sleep_limit(uint32_t sleep_limit)
+{
+       return 0;
 }
 
 #endif
@@ -1068,7 +1129,7 @@ int smd_core_init(void)
 
 extern void msm_init_last_radio_log(struct module *);
 
-static int msm_smd_probe(struct platform_device *pdev)
+static int __init msm_smd_probe(struct platform_device *pdev)
 {
 	pr_info("smd_init()\n");
 
