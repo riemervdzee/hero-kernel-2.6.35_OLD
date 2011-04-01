@@ -58,7 +58,7 @@
 #include <mach/msm_serial_hs.h>
 #include <mach/htc_pwrsink.h>
 #include <mach/msm_fb.h>
-#include "board-heroc-mach-h2w_v1.h"
+//#include "board-heroc-mach-h2w_v1.h"
 #include <mach/microp_i2c.h>
 #include <mach/htc_battery.h>
 #include <mach/drv_callback.h>
@@ -67,9 +67,10 @@
 #include "devices.h"
 #include "gpio_chip.h"
 #include "board-heroc.h"
-//#include <mach/htc_headset.h>
+#include <mach/htc_headset.h>
+#include <mach/audio_jack.h>
 #include <linux/i2c-msm.h>
-#include "board-heroc-mach-audio_jack.h"
+//#include "board-heroc-mach-audio_jack.h"
 #include <mach/perflock.h>
 // msm_hsusb
 
@@ -112,7 +113,7 @@ unsigned hero_engineerid(void)
 {
         return engineerid;
 }
-#ifdef CONFIG_HEROC_TS
+
 static int heroc_ts_power(int on)
 {
 	printk(KERN_INFO "heroc_ts_power:%d\n", on);
@@ -174,7 +175,7 @@ static struct synaptics_i2c_rmi_platform_data heroc_ts_data[] = {
                 .display_height = 480,
 	}
 };
-#endif
+
 #if 0
 // Is there any pre revision 1 CDMA Hero hardware out there?
 static struct microp_pin_config microp_pins_0[] = {
@@ -360,7 +361,6 @@ static struct tpa6130_platform_data headset_amp_platform_data = {
 };
 
 static struct i2c_board_info i2c_devices[] = {
-#ifdef CONFIG_HEROC_TS
 	{
 		I2C_BOARD_INFO(SYNAPTICS_I2C_RMI_NAME, 0x20),
 		.platform_data = &heroc_ts_data,
@@ -371,7 +371,6 @@ static struct i2c_board_info i2c_devices[] = {
 		.platform_data = &heroc_cypress_ts_data,
 		.irq = MSM_GPIO_TO_INT(HEROC_GPIO_TP_ATT_N)
 	},
-#endif
 	{
 		I2C_BOARD_INFO(MICROP_I2C_NAME, 0xCC >> 1),
 		.platform_data = &microp_data,
@@ -743,23 +742,24 @@ module_param_call(h2w_path, set_h2w_path, param_get_int,
 		  &heroc_h2w_path, S_IWUSR | S_IRUGO);
 
 static struct h2w_platform_data heroc_h2w_data = {
-	.h2w_power	 	= HEROC_GPIO_H2W_POWER,
+	.power_name		= "heroc_h2w",
+//	.h2w_power	 	= HEROC_GPIO_H2W_POWER,
 	.cable_in1	 	= HEROC_GPIO_CABLE_IN1,
 	.cable_in2	 	= HEROC_GPIO_CABLE_IN2,
 	.h2w_clk 		= HEROC_GPIO_H2W_CLK,
 	.h2w_data 		= HEROC_GPIO_H2W_DATA,
 	.headset_mic_35mm 	= HEROC_GPIO_HEADSET_MIC,
-	.ext_mic_sel 		= HEROC_GPIO_AUD_EXTMIC_SEL,
+//	.ext_mic_sel 		= HEROC_GPIO_AUD_EXTMIC_SEL,
 	.debug_uart 		= H2W_UART3,
-	.config 		= h2w_configure,
-	.defconfig 		= h2w_defconfig,
+	.config_cpld 		= h2w_configure,
+	.init_cpld 		= h2w_defconfig,
 	.set_dat 		= set_h2w_dat,
 	.set_clk 		= set_h2w_clk,
 	.set_dat_dir 		= set_h2w_dat_dir,
 	.set_clk_dir 		= set_h2w_clk_dir,
 	.get_dat 		= get_h2w_dat,
 	.get_clk 		= get_h2w_clk,
-	.flags 			= REVERSE_MIC_SEL, 
+//	.flags 			= REVERSE_MIC_SEL, 
 };
 
 static struct platform_device heroc_h2w = {
