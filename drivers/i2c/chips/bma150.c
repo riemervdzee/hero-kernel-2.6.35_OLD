@@ -54,7 +54,7 @@ static int BMA_I2C_RxData(char *rxData, int length)
 		if (i2c_transfer(this_client->adapter, msgs, 2) > 0)
 			break;
 		else
-			mdelay(10);
+			msleep(10);
 	}
 	if (retry > 100) {
 		printk(KERN_ERR "%s: retry over 100\n", __func__);
@@ -81,7 +81,7 @@ static int BMA_I2C_TxData(char *txData, int length)
 		if (i2c_transfer(this_client->adapter, msg, 1) > 0)
 			break;
 		else
-			mdelay(10);
+			msleep(10);
 	}
 	if (retry > 100) {
 		printk(KERN_ERR "%s: retry over 100\n", __func__);

@@ -446,7 +446,6 @@ static int i2c_read_block(struct i2c_client *client, uint8_t addr,
 	}
 	};
 
-	mdelay(1);
 	for (retry = 0; retry < I2C_READ_RETRY_TIMES; retry++) {
 		ret = i2c_transfer(client->adapter, msgs, 2);
 		if (ret == 2) {
@@ -489,7 +488,6 @@ static int i2c_write_block(struct i2c_client *client, uint8_t addr,
 	buf[0] = addr;
 	memcpy((void *)&buf[1], (void *)data, length);
 
-	mdelay(1);
 	for (retry = 0; retry < I2C_WRITE_RETRY_TIMES; retry++) {
 		ret = i2c_transfer(client->adapter, msg, 1);
 		if (ret == 1)
@@ -622,7 +620,7 @@ static void microp_i2c_reset_microp(struct i2c_client *client)
 	gpio_set_value(pdata->gpio_reset, 0);
 	udelay(120);
 	gpio_set_value(pdata->gpio_reset, 1);
-	mdelay(5);
+	msleep(5);
 }
 
 static int microp_i2c_version_check(struct i2c_client *client, uint8_t *data)
@@ -2474,7 +2472,7 @@ static int microp_i2c_config_microp(struct i2c_client *client)
 			ret = i2c_write_block(client,
 				MICROP_I2C_CMD_LED_AUTO_TABLE, data, 5);
 			/* make sure FW has finished this command handle */
-			mdelay(1);
+			msleep(1);
 			if (ret) {
 				pr_err("%s: write_block failed at %d\n", __func__, __LINE__);
 				goto exit;
