@@ -19,14 +19,11 @@
 #include <linux/interrupt.h>
 #include <linux/i2c.h>
 #include <linux/irq.h>
-#include <linux/keyreset.h>
 #include <linux/leds.h>
 #include <linux/switch.h>
 #include <linux/synaptics_i2c_rmi.h>
 #include <linux/cy8c_tmg_ts.h>
 #include <linux/akm8973.h>
-//#include <mach/htc_headset.h>
-//#include <mach/audio_jack.h>
 #include <linux/sysdev.h>
 #include <linux/android_pmem.h>
 #include <linux/bma150.h>
@@ -55,664 +52,30 @@
 #include <asm/mach/mmc.h>
 #include <linux/mmc/sdio_ids.h>
 
-
-#include "gpio_chip.h"
-#include "board-heroc.h"
-
 #include <mach/board.h>
 #include <mach/board_htc.h>
 #include <mach/msm_serial_debugger.h>
 #include <mach/msm_serial_hs.h>
 #include <mach/htc_pwrsink.h>
-//#include <mach/msm_fb.h>
-//#include "board-heroc-mach-h2w_v1.h"
-//#include <mach/microp_i2c.h>
+#include <mach/msm_fb.h>
+#include "board-heroc-mach-h2w_v1.h"
+#include <mach/microp_i2c.h>
 #include <mach/htc_battery.h>
 #include <mach/drv_callback.h>
-#include <linux/i2c-msm.h>
-//#include "board-heroc-mach-audio_jack.h"
-//#include <mach/perflock.h>
-// msm_hsusb
-#include <mach/htc_headset_mgr.h>
-#include <mach/htc_headset_gpio.h>
-#include <mach/htc_headset_microp.h>
 
-
-#ifdef CONFIG_MICROP_COMMON
-#include <mach/atmega_microp.h>
-#endif
-
-#ifdef CONFIG_WIFI_CONTROL_FUNC
-#ifdef CONFIG_WIFI_MEM_PREALLOC
-extern int heroc_init_wifi_mem(void);
-#endif
-extern struct wifi_platform_data heroc_wifi_control;
-#endif
-#ifdef CONFIG_MICROP_COMMON
-void __init heroc_microp_init(void);
-#endif
 #include "proc_comm.h"
 #include "devices.h"
+#include "gpio_chip.h"
+#include "board-heroc.h"
+//#include <mach/htc_headset.h>
+#include <linux/i2c-msm.h>
+#include "board-heroc-mach-audio_jack.h"
+#include <mach/perflock.h>
+// msm_hsusb
 
-void msm_init_irq(void);
-void msm_init_gpio(void);
-void msm_init_pmic_vibrator(void);
 static unsigned int hwid = 0;
 static unsigned int skuid = 0;
 static unsigned int engineerid = 0;
-extern int heroc_init_mmc(unsigned int);
-#if 0
-struct heroc_axis_info {
-        struct gpio_event_axis_info info;
-        uint16_t in_state;
-        uint16_t out_state;
-        uint16_t temp_state;
-	uint16_t threshold;
-};
-static bool nav_just_on;
-static int nav_on_jiffies;
-#if     defined(CONFIG_MSM_AMSS_SUPPORT_256MB_EBI1)
-static int smi_sz = 32;
-#else
-static int smi_sz = 64;
-#endif
-static unsigned int hwid = 0;
-static unsigned int skuid = 0;
-static unsigned int engineerid = 0;
-
-static unsigned int heroc_col_gpios[] = { 35, 34, 33 };
-static unsigned int heroc_row_gpios[] = { 42, 41, 40 };
-
-static const unsigned short heroc_keymap_XA[ARRAY_SIZE(heroc_col_gpios) * ARRAY_SIZE(heroc_row_gpios)] = {
-        [KEYMAP_INDEX(0, 0)] = KEY_BACK,
-        [KEYMAP_INDEX(0, 1)] = KEY_VOLUMEUP,
-        [KEYMAP_INDEX(0, 2)] = KEY_ENTER,
-
-        [KEYMAP_INDEX(1, 0)] = KEY_MENU,
-        [KEYMAP_INDEX(1, 1)] = KEY_VOLUMEDOWN,
-        [KEYMAP_INDEX(1, 2)] = KEY_RESERVED,
-
-        [KEYMAP_INDEX(2, 0)] = KEY_HOME,
-        [KEYMAP_INDEX(2, 1)] = KEY_SEND,
-        [KEYMAP_INDEX(2, 2)] = KEY_RESERVED,
-};
-
-static const unsigned short heroc_keymap[ARRAY_SIZE(heroc_col_gpios) * ARRAY_SIZE(heroc_row_gpios)] = {
-        [KEYMAP_INDEX(0, 0)] = KEY_BACK,
-        [KEYMAP_INDEX(0, 1)] = KEY_VOLUMEUP,
-        [KEYMAP_INDEX(0, 2)] = KEY_SEND,
-
-        [KEYMAP_INDEX(1, 0)] = KEY_MENU,
-        [KEYMAP_INDEX(1, 1)] = KEY_VOLUMEDOWN,
-        [KEYMAP_INDEX(1, 2)] = KEY_COMPOSE,
-
-        [KEYMAP_INDEX(2, 0)] = KEY_HOME,
-        [KEYMAP_INDEX(2, 1)] = KEY_RESERVED,
-        [KEYMAP_INDEX(2, 2)] = MATRIX_KEY(1, BTN_MOUSE),
-};
-
-static struct gpio_event_matrix_info heroc_keypad_matrix_info = {
-        .info.func = gpio_event_matrix_func,
-        .keymap = heroc_keymap,
-        .output_gpios = heroc_col_gpios,
-        .input_gpios = heroc_row_gpios,
-        .noutputs = ARRAY_SIZE(heroc_col_gpios),
-        .ninputs = ARRAY_SIZE(heroc_row_gpios),
-        .settle_time.tv.nsec = 40 * NSEC_PER_USEC,
-        .poll_time.tv.nsec = 20 * NSEC_PER_MSEC,
-        .debounce_delay.tv.nsec = 5 * NSEC_PER_MSEC,
-        .flags = GPIOKPF_LEVEL_TRIGGERED_IRQ | GPIOKPF_REMOVE_PHANTOM_KEYS |GPIOKPF_PRINT_UNMAPPED_KEYS /*| GPIOKPF_PRINT_MAPPED_KEYS*/
-};
-
-uint16_t heroc_x_axis_map(struct gpio_event_axis_info *info, uint16_t in)
-{
-        struct heroc_axis_info *ai =
-                container_of(info, struct heroc_axis_info, info);
-        uint16_t out = ai->out_state;
-
-        if (nav_just_on) {
-                if (jiffies == nav_on_jiffies || jiffies == nav_on_jiffies + 1)
-                        goto ignore;
-                nav_just_on = 0;
-        }
-        if ((ai->in_state ^ in) & 1)
-                out--;
-        if ((ai->in_state ^ in) & 2)
-                out++;
-        ai->out_state = out;
-ignore:
-        ai->in_state = in;
-        if (ai->out_state - ai->temp_state == opt_x_axis_threshold) {
-                ai->temp_state++;
-                ai->out_state = ai->temp_state;
-        } else if (ai->temp_state - ai->out_state == opt_x_axis_threshold) {
-                ai->temp_state--;
-                ai->out_state = ai->temp_state;
-        } else if (abs(ai->out_state - ai->temp_state) > opt_x_axis_threshold)
-                ai->temp_state = ai->out_state;
-
-        return ai->temp_state;
-}
-
-uint16_t heroc_y_axis_map(struct gpio_event_axis_info *info, uint16_t in)
-{
-        struct heroc_axis_info *ai =
-                container_of(info, struct heroc_axis_info, info);
-        uint16_t out = ai->out_state;
-
-        if (nav_just_on) {
-                if (jiffies == nav_on_jiffies || jiffies == nav_on_jiffies + 1)
-                        goto ignore;
-                nav_just_on = 0;
-        }
-        if ((ai->in_state ^ in) & 1)
-                out--;
-        if ((ai->in_state ^ in) & 2)
-                out++;
-        ai->out_state = out;
-ignore:
-        ai->in_state = in;
-        if (ai->out_state - ai->temp_state == opt_y_axis_threshold) {
-                ai->temp_state++;
-                ai->out_state = ai->temp_state;
-        } else if (ai->temp_state - ai->out_state == opt_y_axis_threshold) {
-                ai->temp_state--;
-                ai->out_state = ai->temp_state;
-        } else if (abs(ai->out_state - ai->temp_state) > opt_y_axis_threshold)
-                ai->temp_state = ai->out_state;
-
-        return ai->temp_state;
-}
-
-int heroc_nav_power(const struct gpio_event_platform_data *pdata, bool on)
-{
-        if (!system_rev) /*XA*/
-                gpio_set_value(HEROC_JOGBALL_EN_XA, on);
-        else
-                gpio_set_value(HEROC_JOGBALL_EN, on);
-        nav_just_on = 1;
-        nav_on_jiffies = jiffies;
-        return 0;
-}
-
-static uint32_t heroc_x_axis_gpios[] = {
-        HEROC_GPIO_BALL_LEFT, HEROC_GPIO_BALL_RIGHT
-};
-
-static struct heroc_axis_info heroc_x_axis = {
-	.threshold = 2,
-        .info = {
-                .info.func = gpio_event_axis_func,
-                .count = ARRAY_SIZE(heroc_x_axis_gpios),
-                .dev = 1,
-                .type = EV_REL,
-                .code = REL_X,
-                .decoded_size = 1U << ARRAY_SIZE(heroc_x_axis_gpios),
-                .map = heroc_x_axis_map,
-                .gpio = heroc_x_axis_gpios,
-                .flags = GPIOEAF_PRINT_UNKNOWN_DIRECTION
-                        /*| GPIOEAF_PRINT_RAW | GPIOEAF_PRINT_EVENT */
-        }
-};
-
-static struct heroc_axis_info heroc_y_axis = {
-	.threshold = 2,
-        .info = {
-                .info.func = gpio_event_axis_func,
-                .count = ARRAY_SIZE(heroc_y_axis_gpios),
-                .dev = 1,
-                .type = EV_REL,
-                .code = REL_Y,
-                .decoded_size = 1U << ARRAY_SIZE(heroc_y_axis_gpios),
-                .map = heroc_y_axis_map,
-                .gpio = heroc_y_axis_gpios,
-                .flags = GPIOEAF_PRINT_UNKNOWN_DIRECTION
-                        /*| GPIOEAF_PRINT_RAW | GPIOEAF_PRINT_EVENT  */
-        }
-};
-
-static struct gpio_event_direct_entry heroc_keypad_nav_map[] = {
-        {
-                .gpio   = HEROC_POWER_KEY,
-                .code   = KEY_END
-        },
-};
-
-static struct gpio_event_input_info heroc_keypad_nav_info = {
-        .info.func = gpio_event_input_func,
-        .info.no_suspend = true,
-        .flags = GPIOEDF_PRINT_KEYS,
-        .type = EV_KEY,
-        .debounce_time.tv.nsec = 5 * NSEC_PER_MSEC,
-        .keymap = heroc_keypad_nav_map,
-        .keymap_size = ARRAY_SIZE(heroc_keypad_nav_map)
-};
-
-static struct gpio_event_info *heroc_input_info[] = {
-        &heroc_keypad_matrix_info.info,
-        &heroc_keypad_nav_info.info,
-        &heroc_x_axis.info.info,
-        &heroc_y_axis.info.info,
-};
-
-static struct gpio_event_platform_data heroc_input_data = {
-        .names = {
-                "heroc-keypad",
-                "heroc-nav",
-                NULL,
-        },
-        .info = heroc_input_info,
-        .info_count = ARRAY_SIZE(heroc_input_info),
-        .power = heroc_nav_power,
-};
-
-static struct platform_device heroc_keypad_device = {
-        .name = GPIO_EVENT_DEV_NAME,
-        .id = 0,
-        .dev            = {
-                .platform_data  = &heroc_input_data,
-        },
-}
-
-static int heroc_reset_keys_up[] = {
-        BTN_MOUSE,
-        0
-};
-
-static struct keyreset_platform_data heroc_reset_keys_pdata = {
-        .keys_up = heroc_reset_keys_up,
-        .keys_down = {
-                KEY_SEND,
-                KEY_MENU,
-                KEY_END,
-                0
-        },
-};
-
-static struct platform_device heroc_reset_keys_device = {
-        .name = KEYRESET_NAME,
-        .dev.platform_data = &heroc_reset_keys_pdata,
-};
-#endif
-static int heroc_ts_power(int on)
-{
-        if (on) {
-                gpio_set_value(HEROC_GPIO_TP_EN, 1);
-
-                msleep(2);                              // was msleep(2)
-                /* enable touch panel level shift */
-                gpio_set_value(HEROC_TP_LS_EN, 1);
-                msleep(2);
-        } else {
-                gpio_set_value(HEROC_TP_LS_EN, 0);
-                udelay(50);
-		gpio_set_value(HEROC_GPIO_TP_EN, 0);
-        }
-
-        return 0;
-}
-
-static struct synaptics_i2c_rmi_platform_data heroc_ts_data[] = {
-        {
-                .version = 0x0101,
-                .power = heroc_ts_power,
-                .sensitivity_adjust = 7,
-                .flags = SYNAPTICS_FLIP_X | SYNAPTICS_SNAP_TO_INACTIVE_EDGE,
-                .inactive_left = -50 * 0x10000 / 4334,
-                .inactive_right = -50 * 0x10000 / 4334,
-                .inactive_top = -40 * 0x10000 / 6696,
-                .inactive_bottom = -40 * 0x10000 / 6696,
-                .snap_left_on = 50 * 0x10000 / 4334,
-                .snap_left_off = 60 * 0x10000 / 4334,
-                .snap_right_on = 50 * 0x10000 / 4334,
-                .snap_right_off = 60 * 0x10000 / 4334,
-                .snap_top_on = 100 * 0x10000 / 6696,
-                .snap_top_off = 110 * 0x10000 / 6696,
-                .snap_bottom_on = 100 * 0x10000 / 6696,
-                .snap_bottom_off = 110 * 0x10000 / 6696,
-                .display_width = 320,
-                .display_height = 480,
-                .dup_threshold = 10,
-        },
-        {
-                .flags = SYNAPTICS_FLIP_Y | SYNAPTICS_SNAP_TO_INACTIVE_EDGE,
-                .inactive_left = ((4674 - 4334) / 2 + 200) * 0x10000 / 4334,
-                .inactive_right = ((4674 - 4334) / 2 + 200) * 0x10000 / 4334,
-                .inactive_top = ((6946 - 6696) / 2) * 0x10000 / 6696,
-                .inactive_bottom = ((6946 - 6696) / 2) * 0x10000 / 6696,
-                 .display_width = 320,
-                .display_height = 480,
-        }
-};
-
-static struct akm8973_platform_data compass_platform_data = {
-        .layouts = HEROC_LAYOUTS,
-        .project_name = HEROC_PROJECT_NAME,
-        .reset = HEROC_GPIO_COMPASS_RST_N,
-        .intr = HEROC_GPIO_COMPASS_INT_N,
-};
-
-static struct cy8c_i2c_platform_data heroc_cypress_ts_data = {
-        .version = 0x0001,
-        .abs_x_min = 0,
-        .abs_x_max = 319,
-        .abs_y_min = 0,
-        .abs_y_max = 479,
-        .abs_pressure_min = 0,
-        .abs_pressure_max = 255,
-        .abs_width_min = 0,
-        .abs_width_max = 15,
-        .power = heroc_ts_power,
-};
-
-static struct bma150_platform_data gsensor_platform_data = {
-        .intr = HEROC_GPIO_GSENSOR_INT_N,
-};
-
-static struct tpa6130_platform_data headset_amp_platform_data = {
-        .gpio_hp_sd = HEROC_GPIO_HTC_HP_SD,
-        .enable_rpc_server = 1,
-};
-
-#ifdef CONFIG_MICROP_COMMON
-static int capella_cm3602_power(int pwr_device, uint8_t enable);
-
-static struct microp_function_config microp_functions[] = {
-        {
-                .name   = "reset-int",
-                .category = MICROP_FUNCTION_RESET_INT,
-                .int_pin = 1 << 8,
-        },
-};
-
-static struct microp_function_config microp_lightsensor = {
-        .name = "light_sensor",
-        .category = MICROP_FUNCTION_LSENSOR,
-        .levels = { 3, 7, 12, 57, 114, 279, 366, 453, 540, 0x3FF },
-        .channel = 3,
-        .int_pin = 1 << 9,
-        .golden_adc = 0x118,
-        .ls_power = capella_cm3602_power,
-};
-
-static struct lightsensor_platform_data lightsensor_data = {
-        .config = &microp_lightsensor,
-        .irq = MSM_uP_TO_INT(9),
-};
-
-static struct microp_led_config led_config[] = {
-        {
-                .name = "amber",
-                .type = LED_RGB,
-        },
-        {
-                .name = "green",
-                .type = LED_RGB,
-        },
-};
-
-static struct microp_led_platform_data microp_leds_data = {
-        .num_leds       = ARRAY_SIZE(led_config),
-        .led_config     = led_config,
-};
-
-static struct bma150_platform_data supersonic_g_sensor_pdata = {
-        .microp_new_cmd = 1,
-};
-
-/* Proximity Sensor (Capella_CM3602)*/
-
-static int __capella_cm3602_power(int on)
-{
-        int ret;
-        struct vreg *vreg = vreg_get(0, "gp1");
-        if (!vreg) {
-                printk(KERN_ERR "%s: vreg error\n", __func__);
-                return -EIO;
-        }
-        ret = vreg_set_level(vreg, 2800);
-/*
-        printk(KERN_DEBUG "%s: Turn the capella_cm3602 power %s\n",
-                __func__, (on) ? "on" : "off");
-        if (on) {
-                gpio_direction_output(SUPERSONIC_GPIO_PROXIMITY_EN_N, 1);
-                ret = vreg_enable(vreg);
-                if (ret < 0)
-                        printk(KERN_ERR "%s: vreg enable failed\n", __func__);
-        } else {
-                vreg_disable(vreg);
-                gpio_direction_output(SUPERSONIC_GPIO_PROXIMITY_EN_N, 0);
-        }
-*/
-        return ret;
-}
-
-static DEFINE_MUTEX(capella_cm3602_lock);
-static unsigned int als_power_control;
-
-static int capella_cm3602_power(int pwr_device, uint8_t enable)
-{
-        unsigned int old_status = 0;
-        int ret = 0, on = 0;
-        mutex_lock(&capella_cm3602_lock);
-
-        old_status = als_power_control;
-        if (enable)
-                als_power_control |= pwr_device;
-        else
-                als_power_control &= ~pwr_device;
-
-        on = als_power_control ? 1 : 0;
-        if (old_status == 0 && on)
-                ret = __capella_cm3602_power(1);
-        else if (!on)
-                ret = __capella_cm3602_power(0);
-
-        mutex_unlock(&capella_cm3602_lock);
-        return ret;
-}
-#if 0
-static struct capella_cm3602_platform_data capella_cm3602_pdata = {
-        .power = capella_cm3602_power,
-        .p_en = SUPERSONIC_GPIO_PROXIMITY_EN_N,
-        .p_out = MSM_uP_TO_INT(4),
-};
-#endif
-static struct htc_headset_microp_platform_data htc_headset_microp_data = {
-        .remote_int   = 1 << 7,
-        .remote_irq   = MSM_uP_TO_INT(7),
-        .remote_enable_pin      = 0,
-        .adc_channel    = 0x01,
-        .adc_remote   = {0, 33, 50, 110, 160, 220},
-};
-
-static struct platform_device microp_devices[] = {
-        {
-                .name = "lightsensor_microp",
-                .dev = {
-                        .platform_data = &lightsensor_data,
-                },
-        },
-        {
-                .name = "leds-microp",
-                .id = -1,
-                .dev = {
-                        .platform_data = &microp_leds_data,
-                },
-        },
-        {
-                .name = BMA150_G_SENSOR_NAME,
-                .dev = {
-                        .platform_data = &supersonic_g_sensor_pdata,
-                },
-        },
-#if 0
-        {
-                .name = "supersonic_proximity",
-                .id = -1,
-                .dev = {
-                        .platform_data = &capella_cm3602_pdata,
-                },
-        },
-#endif
-  {
-                .name = "HTC_HEADSET_MICROP",
-                .id = -1,
-                .dev  = {
-                        .platform_data  = &htc_headset_microp_data,
-                },
-        },
-};
-
-static struct microp_i2c_platform_data microp_data = {
-        .num_functions   = ARRAY_SIZE(microp_functions),
-        .microp_function = microp_functions,
-        .num_devices = ARRAY_SIZE(microp_devices),
-        .microp_devices = microp_devices,
-        .gpio_reset = HEROC_GPIO_UP_RESET_N,
-        .microp_ls_on = LS_PWR_ON | PS_PWR_ON,
-        .spi_devices = SPI_GSENSOR,
-};
-#endif
-
-static struct gpio_led heroc_led_list[] = {
-        {
-                .name = "button-backlight",
-                .gpio = HEROC_JOGBALL_EN,
-                .active_low = 0,
-        },
-};
-
-static struct gpio_led_platform_data heroc_leds_data = {
-        .num_leds       = ARRAY_SIZE(heroc_led_list),
-        .leds           = heroc_led_list,
-};
-
-static struct platform_device heroc_leds = {
-        .name           = "leds-gpio",
-        .id             = -1,
-        .dev            = {
-                .platform_data  = &heroc_leds_data,
-        },
-};
-#if 0
-static struct microp_pin_config microp_pins_1[] = {
-        MICROP_PIN(2, MICROP_PIN_CONFIG_GPO),
-        MICROP_PIN(4, MICROP_PIN_CONFIG_GPO),
-        MICROP_PIN(6, MICROP_PIN_CONFIG_GPO),
-        MICROP_PIN(10, MICROP_PIN_CONFIG_GPO),
-        MICROP_PIN(11, MICROP_PIN_CONFIG_GPO),
-        MICROP_PIN(12, MICROP_PIN_CONFIG_GPO),
-        MICROP_PIN(13, MICROP_PIN_CONFIG_GPO),
-        MICROP_PIN(14, MICROP_PIN_CONFIG_GPO_INV),
-        MICROP_PIN(15, MICROP_PIN_CONFIG_GPO),
-        {
-                .name   = "green",
-                .pin    = 3,
-                .config = MICROP_PIN_CONFIG_GPO,
-        },
-        {
-                .name   = "amber",
-                .pin    = 5,
-                .config = MICROP_PIN_CONFIG_GPO,
-        },
-        {
-                .name   = "button-backlight",
-                .pin    = 7,
-                .config = MICROP_PIN_CONFIG_GPO,
-                .suspend_off = 1,
-        },
-        {
-                .name   = "jogball-backlight",
-                .pin    = 8,
-                .config = MICROP_PIN_CONFIG_GPO,
-                .suspend_off = 1,
-        },
-        {
-                .name   = "low-power",
-                .pin    = 9,
-                .config = MICROP_PIN_CONFIG_GPO_INV,
-        },
-        {
-                .name = "microp_11pin_mic",                .pin = 1,
-                .config = MICROP_PIN_CONFIG_MIC,
-                .init_value = 0,
-        },
-        {
-                .name   = "35mm_adc",
-                .pin    = 16,
-                .adc_pin = 1,
-                .intr_pin = 1,
-                .config = MICROP_PIN_CONFIG_UP_ADC,
-                .levels = { 200, 0x3FF, 0, 33, 38, 82, 95, 167 },
-        },
-        {
-                .name   = "adc",
-                .pin    = 17,
-                .config = MICROP_PIN_CONFIG_ADC,
-                .levels = { 0, 2, 4, 9, 24, 53, 125, 220, 532, 693 },
-        },
-        {
-                .name   = "microp_intrrupt",
-                .pin    = 18,
-                .config  = MICROP_PIN_CONFIG_INTR_ALL,
-                .mask    = { 0x00, 0x00, 0x00 },
-//              .intr_debounce = heroc_microp_intr_debounce,
-//                .intr_function = heroc_microp_intr_function,
-                .init_intr_function = 0,
-        },
-};
-
-static struct microp_i2c_platform_data microp_data = {
-        .num_pins   = ARRAY_SIZE(microp_pins_1),
-        .pin_config = microp_pins_1,
-        .gpio_reset = HEROC_GPIO_UP_RESET_N,
-        .cabc_backlight_enable = 1,
-        .microp_enable_early_suspend = 1,
-        .microp_mic_status = 0,
-        .microp_enable_reset_button = 1,
-};
-#endif
-static struct i2c_board_info i2c_devices[] = {
-        {
-                I2C_BOARD_INFO(SYNAPTICS_I2C_RMI_NAME, 0x20),
-                .platform_data = &heroc_ts_data,
-                .irq = MSM_GPIO_TO_INT(HEROC_GPIO_TP_ATT_N)
-        },
-        {
-                I2C_BOARD_INFO(CYPRESS_TMG_NAME, 0x13),
-                .platform_data = &heroc_cypress_ts_data,
-                .irq = MSM_GPIO_TO_INT(HEROC_GPIO_TP_ATT_N)
-        },
-#ifdef CONFIG_MICROP_COMMON
-        {
-                I2C_BOARD_INFO(MICROP_I2C_NAME, 0xCC >> 1),
-                .platform_data = &microp_data,
-                .irq = MSM_GPIO_TO_INT(HEROC_GPIO_UP_INT_N)
-        },
-#endif
-        {
-                I2C_BOARD_INFO(AKM8973_I2C_NAME, 0x1C),
-                .platform_data = &compass_platform_data,
-                .irq = MSM_GPIO_TO_INT(HEROC_GPIO_COMPASS_INT_N),
-        },
-        {
-                I2C_BOARD_INFO(BMA150_I2C_NAME, 0x38),
-                .platform_data = &gsensor_platform_data,
-                .irq = MSM_GPIO_TO_INT(HEROC_GPIO_GSENSOR_INT_N),
-        },
-        {
-                I2C_BOARD_INFO(TPA6130_I2C_NAME, 0xC0 >> 1),
-                .platform_data = &headset_amp_platform_data,
-        },
-#ifdef CONFIG_MSM_CAMERA
-#ifdef CONFIG_S5K3E2FX
-        {
-                I2C_BOARD_INFO("s5k3e2fx", 0x20 >> 1)
-        }
-#endif
-#endif
-};
 
 extern ssize_t htc_battery_show_batt_attr(struct device *dev,
 					 struct device_attribute *attr,
@@ -749,7 +112,69 @@ unsigned hero_engineerid(void)
 {
         return engineerid;
 }
+#ifdef CONFIG_HEROC_TS
+static int heroc_ts_power(int on)
+{
+	printk(KERN_INFO "heroc_ts_power:%d\n", on);
+        if (on) {
+                gpio_set_value(HEROC_GPIO_TP_EN, 1);
+                msleep(2);				// was msleep(2)
+                /* enable touch panel level shift */
+                gpio_set_value(HEROC_TP_LS_EN, 1);
+                msleep(2);
+        } else {
+                gpio_set_value(HEROC_TP_LS_EN, 0);
+                gpio_set_value(HEROC_GPIO_TP_EN, 0);
+        }
+        return 0;
+}
 
+static struct cy8c_i2c_platform_data heroc_cypress_ts_data = {
+	.version = 0x0001,
+	.abs_x_min = 0,
+	.abs_x_max = 319,
+	.abs_y_min = 0,
+	.abs_y_max = 479,
+	.abs_pressure_min = 0,
+	.abs_pressure_max = 255,
+	.abs_width_min = 0,
+	.abs_width_max = 15,
+	.power = heroc_ts_power,
+};
+
+static struct synaptics_i2c_rmi_platform_data heroc_ts_data[] = {
+	{
+		.version = 0x0101,
+		.power = heroc_ts_power,
+		.sensitivity_adjust = 7,
+		.flags = SYNAPTICS_FLIP_X | SYNAPTICS_SNAP_TO_INACTIVE_EDGE,
+		.inactive_left = -50 * 0x10000 / 4334,
+		.inactive_right = -50 * 0x10000 / 4334,
+		.inactive_top = -40 * 0x10000 / 6696,
+		.inactive_bottom = -40 * 0x10000 / 6696,
+		.snap_left_on = 50 * 0x10000 / 4334,
+		.snap_left_off = 60 * 0x10000 / 4334,
+		.snap_right_on = 50 * 0x10000 / 4334,
+		.snap_right_off = 60 * 0x10000 / 4334,
+		.snap_top_on = 100 * 0x10000 / 6696,
+		.snap_top_off = 110 * 0x10000 / 6696,
+		.snap_bottom_on = 100 * 0x10000 / 6696,
+		.snap_bottom_off = 110 * 0x10000 / 6696,
+                .display_width = 320,
+                .display_height = 480,
+		.dup_threshold = 10,
+	},
+	{
+		.flags = SYNAPTICS_FLIP_Y | SYNAPTICS_SNAP_TO_INACTIVE_EDGE,
+		.inactive_left = ((4674 - 4334) / 2 + 200) * 0x10000 / 4334,
+		.inactive_right = ((4674 - 4334) / 2 + 200) * 0x10000 / 4334,
+		.inactive_top = ((6946 - 6696) / 2) * 0x10000 / 6696,
+		.inactive_bottom = ((6946 - 6696) / 2) * 0x10000 / 6696,
+		 .display_width = 320,
+                .display_height = 480,
+	}
+};
+#endif
 #if 0
 // Is there any pre revision 1 CDMA Hero hardware out there?
 static struct microp_pin_config microp_pins_0[] = {
@@ -809,10 +234,87 @@ static struct microp_pin_config microp_pins_0[] = {
 };
 #endif
 
+static struct microp_pin_config microp_pins_1[] = {
+	MICROP_PIN(2, MICROP_PIN_CONFIG_GPO),
+	MICROP_PIN(4, MICROP_PIN_CONFIG_GPO),
+	MICROP_PIN(6, MICROP_PIN_CONFIG_GPO),
+	MICROP_PIN(10, MICROP_PIN_CONFIG_GPO),
+	MICROP_PIN(11, MICROP_PIN_CONFIG_GPO),
+	MICROP_PIN(12, MICROP_PIN_CONFIG_GPO),
+	MICROP_PIN(13, MICROP_PIN_CONFIG_GPO),
+	MICROP_PIN(14, MICROP_PIN_CONFIG_GPO_INV),
+	MICROP_PIN(15, MICROP_PIN_CONFIG_GPO),
+	{
+		.name   = "green",
+		.pin    = 3,
+		.config = MICROP_PIN_CONFIG_GPO,
+	},
+	{
+		.name   = "amber",
+		.pin    = 5,
+		.config = MICROP_PIN_CONFIG_GPO,
+	},
+	{
+		.name	= "button-backlight",
+		.pin	= 7,
+		.config = MICROP_PIN_CONFIG_GPO,
+		.suspend_off = 1,
+	},
+	{
+		.name	= "jogball-backlight",
+		.pin	= 8,
+		.config = MICROP_PIN_CONFIG_GPO,
+		.suspend_off = 1,
+	},
+	{
+		.name	= "low-power",
+		.pin	= 9,
+		.config = MICROP_PIN_CONFIG_GPO_INV,
+	},
+	{
+		.name = "microp_11pin_mic",
+		.pin = 1,
+		.config = MICROP_PIN_CONFIG_MIC,
+		.init_value = 0,
+	},
+	{
+		.name	= "35mm_adc",
+		.pin	= 16,
+		.adc_pin = 1,
+		.intr_pin = 1,
+		.config = MICROP_PIN_CONFIG_UP_ADC,
+		.levels = { 200, 0x3FF, 0, 33, 38, 82, 95, 167 },
+	},
+	{
+		.name   = "adc",
+		.pin    = 17,
+		.config = MICROP_PIN_CONFIG_ADC,
+		.levels = { 0, 2, 4, 9, 24, 53, 125, 220, 532, 693 },
+	},
+	{
+		.name	= "microp_intrrupt",
+		.pin	= 18,
+		.config  = MICROP_PIN_CONFIG_INTR_ALL,
+		.mask	 = { 0x00, 0x00, 0x00 },
+//		.intr_debounce = heroc_microp_intr_debounce,
+//                .intr_function = heroc_microp_intr_function,
+                .init_intr_function = 0,
+	},
+};
+
+
+static struct microp_i2c_platform_data microp_data = {
+	.num_pins   = ARRAY_SIZE(microp_pins_1),
+	.pin_config = microp_pins_1,
+	.gpio_reset = HEROC_GPIO_UP_RESET_N,
+	.cabc_backlight_enable = 1,
+	.microp_enable_early_suspend = 1,
+	.microp_mic_status = 0,
+	.microp_enable_reset_button = 1,
+};
 
 void heroc_headset_mic_select(uint8_t select)
 {
-//	hs_gpio_mic_select(select);
 //	microp_i2c_set_pin_mode(4, select, microp_data.dev_id);
 }
 
@@ -840,6 +342,59 @@ static void heroc_microp_intr_function(uint8_t *pin_status)
 	}
 }
 #endif
+
+static struct akm8973_platform_data compass_platform_data = {
+	.layouts = HEROC_LAYOUTS,
+	.project_name = HEROC_PROJECT_NAME,
+	.reset = HEROC_GPIO_COMPASS_RST_N,
+	.intr = HEROC_GPIO_COMPASS_INT_N,
+};
+
+static struct bma150_platform_data gsensor_platform_data = {
+	.intr = HEROC_GPIO_GSENSOR_INT_N,
+};
+
+static struct tpa6130_platform_data headset_amp_platform_data = {
+	.gpio_hp_sd = HEROC_GPIO_HTC_HP_SD,
+	.enable_rpc_server = 1,
+};
+
+static struct i2c_board_info i2c_devices[] = {
+#ifdef CONFIG_HEROC_TS
+	{
+		I2C_BOARD_INFO(SYNAPTICS_I2C_RMI_NAME, 0x20),
+		.platform_data = &heroc_ts_data,
+		.irq = MSM_GPIO_TO_INT(HEROC_GPIO_TP_ATT_N)
+	},
+	{
+		I2C_BOARD_INFO(CYPRESS_TMG_NAME, 0x13),
+		.platform_data = &heroc_cypress_ts_data,
+		.irq = MSM_GPIO_TO_INT(HEROC_GPIO_TP_ATT_N)
+	},
+#endif
+	{
+		I2C_BOARD_INFO(MICROP_I2C_NAME, 0xCC >> 1),
+		.platform_data = &microp_data,
+		.irq = MSM_GPIO_TO_INT(HEROC_GPIO_UP_INT_N)
+	},
+	{
+		I2C_BOARD_INFO(AKM8973_I2C_NAME, 0x1C),
+		.platform_data = &compass_platform_data,
+		.irq = MSM_GPIO_TO_INT(HEROC_GPIO_COMPASS_INT_N),
+	},
+	{
+		I2C_BOARD_INFO(BMA150_I2C_NAME, 0x38),
+		.platform_data = &gsensor_platform_data,
+		.irq = MSM_GPIO_TO_INT(HEROC_GPIO_GSENSOR_INT_N),
+	},
+	{
+		I2C_BOARD_INFO(TPA6130_I2C_NAME, 0xC0 >> 1),
+		.platform_data = &headset_amp_platform_data,
+	},
+	{
+		I2C_BOARD_INFO("s5k3e2fx", 0x20 >> 1)
+	}
+};
 
 #if 0
 // Not sure where this came from
@@ -1073,32 +628,6 @@ static uint32_t uart3_off_gpo_table[] = {
                       GPIO_OUTPUT, GPIO_NO_PULL, GPIO_2MA),
 };
 
-static struct htc_headset_mgr_platform_data htc_headset_mgr_data = {
-};
-
-static struct platform_device htc_headset_mgr = {
-        .name = "HTC_HEADSET_MGR",
-        .id = -1,
-        .dev  = {
-                .platform_data  = &htc_headset_mgr_data,
-        },
-};
-
-static struct htc_headset_gpio_platform_data htc_headset_gpio_data = {
-        .hpin_gpio        = HEROC_GPIO_35MM_HEADSET_DET,
-        .key_enable_gpio  = 0,
-        .mic_select_gpio  = 0,
-};
-
-static struct platform_device htc_headset_gpio = {
-        .name = "HTC_HEADSET_GPIO",
-        .id = -1,
-        .dev  = {
-                .platform_data  = &htc_headset_gpio_data,
-        },
-};
-
-#if 0
 static int heroc_h2w_path = H2W_GPIO;
 
 static void h2w_configure(int route)
@@ -1214,23 +743,23 @@ module_param_call(h2w_path, set_h2w_path, param_get_int,
 		  &heroc_h2w_path, S_IWUSR | S_IRUGO);
 
 static struct h2w_platform_data heroc_h2w_data = {
-	.power_name	 	= HEROC_GPIO_H2W_POWER,
+	.h2w_power	 	= HEROC_GPIO_H2W_POWER,
 	.cable_in1	 	= HEROC_GPIO_CABLE_IN1,
 	.cable_in2	 	= HEROC_GPIO_CABLE_IN2,
 	.h2w_clk 		= HEROC_GPIO_H2W_CLK,
 	.h2w_data 		= HEROC_GPIO_H2W_DATA,
 	.headset_mic_35mm 	= HEROC_GPIO_HEADSET_MIC,
-//	.ext_mic_sel 		= HEROC_GPIO_AUD_EXTMIC_SEL,
+	.ext_mic_sel 		= HEROC_GPIO_AUD_EXTMIC_SEL,
 	.debug_uart 		= H2W_UART3,
-	.config_cpld		= h2w_configure,
-	.init_cpld 		= h2w_defconfig,
+	.config 		= h2w_configure,
+	.defconfig 		= h2w_defconfig,
 	.set_dat 		= set_h2w_dat,
 	.set_clk 		= set_h2w_clk,
 	.set_dat_dir 		= set_h2w_dat_dir,
 	.set_clk_dir 		= set_h2w_clk_dir,
 	.get_dat 		= get_h2w_dat,
 	.get_clk 		= get_h2w_clk,
-//.flags 			= REVERSE_MIC_SEL, 
+	.flags 			= REVERSE_MIC_SEL, 
 };
 
 static struct platform_device heroc_h2w = {
@@ -1262,7 +791,7 @@ static struct platform_device heroc_audio_jack = {
 		.platform_data	= &heroc_jack_data,
 	},
 };
-#endif
+
 static struct platform_device heroc_rfkill = {
 	.name = "heroc_rfkill",
 	.id = -1,
@@ -1366,11 +895,9 @@ static struct msm_i2c_device_platform_data heroc_i2c_device_data = {
 
 static struct platform_device *devices[] __initdata = {
         &msm_device_i2c,
-//	&heroc_h2w,
+	&heroc_h2w,
 	&htc_battery_pdev,
-//	&heroc_audio_jack,
-        &htc_headset_mgr,
-        &htc_headset_gpio,
+	&heroc_audio_jack,
 	&heroc_rfkill,
 #ifdef CONFIG_HTC_PWRSINK
 	&heroc_pwr_sink,
@@ -1455,12 +982,11 @@ static unsigned heroc_perf_acpu_table[] = {
         518400000,
 };
 
-#if 0
 static struct perflock_platform_data heroc_perflock_data = {
         .perf_acpu_table = heroc_perf_acpu_table,
         .table_size = ARRAY_SIZE(heroc_perf_acpu_table),
 };
-#endif
+
 
 #ifdef CONFIG_SERIAL_MSM_HS
 static struct msm_serial_hs_platform_data msm_uart_dm1_pdata = {
@@ -1481,13 +1007,13 @@ static void __init heroc_init(void)
 	gpio_request(HEROC_GPIO_CABLE_IN2, "heroc_gpio_cable_in2");
         gpio_request(HEROC_GPIO_AUD_EXTMIC_SEL, "heroc_gpio_aud_extmic_sel");
 
-	//config_h2w_gpios();
-	//if (system_rev < 2)
-        //        heroc_h2w.name = "h2w";
+	config_h2w_gpios();
+	if (system_rev < 2)
+                heroc_h2w.name = "h2w";
 	msm_hw_reset_hook = heroc_reset;
 
 	msm_acpu_clock_init(&heroc_clock_data);
-//	perflock_init(&heroc_perflock_data);
+	perflock_init(&heroc_perflock_data);
 
 #if defined(CONFIG_MSM_SERIAL_DEBUGGER)
 	if (!opt_disable_uart3)
@@ -1504,9 +1030,7 @@ static void __init heroc_init(void)
 #endif
 	
 	
-#ifdef CONFIG_MICROP_COMMON
-        heroc_microp_init();
-#endif
+	
 	
 	platform_add_devices(serial_devices, ARRAY_SIZE(serial_devices));	
 
