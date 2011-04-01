@@ -2427,7 +2427,7 @@ static int msm_open_control(struct inode *inode, struct file *filep)
 	int rc;
 
 	struct msm_control_device *ctrl_pmsm =
-		kzalloc(sizeof(struct msm_control_device), GFP_KERNEL);
+		kmalloc(sizeof(struct msm_control_device), GFP_KERNEL);
 	if (!ctrl_pmsm)
 		return -ENOMEM;
 
