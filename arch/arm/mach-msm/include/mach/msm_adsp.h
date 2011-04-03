@@ -26,7 +26,7 @@ struct msm_adsp_ops {
 	 */
 	void (*event)(void *driver_data, unsigned id, size_t len,
 		      void (*getevent)(void *ptr, size_t len));
-	 void (*modem_event) (void *driver_data, uint32_t image);
+	void (*modem_event) (void *driver_data, uint32_t image);
 };
 
 /* Get, Put, Enable, and Disable are synchronous and must only
@@ -47,6 +47,8 @@ int msm_adsp_disable_event_rsp(struct msm_adsp_module *module);
 int msm_adsp_write(struct msm_adsp_module *module,
 		   unsigned queue_id,
 		   void *data, size_t len);
+
+#define ADSP_MESSAGE_ID -1
 
 #if CONFIG_MSM_AMSS_VERSION >= 6350 || CONFIG_MSM_AMSS_VERSION ==4410
 /* Command Queue Indexes */

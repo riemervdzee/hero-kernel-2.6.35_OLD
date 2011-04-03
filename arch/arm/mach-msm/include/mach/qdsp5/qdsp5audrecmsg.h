@@ -124,6 +124,4 @@ typedef struct {
 	unsigned short	pkt_read_cnt_lsw;
 } __attribute__((packed))audrec_msg_packet_ready_msg;
 
-#define ADSP_MESSAGE_ID -1
-
 #endif
