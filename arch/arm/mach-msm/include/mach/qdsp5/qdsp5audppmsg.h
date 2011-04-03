@@ -315,6 +315,4 @@ struct audpp_msg_routing_ack {
 
 #define AUDPP_MSG_FLUSH_ACK 0x000A
 
-#define ADSP_MESSAGE_ID -1
-
 #endif /* QDSP5AUDPPMSG_H */
