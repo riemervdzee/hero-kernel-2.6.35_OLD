@@ -54,13 +54,6 @@ static struct adsp_info adsp_info;
 static struct msm_rpc_endpoint *rpc_cb_server_client;
 static struct msm_adsp_module *adsp_modules;
 static int adsp_open_count;
-
-static uint32_t rpc_adsp_rtos_atom_prog;
-static uint32_t rpc_adsp_rtos_atom_vers;
-static uint32_t rpc_adsp_rtos_atom_vers_comp;
-static uint32_t rpc_adsp_rtos_mtoa_prog;
-static uint32_t rpc_adsp_rtos_mtoa_vers;
-static uint32_t rpc_adsp_rtos_mtoa_vers_comp;
 static DEFINE_MUTEX(adsp_open_lock);
 
 /* protect interactions with the ADSP command/message queue */
@@ -204,8 +197,8 @@ static struct msm_adsp_module *find_adsp_module_by_name(
 static int adsp_rpc_init(struct msm_adsp_module *adsp_module)
 {
 	adsp_module->rpc_client = msm_rpc_connect(
-		rpc_adsp_rtos_atom_prog,
-		rpc_adsp_rtos_atom_vers,
+		RPC_ADSP_RTOS_ATOM_PROG,
+		RPC_ADSP_RTOS_ATOM_VERS,
 		MSM_RPC_UNINTERRUPTIBLE | MSM_RPC_ENABLE_RECEIVE);
 
 	if (IS_ERR(adsp_module->rpc_client)) {
@@ -229,8 +222,8 @@ static void  msm_get_init_info(void)
 	struct rpc_reply_hdr rpc_rsp;
 
 	adsp_info.init_info_rpc_client = msm_rpc_connect(
-		rpc_adsp_rtos_atom_prog,
-		rpc_adsp_rtos_atom_vers,
+		RPC_ADSP_RTOS_ATOM_PROG,
+		RPC_ADSP_RTOS_ATOM_VERS,
 		MSM_RPC_UNINTERRUPTIBLE | MSM_RPC_ENABLE_RECEIVE);
 	if (IS_ERR(adsp_info.init_info_rpc_client)) {
 		rc = PTR_ERR(adsp_info.init_info_rpc_client);
@@ -801,9 +794,9 @@ static int adsp_rpc_thread(void *data)
 			goto bad_rpc;
 		if (req->rpc_vers != 2)
 			goto bad_rpc;
-		if (req->prog != rpc_adsp_rtos_mtoa_prog)
+		if (req->prog != RPC_ADSP_RTOS_MTOA_PROG)
 			goto bad_rpc;
-		if (req->vers != rpc_adsp_rtos_mtoa_vers)
+		if (req->vers != RPC_ADSP_RTOS_MTOA_VERS)
 			goto bad_rpc;
 
 		handle_adsp_rtos_mtoa(req);
@@ -1119,8 +1112,8 @@ static int msm_adsp_probe(struct platform_device *pdev)
 	}
 
 	rc = msm_rpc_register_server(rpc_cb_server_client,
-				     rpc_adsp_rtos_mtoa_prog,
-				     rpc_adsp_rtos_mtoa_vers);
+				     RPC_ADSP_RTOS_MTOA_PROG,
+				     RPC_ADSP_RTOS_MTOA_VERS);
 	if (rc) {
 		pr_err("adsp: could not register callback server (%d)\n", rc);
 		goto fail_rpc_register;
@@ -1177,12 +1170,6 @@ static struct platform_driver msm_adsp_driver = {
 
 static int __init adsp_init(void)
 {
-	rpc_adsp_rtos_atom_prog = RPC_ADSP_RTOS_ATOM_PROG;
-	rpc_adsp_rtos_atom_vers = RPC_ADSP_RTOS_ATOM_VERS;
-	rpc_adsp_rtos_atom_vers_comp = RPC_ADSP_RTOS_ATOM_VERS;
-	rpc_adsp_rtos_mtoa_prog = RPC_ADSP_RTOS_MTOA_PROG;
-	rpc_adsp_rtos_mtoa_vers = RPC_ADSP_RTOS_MTOA_VERS;
-	rpc_adsp_rtos_mtoa_vers_comp = RPC_ADSP_RTOS_MTOA_VERS;
 	return platform_driver_register(&msm_adsp_driver);
 }
 
