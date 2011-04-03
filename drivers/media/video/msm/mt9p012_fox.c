@@ -372,8 +372,13 @@ static int32_t mt9p012_set_lc(void)
 {
 	int32_t rc;
 
-	rc = mt9p012_i2c_write_w_table(mt9p012_regs.rftbl,
-				       mt9p012_regs.rftbl_size);
+	rc = mt9p012_i2c_write_w_table(mt9p012_regs.lctbl,
+				       mt9p012_regs.lctbl_size);
+	if (rc < 0)
+		return rc;
+//Kevin modify 20100304
+//	rc = mt9p012_i2c_write_w_table(mt9p012_regs.rftbl,
+//				       mt9p012_regs.rftbl_size);
 
 	return rc;
 }
@@ -1454,9 +1459,9 @@ static int __mt9p012_probe(struct platform_device *pdev)
 static struct platform_driver msm_camera_driver = {
 	.probe = __mt9p012_probe,
 	.driver = {
-		   .name = "msm_camera_mt9p012",
-		   .owner = THIS_MODULE,
-		   },
+		.name = "msm_camera_mt9p012",
+		.owner = THIS_MODULE,
+	},
 };
 
 static int __init mt9p012_init(void)
