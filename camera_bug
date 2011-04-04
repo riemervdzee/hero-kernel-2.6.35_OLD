@@ -73,10 +73,15 @@ Kernel: 2.6.35.10,
 	Another possible lead is that it reports the gain and/or line is zero?
 	Getting quite clueless actually...
 
-
-
-
-
+  April 4, 2011. Riemer van der Zee
+	
+	Camera is stable when using the default frequencies.
+	However changing them (or the governor) leads to problems.
+	We are now able to use preview mode, take videos and the AF sharper seems
+	to work properly. However the important part: taking the picture fails.
+	
+	The hang has been identified at:
+	http://tinyurl.com/3nq392x
 
 
 
