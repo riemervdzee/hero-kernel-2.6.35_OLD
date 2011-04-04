@@ -73,8 +73,17 @@ Kernel: 2.6.35.10,
 	The hang has been identified at:
 	http://tinyurl.com/3nq392x
 
+	update:
+	The next log-item after timeout: 5000, with no Clock-tampering is a prinfo 
+	in msm_vfe_sync at the event VFE_MSG_SNAPSHOT. It should be noted that this 
+	function does not get called when the freq has been changed.
+	It seems this function is called at vfe_7x_ops in the msm_vfe7x.c.
+	This function is then again bound to two adsp tasks called:
+	QCAMTASK and VFETASK
 
-
+	When using a different freq, this function suddenly receives a 
+	"13" message-type. expected message-type is 2 which translates to 
+	VFE_MSG_SNAPSHOT. 13 is unknown
 
 
 
