@@ -1580,15 +1580,22 @@ static int __msm_get_pic(struct msm_sync *sync, struct msm_ctrl_cmd *ctrl)
 	struct msm_queue_cmd *qcmd = NULL;
 
 	tm = (int)ctrl->timeout_ms;
+	pr_info("%s: timeout: %d\n", __func__, tm);
 
+	/*
+	 * Riemer: I have tracked down the problem to here so far
+	 * It seems the function it is waiting for has not been finnished yet?
+	 * Anyone got a clue which function/codepath this is?
+	 */
 	rc = wait_event_interruptible_timeout(
 			sync->pict_q.wait,
 			!list_empty_careful(&sync->pict_q.list),
 			msecs_to_jiffies(tm));
 	if (list_empty_careful(&sync->pict_q.list)) {
-		if (rc == 0)
+		if (rc == 0) {
+			pr_err("%s: timeout! \n", __func__);
 			return -ETIMEDOUT;
-		if (rc < 0) {
+		} else if (rc < 0) {
 			pr_err("%s: rc %d\n", __func__, rc);
 			return rc;
 		}
