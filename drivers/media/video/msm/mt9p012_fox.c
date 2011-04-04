@@ -388,27 +388,25 @@ static void mt9p012_get_pict_fps(uint16_t fps, uint16_t *pfps)
 	/* input fps is preview fps in Q8 format */
 	uint32_t divider;	/*Q10 */
 	uint32_t pclk_mult;	/*Q10 */
-	uint32_t d1;
-	uint32_t d2;
 
-	d1 =
-		(uint32_t)(
-		(mt9p012_regs.reg_pat[RES_PREVIEW].frame_length_lines *
-		0x00000400) /
-		mt9p012_regs.reg_pat[RES_CAPTURE].frame_length_lines);
+	if (mt9p012_ctrl->prev_res == QTR_SIZE) {
+		divider = (uint32_t)
+		    (((mt9p012_regs.reg_pat[RES_PREVIEW].frame_length_lines *
+		       mt9p012_regs.reg_pat[RES_PREVIEW].line_length_pck) *
+		      0x00000400) /
+		     (mt9p012_regs.reg_pat[RES_CAPTURE].frame_length_lines *
+		      mt9p012_regs.reg_pat[RES_CAPTURE].line_length_pck));
 
-	d2 =
-		(uint32_t)(
-		(mt9p012_regs.reg_pat[RES_PREVIEW].line_length_pck *
-		0x00000400) /
-		mt9p012_regs.reg_pat[RES_CAPTURE].line_length_pck);
-
-	divider = (uint32_t) (d1 * d2) / 0x00000400;
-
-	pclk_mult =
-		(uint32_t) ((mt9p012_regs.reg_pat[RES_CAPTURE].pll_multiplier *
-		0x00000400) /
-		(mt9p012_regs.reg_pat[RES_PREVIEW].pll_multiplier));
+		pclk_mult =
+		    (uint32_t) ((mt9p012_regs.reg_pat[RES_CAPTURE].
+				 pll_multiplier * 0x00000400) /
+				(mt9p012_regs.reg_pat[RES_PREVIEW].
+				 pll_multiplier));
+	} else {
+		/* full size resolution used for preview. */
+		divider = 0x00000400;	/*1.0 */
+		pclk_mult = 0x00000400;	/*1.0 */
+	}
 
 	/* Verify PCLK settings and frame sizes. */
 	*pfps = (uint16_t) (fps * divider * pclk_mult / 0x00000400 /
@@ -459,7 +457,6 @@ static int32_t mt9p012_set_fps(struct fps_cfg *fps)
 {
 	/* input is new fps in Q10 format */
 	int32_t rc = 0;
-	enum mt9p012_setting setting;
 
 	mt9p012_ctrl->fps_divider = fps->fps_div;
 	mt9p012_ctrl->pict_fps_divider = fps->pict_fps_div;
@@ -470,15 +467,10 @@ static int32_t mt9p012_set_fps(struct fps_cfg *fps)
 	if (rc < 0)
 		return -EBUSY;
 
-	if (mt9p012_ctrl->sensormode == SENSOR_PREVIEW_MODE)
-		setting = RES_PREVIEW;
-	else
-		setting = RES_CAPTURE;
-
 	rc = mt9p012_i2c_write_w(mt9p012_client->addr,
-		REG_FRAME_LENGTH_LINES,
-		(mt9p012_regs.reg_pat[setting].frame_length_lines *
-		fps->fps_div / 0x00000400));
+				 REG_LINE_LENGTH_PCK,
+				 (mt9p012_regs.reg_pat[RES_PREVIEW].
+				  line_length_pck * fps->f_mult / 0x00000400));
 	if (rc < 0)
 		return rc;
 
