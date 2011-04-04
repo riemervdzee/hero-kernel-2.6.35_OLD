@@ -18,6 +18,8 @@
 
 /* FIXME: management of mutexes */
 
+#define ILOVEBUGSINMYKERNEL
+
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/init.h>
@@ -2301,6 +2303,9 @@ static void msm_vfe_sync(struct msm_vfe_resp *vdata,
 #endif
 
 	case VFE_MSG_SNAPSHOT:
+#ifdef ILOVEBUGSINMYKERNEL
+		pr_info("%s: VFE_MSG_SNAPSHOT called with pp_mask: %d\n", __func__, sync->pp_mask);
+#endif
 		if (sync->pp_mask & (PP_SNAP | PP_RAW_SNAP)) {
 			CDBG("%s: PP_SNAP in progress: pp_mask %x\n",
 				__func__, sync->pp_mask);
