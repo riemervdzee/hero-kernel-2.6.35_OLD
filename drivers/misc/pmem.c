@@ -32,7 +32,7 @@
 #define PMEM_MAX_ORDER 128
 #define PMEM_MIN_ALLOC PAGE_SIZE
 
-#define PMEM_DEBUG 0
+#define PMEM_DEBUG 1
 //#define PMEM_LOG
 
 /* indicates that a refernce to this file has been taken via get_pmem_file,
@@ -953,7 +953,6 @@ lock_mm:
 	 * once */
 	if (PMEM_IS_SUBMAP(data) && !mm) {
 		pmem_unlock_data_and_mm(data, mm);
-		up_write(&data->sem);
 		goto lock_mm;
 	}
 	/* now check that vma.mm is still there, it could have been
