@@ -16,6 +16,8 @@
  *
  */
 
+#define ILOVEBUGSINMYKERNEL
+
 #include <linux/msm_adsp.h>
 #include <linux/slab.h>
 #include <linux/uaccess.h>
@@ -144,8 +146,14 @@ static void vfe_7x_ops(void *driver_data, unsigned id, size_t len,
 		rp->evt_msg.data = rp + 1;
 		getevent(rp->evt_msg.data, len);
 
-		CDBG("%s, vfe_operationmode %d rp->evt_msg.msg_id %d\n",
-			__func__, vfe_operationmode, rp->evt_msg.msg_id);
+#ifdef ILOVEBUGSINMYKERNEL
+		/* Filter on which messages we don't want (stats events) */
+		if (rp->evt_msg.msg_id != 5 && rp->evt_msg.msg_id != 7 && rp->evt_msg.msg_id != 9) {
+			pr_info("%s, vfe_operationmode %d rp->evt_msg.msg_id %d\n",
+				__func__, vfe_operationmode, rp->evt_msg.msg_id);
+		}
+#endif
+
 		switch (rp->evt_msg.msg_id) {
 		case MSG_START_ACK:
 			if (vfe_operationmode == 1)
@@ -331,12 +339,14 @@ static int vfe_7x_init(struct msm_vfe_callback *presp,
 
 	rc = msm_adsp_get("QCAMTASK", &qcam_mod, &vfe_7x_sync, NULL);
 	if (rc) {
+		pr_err("%s: requesting QCAMTASK failed with %d\n", __func__, rc);
 		rc = -EBUSY;
 		goto get_qcam_fail;
 	}
 
 	rc = msm_adsp_get("VFETASK", &vfe_mod, &vfe_7x_sync, NULL);
 	if (rc) {
+		pr_err("%s: requesting VFETASK failed with %d\n", __func__, rc);
 		rc = -EBUSY;
 		goto get_vfe_fail;
 	}
@@ -656,7 +666,6 @@ static int vfe_7x_config(struct msm_vfe_cfg_cmd *cmd, void *data)
 				switch (*(uint32_t *) cmd_data) {
 				case VFE_RESET_CMD:
 					msm_camio_vfe_blk_reset();
-					//msm_camio_camif_pad_reg_reset_2();
 					vfestopped = 0;
 					break;
 
