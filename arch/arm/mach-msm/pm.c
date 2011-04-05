@@ -303,7 +303,8 @@ static int msm_sleep(int sleep_mode, uint32_t sleep_delay, int from_idle)
 
 #ifdef CONFIG_HTC_PWR_TEST
 	if (board_mfg_mode() == 4) /*power test mode*/
-		gpio_set_diag_gpio_table(board_get_mfg_sleep_gpio_table());
+		gpio_set_diag_gpio_table(
+			(unsigned long *)board_get_mfg_sleep_gpio_table());
 #endif
 
 	if (msm_pm_debug_mask & MSM_PM_DEBUG_SUSPEND)
@@ -425,8 +426,8 @@ static int msm_sleep(int sleep_mode, uint32_t sleep_delay, int from_idle)
 #endif
 	}
 #ifdef CONFIG_HTC_POWER_COLLAPSE_MAGIC
-  magic_num = 0xAAAA1111;
-  writel(magic_num, HTC_POWER_COLLAPSE_MAGIC_NUM);
+	magic_num = 0xAAAA1111;
+	writel(magic_num, HTC_POWER_COLLAPSE_MAGIC_NUM);
 #endif
 	if (sleep_mode < MSM_PM_SLEEP_MODE_APPS_SLEEP) {
 		if (msm_pm_debug_mask & MSM_PM_DEBUG_SMSM_STATE)
@@ -453,8 +454,8 @@ static int msm_sleep(int sleep_mode, uint32_t sleep_delay, int from_idle)
 		msm_pm_reset_vector[1] = saved_vector[1];
 		if (collapsed) {
 #ifdef CONFIG_VFP
-      if (from_idle)
-        vfp_reinit();
+			if (from_idle)
+				vfp_reinit();
 #endif
 			cpu_init();
 			__asm__("cpsie   a");
@@ -472,18 +473,18 @@ static int msm_sleep(int sleep_mode, uint32_t sleep_delay, int from_idle)
 		rv = 0;
 	}
 #ifdef CONFIG_HTC_POWER_COLLAPSE_MAGIC
-  magic_num = 0xBBBB9999;
-  writel(magic_num, HTC_POWER_COLLAPSE_MAGIC_NUM);
+	magic_num = 0xBBBB9999;
+	writel(magic_num, HTC_POWER_COLLAPSE_MAGIC_NUM);
 #endif
 	if (sleep_mode <= MSM_PM_SLEEP_MODE_RAMP_DOWN_AND_WAIT_FOR_INTERRUPT) {
 		if (msm_pm_debug_mask & MSM_PM_DEBUG_CLOCK)
 			printk(KERN_INFO "msm_sleep(): exit power collapse %ld"
 			       "\n", pm_saved_acpu_clk_rate);
 #if defined(CONFIG_ARCH_QSD8X50)
-    if (acpuclk_set_rate(pm_saved_acpu_clk_rate, 1) < 0)
+		if (acpuclk_set_rate(pm_saved_acpu_clk_rate, 1) < 0)
 #else
-    if (acpuclk_set_rate(pm_saved_acpu_clk_rate,
-      from_idle ? SETRATE_PC_IDLE : SETRATE_PC) < 0)
+		if (acpuclk_set_rate(pm_saved_acpu_clk_rate,
+			from_idle ? SETRATE_PC_IDLE : SETRATE_PC) < 0)
 #endif
 			printk(KERN_ERR "msm_sleep(): clk_set_rate %ld "
 			       "failed\n", pm_saved_acpu_clk_rate);
@@ -602,10 +603,10 @@ void arch_idle(void)
 			printk(KERN_DEBUG "msm_sleep: clk swfi -> %ld\n",
 				saved_rate);
 #if defined(CONFIG_ARCH_QSD8X50)
-    if (saved_rate && acpuclk_set_rate(saved_rate, 1) < 0)
+		if (saved_rate && acpuclk_set_rate(saved_rate, 1) < 0)
 #else
-    if (saved_rate
-        && acpuclk_set_rate(saved_rate, SETRATE_SWFI) < 0)
+		if (saved_rate
+		    && acpuclk_set_rate(saved_rate, SETRATE_SWFI) < 0)
 #endif
 			printk(KERN_ERR "msm_sleep(): clk_set_rate %ld "
 			       "failed\n", saved_rate);
@@ -844,25 +845,25 @@ static void __init msm_pm_axi_init(void)
 
 static void __init boot_lock_nohalt(void)
 {
-  int nohalt_timeout;
+	int nohalt_timeout;
 
-  /* normal/factory2/recovery */
-  switch (board_mfg_mode()) {
-  case 0: /* normal */
-  case 1: /* factory2 */
-  case 2: /* recovery */
-    nohalt_timeout = BOOT_LOCK_TIMEOUT_NORMAL;
-    break;
-  case 3: /* charge */
-  case 4: /* power_test */
-  case 5: /* offmode_charge */
-  default:
-    nohalt_timeout = BOOT_LOCK_TIMEOUT_SHORT;
-    break;
-  }
-  disable_hlt();
-  schedule_delayed_work(&work_expire_boot_lock, nohalt_timeout);
-  pr_info("Acquire 'boot-time' no_halt_lock %ds\n", nohalt_timeout / HZ);
+	/* normal/factory2/recovery */
+	switch (board_mfg_mode()) {
+	case 0: /* normal */
+	case 1: /* factory2 */
+	case 2: /* recovery */
+		nohalt_timeout = BOOT_LOCK_TIMEOUT_NORMAL;
+		break;
+	case 3: /* charge */
+	case 4: /* power_test */
+	case 5: /* offmode_charge */
+	default:
+		nohalt_timeout = BOOT_LOCK_TIMEOUT_SHORT;
+		break;
+	}
+	disable_hlt();
+	schedule_delayed_work(&work_expire_boot_lock, nohalt_timeout);
+	pr_info("Acquire 'boot-time' no_halt_lock %ds\n", nohalt_timeout / HZ);
 }
 
 static int __init msm_pm_init(void)
@@ -888,7 +889,7 @@ static int __init msm_pm_init(void)
 				NULL, msm_pm_read_proc, NULL);
 #endif
 
-  boot_lock_nohalt();
+	boot_lock_nohalt();
 	return 0;
 }
 
