@@ -48,7 +48,11 @@
 #define MSG_STATS_AF  8
 #define MSG_STATS_WE  9
 
+#ifdef CONFIG_MSM_ADSP_COMP
 #define VFE_ADSP_EVENT 0xFFFFFFFF
+#else
+#define VFE_ADSP_EVENT 0xFFFF
+#endif
 
 
 static struct msm_adsp_module *qcam_mod;
