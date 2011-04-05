@@ -95,9 +95,24 @@ Kernel: 2.6.35.10,
 	"13" message-type. expected message-type is 2 which translates to 
 	VFE_MSG_SNAPSHOT. 13 is unknown
 
+  April 5, 2011. Riemer van der Zee
 
+	Function which calls vfe_7x_ops is:
+	adsp_rtos_read_ctrl_word_cmd_tast_to_h_v
+	
+	to be found at file:
+	/arch/arm/mach-msm/qdsp5_comp/adsp.c
 
-
+	Couldn't find any strange differences between our qdsp5_comp and qdsp5 
+	.35 version on this point.
+	
+	I have the idea it is more smd related... Sobe made alternations to these 
+	files, while I never have taken a look at them. Just copied his version
+	a while ago, this fixed bonesey's problem with connecting to his network.
+	Differences between HeroC.29 and GSM.29 version between these files don't
+	seem too big. Will fiddle a little with them... otherwise we will have to
+	revert them to original .35? and implement any hero-specific parts?
+	Always had the idea smd-stuff was a bit voodoo tbh.
 
 
 
