@@ -534,19 +534,6 @@ static struct i2c_board_info i2c_bma150 = {
 	.irq = MSM_GPIO_TO_INT(HERO_GPIO_GSENSOR_INT_N),
 };
 
-static struct resource msm_camera_resources[] = {
-        {
-                .start  = MSM_VFE_PHYS,
-                .end    = MSM_VFE_PHYS + MSM_VFE_SIZE - 1,
-                .flags  = IORESOURCE_MEM,
-        },
-        {
-                .start  = INT_VFE,
-                 INT_VFE,
-                .flags  = IORESOURCE_IRQ,
-        },
-};
-
 static struct msm_camera_device_platform_data msm_camera_device_data = {
 	.camera_gpio_on  = config_hero_camera_on_gpios,
 	.camera_gpio_off = config_hero_camera_off_gpios,
@@ -562,8 +549,6 @@ static struct msm_camera_sensor_info msm_camera_sensor_mt9p012_data = {
 	.sensor_pwd		= HERO_CAM_PWDN,
 	.vcm_pwd		= HERO_GPIO_VCM_PWDN,
 	.pdata			= &msm_camera_device_data,
-	.resource       = msm_camera_resources,
-	.num_resources  = ARRAY_SIZE(msm_camera_resources),
 };
 
 static struct platform_device msm_camera_sensor_mt9p012 = {
