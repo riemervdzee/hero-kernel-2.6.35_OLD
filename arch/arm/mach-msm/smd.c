@@ -341,13 +341,13 @@ static void smd_state_change(struct smd_channel *ch,
 
 	switch (next) {
 	case SMD_SS_OPENING:
-               if (ch->send->state == SMD_SS_CLOSING ||
-                   ch->send->state == SMD_SS_CLOSED) {
-                       ch->recv->tail = 0;
-                       ch->send->head = 0;
-                       ch_set_state(ch, SMD_SS_OPENING);
-               }
-               break;	
+		if (ch->send->state == SMD_SS_CLOSING ||
+			ch->send->state == SMD_SS_CLOSED) {
+			ch->recv->tail = 0;
+			ch->send->head = 0;
+			ch_set_state(ch, SMD_SS_OPENING);
+		}
+		break;	
 	case SMD_SS_OPENED:
 		/* 
 		 * heroc only set state/notified when
@@ -358,11 +358,11 @@ static void smd_state_change(struct smd_channel *ch,
 		ch->notify(ch->priv, SMD_EVENT_OPEN);
 		break;
 	case SMD_SS_CLOSED:
-               if (ch->send->state == SMD_SS_OPENED) {
-                       ch_set_state(ch, SMD_SS_CLOSING);
-                       ch->notify(ch->priv, SMD_EVENT_CLOSE);
-               }
-               break;
+		if (ch->send->state == SMD_SS_OPENED) {
+			ch_set_state(ch, SMD_SS_CLOSING);
+			ch->notify(ch->priv, SMD_EVENT_CLOSE);
+		}
+		break;
 	case SMD_SS_FLUSHING:
 	case SMD_SS_RESET:
 		/* we should force them to close? */

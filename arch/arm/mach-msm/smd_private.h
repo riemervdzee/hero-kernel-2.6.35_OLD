@@ -72,14 +72,14 @@ struct smsm_interrupt_info
 	uint32_t interrupt_mask;
 	uint32_t pending_interrupts;
 	uint32_t wakeup_reason;
-        uint32_t aArm_rpc_prog;
-        uint32_t aArm_rpc_proc;
-        char aArm_smd_port_name[SMSM_MAX_PORT_NAME_LEN];
-        /* If the wakeup reason is GPIO then send the gpio info */
-        uint32_t aArm_gpio_info;
-        /*uint32_t interrupt_mask;
-        uint32_t pending_interrupts;
-        uint32_t wakeup_reason;*/
+	uint32_t aArm_rpc_prog;
+	uint32_t aArm_rpc_proc;
+	char aArm_smd_port_name[SMSM_MAX_PORT_NAME_LEN];
+	/* If the wakeup reason is GPIO then send the gpio info */
+	uint32_t aArm_gpio_info;
+	/*uint32_t interrupt_mask;
+	uint32_t pending_interrupts;
+	uint32_t wakeup_reason;*/
 };
 #else
 #define DEM_MAX_PORT_NAME_LEN (20)
