@@ -189,9 +189,9 @@ __set_brightness(struct cabc *cabc, int brightness, u8 dimming)
 
 	/* no need to check brightness > LED_FULL, the led class
 	 * already does */
-	printk(KERN_INFO "brightness = %d, %s ls-(%s)\n",
-              brightness, str_bc_mode[cabc->mode_bc],
-               (test_bit(LS_STATE, &cabc->status) ? "on" : "off"));
+	//printk(KERN_INFO "brightness = %d, %s ls-(%s)\n",
+	//	brightness, str_bc_mode[cabc->mode_bc],
+	//	(test_bit(LS_STATE, &cabc->status) ? "on" : "off"));
 
 	mutex_lock(&cabc->data_lock);
 	if(cabc->cabc_config->shrink && cabc->cabc_config->shrink_br)
@@ -240,22 +240,22 @@ static void __turn_on_backlight(struct cabc *cabc, u8 brightness)
 #if DEBUG
 static void cabc_dump(unsigned long status)
 {
-       if (test_bit(LS_STATE, &status))
-               B("LS ");
-       if (test_bit(ENFORCE_ON, &status))
-               B("EN_ON ");
-        if (test_bit(SUSPEND, &status))
-                B("SUSPEND ");
-        if (test_bit(AUTO_SETTING, &status))
-                B("AUTO_SETTING ");
+	if (test_bit(LS_STATE, &status))
+		B("LS ");
+	if (test_bit(ENFORCE_ON, &status))
+		B("EN_ON ");
+	if (test_bit(SUSPEND, &status))
+		 B("SUSPEND ");
+	if (test_bit(AUTO_SETTING, &status))
+		B("AUTO_SETTING ");
 	if (test_bit(GATE_ON, &status))
 		B("GATE ");
 	if (test_bit(SUSPEND, &status))
 		B("SUSPEND ");
 	if (test_bit(AUTO_SETTING, &status))
 		B("AUTO_SETTING ");
-       if (test_bit(LS_SWITCH, &status))
-               B("SWITCH ");
+	if (test_bit(LS_SWITCH, &status))
+		B("SWITCH ");
 	B("\n");
 }
 #endif
@@ -270,7 +270,7 @@ static void cabc_lcd_work(struct work_struct *work)
 	/* check again, if we are doing early_suspend, but the check
 	 * already passed. */
 	if ((test_bit(SUSPEND, &cabc->status) == 0) &&
-	    (test_bit(ENFORCE_ON, &cabc->status) == 0)) {
+		(test_bit(ENFORCE_ON, &cabc->status) == 0)) {
 		__set_brightness(cabc, led_cdev->brightness, 1U << 3);
 		sprintf(event_string, "CABC_BRIGHTNESS=%d",
 			led_cdev->brightness);
@@ -314,13 +314,13 @@ samsung_get_brightness(struct led_classdev *led_cdev)
 	cabc = to_cabc(led_cdev, lcd_backlight);
 	client_data = cabc_get_client(cabc);
 
-       wake_lock(&cabc->wakelock);
+	wake_lock(&cabc->wakelock);
 
-       val = client_data->remote_read(client_data, RDDISBV);
-       val &= 0x000000ff;
-       B(KERN_DEBUG "%s: brightness = %d\n", __func__,  val);
+	val = client_data->remote_read(client_data, RDDISBV);
+	val &= 0x000000ff;
+	B(KERN_DEBUG "%s: brightness = %d\n", __func__,  val);
 
-       wake_unlock(&cabc->wakelock);
+	wake_unlock(&cabc->wakelock);
 	return val;
 }
 
