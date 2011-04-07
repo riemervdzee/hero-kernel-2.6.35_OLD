@@ -237,7 +237,7 @@ static struct cpufreq_frequency_table msm7600_freq_table[] = {
 
 #define TABLE_CONFIG(m0, m1) { \
         MACH_TYPE_##m0, \
-        msm##m1##_tbl, \
+        acpu_freq_tbl, \
         msm##m1##_freq_table \
 }
 
@@ -695,7 +695,7 @@ static void __init acpu_freq_tbl_fixup(void)
         /* Select the right table to use. */
         for (lst = acpu_freq_tbl_list; lst->tbl != 0; lst++) {
                 if (lst->machine == machine_arch_type) {
-                        acpu_freq_tbl = lst->tbl;
+                        //acpu_freq_tbl = lst->tbl;
                         freq_table = lst->freq_tbl;
                         break;
                 }
