@@ -58,19 +58,20 @@
 #include <mach/msm_serial_hs.h>
 #include <mach/htc_pwrsink.h>
 #include <mach/msm_fb.h>
-//#include "board-heroc-mach-h2w_v1.h"
 #include <mach/microp_i2c.h>
 #include <mach/htc_battery.h>
 #include <mach/drv_callback.h>
 
+#include <mach/htc_headset.h>
+#include <mach/audio_jack.h>
+
+//#include "board-heroc-mach-h2w_v1.h"
+//#include "board-heroc-mach-audio_jack.h"
 #include "proc_comm.h"
 #include "devices.h"
 #include "gpio_chip.h"
 #include "board-heroc.h"
-#include <mach/htc_headset.h>
-#include <mach/audio_jack.h>
 #include <linux/i2c-msm.h>
-//#include "board-heroc-mach-audio_jack.h"
 #include <mach/perflock.h>
 // msm_hsusb
 
@@ -742,14 +743,13 @@ module_param_call(h2w_path, set_h2w_path, param_get_int,
 		  &heroc_h2w_path, S_IWUSR | S_IRUGO);
 
 static struct h2w_platform_data heroc_h2w_data = {
-	.power_name		= "heroc_h2w",
-//	.h2w_power	 	= HEROC_GPIO_H2W_POWER,
+	.power_gpio	 	= HEROC_GPIO_H2W_POWER,
 	.cable_in1	 	= HEROC_GPIO_CABLE_IN1,
 	.cable_in2	 	= HEROC_GPIO_CABLE_IN2,
 	.h2w_clk 		= HEROC_GPIO_H2W_CLK,
 	.h2w_data 		= HEROC_GPIO_H2W_DATA,
 	.headset_mic_35mm 	= HEROC_GPIO_HEADSET_MIC,
-//	.ext_mic_sel 		= HEROC_GPIO_AUD_EXTMIC_SEL,
+	.ext_mic_sel 		= HEROC_GPIO_AUD_EXTMIC_SEL,
 	.debug_uart 		= H2W_UART3,
 	.config_cpld 		= h2w_configure,
 	.init_cpld 		= h2w_defconfig,
@@ -759,11 +759,11 @@ static struct h2w_platform_data heroc_h2w_data = {
 	.set_clk_dir 		= set_h2w_clk_dir,
 	.get_dat 		= get_h2w_dat,
 	.get_clk 		= get_h2w_clk,
-//	.flags 			= REVERSE_MIC_SEL, 
+	.flags 			= REVERSE_MIC_SEL, 
 };
 
 static struct platform_device heroc_h2w = {
-	.name 	= "htc_headset",
+	.name 	= "h2w",
 	.id 	= -1,
 	.dev 	= {
 		.platform_data = &heroc_h2w_data,
@@ -785,8 +785,8 @@ static struct audio_jack_platform_data heroc_jack_data = {
 };
 
 static struct platform_device heroc_audio_jack = {
-	.name		= "audio-jack",
-	.id			= -1,
+	.name		= "audio_jack",
+	.id		= -1,
 	.dev		= {
 		.platform_data	= &heroc_jack_data,
 	},
@@ -1003,9 +1003,9 @@ static void __init heroc_init(void)
 
 	config_gpios();
 
-	gpio_request(HEROC_GPIO_H2W_POWER, "heroc_gpio_h2w_power");
-	gpio_request(HEROC_GPIO_CABLE_IN2, "heroc_gpio_cable_in2");
-        gpio_request(HEROC_GPIO_AUD_EXTMIC_SEL, "heroc_gpio_aud_extmic_sel");
+//	gpio_request(HEROC_GPIO_H2W_POWER, "heroc_gpio_h2w_power");
+//	gpio_request(HEROC_GPIO_CABLE_IN2, "heroc_gpio_cable_in2");
+	gpio_request(HEROC_GPIO_AUD_EXTMIC_SEL, "heroc_gpio_aud_extmic_sel");
 
 	config_h2w_gpios();
 	if (system_rev < 2)
