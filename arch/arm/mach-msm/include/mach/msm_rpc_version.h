@@ -97,7 +97,7 @@
 #define RPC_ADSP_RTOS_ATOM_VERS                MSM_RPC_VERS(1,0)
 #define RPC_ADSP_RTOS_MTOA_VERS                MSM_RPC_VERS(2,1) /* actual ver*/
 #define AUDMGR_VERS                            0x10002 /* 65538 */
-#define AUDMGR_CB_VERS                         0x10002 /* 65538 */
+#define AUDMGR_CB_VERS                         0xf8e3e2d9
 #define DOG_KEEPALIVE_VERS                     0x10001 /* 65537 */
 #define RPC_DOG_KEEPALIVE_BEACON               2
 #define TIME_REMOTE_MTOA_VERS                  0x10001 /* 65537 */
