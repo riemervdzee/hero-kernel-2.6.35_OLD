@@ -1,4 +1,4 @@
-/* driver/i2c/chip/tap6130.c
+/* driver/i2c/chip/tpa6130.c
  *
  * TI TPA6130 Headset Amp
  *
@@ -35,7 +35,7 @@ struct mutex amp_mutex;
 static struct tpa6130_platform_data *pdata;
 
 static int i2c_on;
-char buffer[2];
+char buffer[3];
 
 static int I2C_TxData(char *txData, int length)
 {
@@ -127,13 +127,13 @@ int tpa6130_probe(struct i2c_client *client, const struct i2c_device_id *id)
 
 		ret = gpio_request(pdata->gpio_hp_sd, "tpa6130");
 		if (ret < 0) {
-			pr_err("tap6130a : gpio request failed\n");
+			pr_err("tpa6130a : gpio request failed\n");
 			goto fault;
 		}
 
 		ret = gpio_direction_output(pdata->gpio_hp_sd, 1);
 		if (ret < 0) {
-			pr_err("tap6130a: request reset gpio failed\n");
+			pr_err("tpa6130a: request reset gpio failed\n");
 			goto fault;
 		}
 		gpio_set_value(pdata->gpio_hp_sd, 0);
