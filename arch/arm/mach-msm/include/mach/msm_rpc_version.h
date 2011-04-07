@@ -93,9 +93,9 @@
 
 #elif (CONFIG_MSM_AMSS_VERSION == 6355)
 #define INT_ADSP                               INT_ADSP_A9_A11
-#define MSM_ADSP_DRIVER_NAME                   "rs3000000a:00010001"
-#define RPC_ADSP_RTOS_ATOM_VERS                0x10001 /* 65537 */
-#define RPC_ADSP_RTOS_MTOA_VERS                0x20001 /* 131073 */
+#define MSM_ADSP_DRIVER_NAME                   "rs3000000a:00010000"
+#define RPC_ADSP_RTOS_ATOM_VERS                MSM_RPC_VERS(1,0)
+#define RPC_ADSP_RTOS_MTOA_VERS                MSM_RPC_VERS(2,1) /* actual ver*/
 #define AUDMGR_VERS                            0x10002 /* 65538 */
 #define AUDMGR_CB_VERS                         0x10002 /* 65538 */
 #define DOG_KEEPALIVE_VERS                     0x10001 /* 65537 */
