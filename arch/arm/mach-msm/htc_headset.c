@@ -88,6 +88,10 @@
 #define H2W_DBG(fmt, arg...) do {} while (0)
 #endif
 
+#define HTC_HEADSET_SUPPORT (hi->flags & HTC_11PIN_HEADSET_SUPPORT)
+#define H2W_DEVICE_SUPPORT (hi->flags & HTC_H2W_SUPPORT)
+#define H2W_11PIN_HEADSET_SUPPORT (HTC_HEADSET_SUPPORT || H2W_DEVICE_SUPPORT)
+
 static struct workqueue_struct *g_detection_work_queue;
 
 static void detection_work(struct work_struct *work);
@@ -699,7 +703,7 @@ static void insert_headset(int type)
 			/* Turn On Mic Bias */
 			turn_mic_bias_on(1);
 			/* Wait pin be stable */
-			msleep(200);
+			msleep(300);
 			/* Detect headset with or without microphone */
 			if (gpio_get_value(hi->headset_mic_35mm)) {
 				/* without microphone */
@@ -1096,7 +1100,7 @@ static void headset35mm_detection_work(struct work_struct *work)
 		/* Turn On Mic Bias */
 		turn_mic_bias_on(1);
 		/* Wait for pin stable */
-		msleep(200);
+		msleep(300);
 		/* Detect headset with or without microphone */
 		if (gpio_get_value(hi->headset_mic_35mm)) {
 			/* without microphone */
@@ -1131,7 +1135,9 @@ static void headset35mm_detection_work(struct work_struct *work)
 		/* ext mic switch to 11 pin */
 		if (hi->ext_mic_sel)
 			gpio_direction_output(hi->ext_mic_sel, 
-				!(hi->flags & REVERSE_MIC_SEL) ? 1 : 0);
+				(!(hi->flags & REVERSE_MIC_SEL) && 
+				  H2W_11PIN_HEADSET_SUPPORT)
+				? 1 : 0);
 		/* fm ant switch to 11 pin */
 		if (hi->wfm_ant_sw)
 			gpio_direction_output(hi->wfm_ant_sw, 1);
@@ -1144,7 +1150,7 @@ static void headset35mm_detection_work(struct work_struct *work)
 
 void extended_headset(int insert)
 {
-	if (hi->headset_mic_35mm) {
+	if (hi && hi->headset_mic_35mm) {
 		hi->headset_35mm_insert = insert;
 		queue_work(g_detection_work_queue, &g_extend_detection_work);
 	}
@@ -1344,7 +1350,9 @@ static int h2w_probe(struct platform_device *pdev)
 	/* ext mic switch to 11 pin*/
 	if (hi->ext_mic_sel)
 		gpio_direction_output(hi->ext_mic_sel
-			, !(hi->flags & REVERSE_MIC_SEL) ? 1 : 0);
+			, (!(hi->flags & REVERSE_MIC_SEL) &&
+			   H2W_11PIN_HEADSET_SUPPORT)	
+			? 1 : 0);
 	/* fm ant switch to 11 pin */
 	if (hi->wfm_ant_sw)
 		gpio_direction_output(hi->wfm_ant_sw, 1);
