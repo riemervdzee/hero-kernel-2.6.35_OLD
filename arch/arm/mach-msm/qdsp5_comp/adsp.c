@@ -275,15 +275,6 @@ int msm_adsp_get(const char *name, struct msm_adsp_module **out,
 
 	mutex_lock(&module->lock);
 	pr_info("adsp: opening module %s\n", module->name);
-	if (module->open_count++ == 0 && module->clk)
-		clk_enable(module->clk);
-
-	mutex_lock(&adsp_open_lock);
-	if (adsp_open_count++ == 0) {
-		enable_irq(INT_ADSP);
-		prevent_suspend();
-	}
-	mutex_unlock(&adsp_open_lock);
 
 	if (module->ops) {
 		rc = -EBUSY;
@@ -310,14 +301,6 @@ int msm_adsp_get(const char *name, struct msm_adsp_module **out,
 	pr_info("adsp: module %s has been registered\n", module->name);
 
 done:
-	mutex_lock(&adsp_open_lock);
-	if (rc && --adsp_open_count == 0) {
-		disable_irq(INT_ADSP);
-		allow_suspend();
-	}
-	if (rc && --module->open_count == 0 && module->clk)
-		clk_disable(module->clk);
-	mutex_unlock(&adsp_open_lock);
 	mutex_unlock(&module->lock);
 	return rc;
 }
@@ -329,8 +312,6 @@ void msm_adsp_put(struct msm_adsp_module *module)
 	unsigned long flags;
 
 	mutex_lock(&module->lock);
-	if (--module->open_count == 0 && module->clk)
-		clk_disable(module->clk);
 	if (module->ops) {
 		pr_info("adsp: closing module %s\n", module->name);
 
@@ -349,11 +330,6 @@ void msm_adsp_put(struct msm_adsp_module *module)
 
 		msm_rpc_close(module->rpc_client);
 		module->rpc_client = 0;
-		if (--adsp_open_count == 0) {
-			disable_irq(INT_ADSP);
-			allow_suspend();
-			pr_info("adsp: disable interrupt\n");
-		}
 	} else {
 		pr_info("adsp: module %s is already closed\n", module->name);
 	}
@@ -1011,6 +987,13 @@ int msm_adsp_enable(struct msm_adsp_module *module)
 			       module->name);
 			rc = -ETIMEDOUT;
 		}
+		if (module->open_count++ == 0 && module->clk)
+			clk_enable(module->clk);
+
+		mutex_lock(&adsp_open_lock);
+		if (adsp_open_count++ == 0)
+			enable_irq(INT_ADSP);
+		mutex_unlock(&adsp_open_lock);
 		break;
 	case ADSP_STATE_ENABLING:
 		pr_warning("adsp: module '%s' enable in progress\n",
@@ -1044,6 +1027,15 @@ static int msm_adsp_disable_locked(struct msm_adsp_module *module)
 		rc = rpc_adsp_rtos_app_to_modem(RPC_ADSP_RTOS_CMD_DISABLE,
 						module->id, module);
 		module->state = ADSP_STATE_DISABLED;
+		if (--module->open_count == 0 && module->clk)
+			clk_disable(module->clk);
+		mutex_lock(&adsp_open_lock);
+		if (--adsp_open_count == 0) {
+			disable_irq(INT_ADSP);
+			pr_info("disable interrupt\n");
+		}
+		mutex_unlock(&adsp_open_lock);
+		break;
 	}
 	return rc;
 }
