@@ -35,7 +35,7 @@
 #include "board-hero.h"
 #include "proc_comm.h"
 
-#define DEBUG_SDSLOT_VDD 1
+// #define DEBUG_SDSLOT_VDD 1
 
 /* r porting 29 */
 extern int msm_add_sdcc(unsigned int controller, struct mmc_platform_data *plat,
