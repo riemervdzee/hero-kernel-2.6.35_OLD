@@ -196,9 +196,9 @@ static int smd_packet_write_avail(struct smd_channel *ch)
 
 static int ch_is_open(struct smd_channel *ch)
 {
-	return ((ch->recv->state == SMD_SS_OPENED) ||
-                (ch->recv->state == SMD_SS_FLUSHING)) &&
-		(ch->send->state == SMD_SS_OPENED);
+	return (ch->recv->state == SMD_SS_OPENED ||
+		ch->recv->state == SMD_SS_FLUSHING)
+		&& (ch->send->state == SMD_SS_OPENED);
 }
 
 /* provide a pointer and length to readable data in the fifo */
@@ -240,6 +240,7 @@ static int ch_read(struct smd_channel *ch, void *_data, int len)
 
 		if (n > len)
 			n = len;
+
 		if (_data)
 			memcpy(data, ptr, n);
 
@@ -262,17 +263,21 @@ static void update_packet_state(struct smd_channel *ch)
 	int r;
 
 	/* can't do anything if we're in the middle of a packet */
-	if (ch->current_packet != 0)
-		return;
+	while (ch->current_packet == 0) {
+		/* discard 0 length packets if any */
 
-	/* don't bother unless we can get the full header */
-	if (smd_stream_read_avail(ch) < SMD_HEADER_SIZE)
-		return;
+		/* don't bother unless we can get the full header */
+		if (smd_stream_read_avail(ch) < SMD_HEADER_SIZE)
+			return;
 
-	r = ch_read(ch, hdr, SMD_HEADER_SIZE);
-	BUG_ON(r != SMD_HEADER_SIZE);
+		r = ch_read(ch, hdr, SMD_HEADER_SIZE);
+		BUG_ON(r != SMD_HEADER_SIZE);
 
-	ch->current_packet = hdr[0];
+		/*hdr[0] will be set to > 8192 sometimes and then smd won't remove smd packet header then*/
+		if (hdr[0] > 8192)
+			return;
+		ch->current_packet = hdr[0];
+	}
 }
 
 /* provide a pointer and length to next free space in the fifo */
@@ -342,11 +347,16 @@ static void smd_state_change(struct smd_channel *ch,
 			ch->send->head = 0;
 			ch_set_state(ch, SMD_SS_OPENING);
 		}
-		break;	
+		break;
 	case SMD_SS_OPENED:
-		if (ch->send->state != SMD_SS_OPENED)
+		if (ch->send->state == SMD_SS_OPENING) {
 			ch_set_state(ch, SMD_SS_OPENED);
-		ch->notify(ch->priv, SMD_EVENT_OPEN);
+			ch->notify(ch->priv, SMD_EVENT_OPEN);
+		}
+		break;
+	case SMD_SS_FLUSHING:
+	case SMD_SS_RESET:
+		/* we should force them to close? */
 		break;
 	case SMD_SS_CLOSED:
 		if (ch->send->state == SMD_SS_OPENED) {
@@ -354,11 +364,6 @@ static void smd_state_change(struct smd_channel *ch,
 			ch->notify(ch->priv, SMD_EVENT_CLOSE);
 		}
 		break;
-	case SMD_SS_FLUSHING:
-	case SMD_SS_RESET:
-		/* we should force them to close? */
-	default:
-		ch->notify(ch->priv, SMD_EVENT_CLOSE);
 	}
 }
 
@@ -511,6 +516,8 @@ static int smd_stream_write(smd_channel_t *ch, const void *_data, int len)
 
 	if (len < 0)
 		return -EINVAL;
+	else if (len == 0)
+		return 0;
 
 	while ((xfer = ch_write_buffer(ch, &ptr)) != 0) {
 		if (!ch_is_open(ch))
@@ -525,7 +532,12 @@ static int smd_stream_write(smd_channel_t *ch, const void *_data, int len)
 			break;
 	}
 
-	ch->notify_other_cpu();
+	if (orig_len - len) {
+		if(dbg_condition(ch->name) && fifo_almost_full == 1) {
+			printk("[dzt] %s: name=%s, call notify_modem_smd()\n", __FUNCTION__, ch->name);
+		}
+		ch->notify_other_cpu();
+	}
 
 	return orig_len - len;
 }
@@ -536,6 +548,8 @@ static int smd_packet_write(smd_channel_t *ch, const void *_data, int len)
 
 	if (len < 0)
 		return -EINVAL;
+	else if (len == 0)
+		return 0;
 
 	if (smd_stream_write_avail(ch) < (len + SMD_HEADER_SIZE))
 		return -ENOMEM;
@@ -655,9 +669,9 @@ static int smd_alloc_channel(const char *name, uint32_t cid, uint32_t type)
 	}
 
 	ch->fifo_mask = ch->fifo_size - 1;
-	ch->type = type;
+	ch->type = type & SMD_TYPE_MASK;
 
-	if ((type & SMD_TYPE_MASK) == SMD_TYPE_APPS_MODEM)
+	if (ch->type == SMD_TYPE_APPS_MODEM)
 		ch->notify_other_cpu = notify_modem_smd;
 	else
 		ch->notify_other_cpu = notify_dsp_smd;
@@ -676,14 +690,16 @@ static int smd_alloc_channel(const char *name, uint32_t cid, uint32_t type)
 		ch->update_state = update_stream_state;
 	}
 
-	if ((type & SMD_TYPE_MASK) == SMD_TYPE_APPS_MODEM)
+	if (ch->type == SMD_TYPE_APPS_MODEM)
 		memcpy(ch->name, "SMD_", 4);
 	else
 		memcpy(ch->name, "DSP_", 4);
+
 	memcpy(ch->name + 4, name, 20);
 	ch->name[23] = 0;
+
 	ch->pdev.name = ch->name;
-	ch->pdev.id = ch->type & SMD_TYPE_MASK;
+	ch->pdev.id = ch->type;
 
 	pr_info("smd_alloc_channel() cid=%02d size=%05d '%s'\n",
 		ch->n, ch->fifo_size, ch->name);
@@ -782,27 +798,14 @@ int smd_open(const char *name, smd_channel_t **_ch,
 
 	spin_lock_irqsave(&smd_lock, flags);
 
-	if ((ch->type & SMD_TYPE_MASK) == SMD_TYPE_APPS_MODEM)
+	if (ch->type == SMD_APPS_MODEM)
 		list_add(&ch->ch_list, &smd_ch_list_modem);
 	else
 		list_add(&ch->ch_list, &smd_ch_list_dsp);
 
-	/* If the remote side is CLOSING, we need to get it to
-	 * move to OPENING (which we'll do by moving from CLOSED to
-	 * OPENING) and then get it to move from OPENING to
-	 * OPENED (by doing the same state change ourselves).
-	 *
-	 * Otherwise, it should be OPENING and we can move directly
-	 * to OPENED so that it will follow.
-	 */
-	if (ch->recv->state == SMD_SS_CLOSING) {
-		ch->send->head = 0;
-		ch_set_state(ch, SMD_SS_OPENING);
-	} else {
-		ch_set_state(ch, SMD_SS_OPENED);
-	}
+	smd_state_change(ch, ch->last_state, SMD_SS_OPENING);
+
 	spin_unlock_irqrestore(&smd_lock, flags);
-	smd_kick(ch);
 
 	return 0;
 }
@@ -874,22 +877,22 @@ int smd_wait_until_writable(smd_channel_t *ch, int bytes)
 
 int smd_wait_until_opened(smd_channel_t *ch, int timeout_us)
 {
-#define POLL_INTERVAL_USEC     200
-       int count = 0;
+#define POLL_INTERVAL_USEC	200
+	int count = 0;
 
-       if (timeout_us)
-               count = timeout_us / (POLL_INTERVAL_USEC + 1) + 1;
+	if (timeout_us)
+		count = timeout_us / (POLL_INTERVAL_USEC + 1) + 1;
 
-       do {
-               if (ch_is_open(ch))
-                       return 0;
-               if (count--)
-                       udelay(POLL_INTERVAL_USEC);
-               else
-                       break;
-       } while (1);
+	do {
+		if (ch_is_open(ch))
+			return 0;
+		if (count--)
+			udelay(POLL_INTERVAL_USEC);
+		else
+			break;
+	} while (1);
 
-       return -1;
+	return -1;
 }
 
 int smd_cur_packet_size(smd_channel_t *ch)
@@ -1027,18 +1030,18 @@ int smsm_set_sleep_duration(uint32_t delay)
 
 int smsm_set_sleep_limit(uint32_t sleep_limit)
 {
-       struct msm_dem_slave_data *ptr;
+	struct msm_dem_slave_data *ptr;
 
-       ptr = smem_find(SMEM_APPS_DEM_SLAVE_DATA, sizeof(*ptr));
-       if (ptr == NULL) {
-               pr_err("smsm_set_sleep_limit <SM NO APPS_DEM_SLAVE_DATA>\n");
-               return -EIO;
-       }
-       if (msm_smd_debug_mask & MSM_SMSM_DEBUG)
-               pr_info("smsm_set_sleep_limit %d -> %d\n",
-                      ptr->resources_used, sleep_limit);
-       ptr->resources_used = sleep_limit;
-       return 0;
+	ptr = smem_find(SMEM_APPS_DEM_SLAVE_DATA, sizeof(*ptr));
+	if (ptr == NULL) {
+		pr_err("smsm_set_sleep_limit <SM NO APPS_DEM_SLAVE_DATA>\n");
+		return -EIO;
+	}
+	if (msm_smd_debug_mask & MSM_SMSM_DEBUG)
+		pr_info("smsm_set_sleep_limit %d -> %d\n",
+		       ptr->resources_used, sleep_limit);
+	ptr->resources_used = sleep_limit;
+	return 0;
 }
 
 #else
@@ -1061,9 +1064,8 @@ int smsm_set_sleep_duration(uint32_t delay)
 
 inline int smsm_set_sleep_limit(uint32_t sleep_limit)
 {
-       return 0;
+	return 0;
 }
-
 #endif
 
 int smd_core_init(void)
