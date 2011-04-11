@@ -480,10 +480,8 @@ int acpuclk_set_rate(unsigned long rate, enum setrate_reason reason)
 			}
 		}
 
-#if defined(CONFIG_ARCH_MSM7227)
 	if (reason == SETRATE_PC)
 		return 0;
-#endif
 
 	/* Drop VDD level if we can. */
 	if (tgt_s->vdd < strt_s->vdd) {
