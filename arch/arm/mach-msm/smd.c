@@ -533,9 +533,6 @@ static int smd_stream_write(smd_channel_t *ch, const void *_data, int len)
 	}
 
 	if (orig_len - len) {
-		if(dbg_condition(ch->name) && fifo_almost_full == 1) {
-			printk("[dzt] %s: name=%s, call notify_modem_smd()\n", __FUNCTION__, ch->name);
-		}
 		ch->notify_other_cpu();
 	}
 
