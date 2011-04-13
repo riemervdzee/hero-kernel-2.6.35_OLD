@@ -113,8 +113,4 @@ struct smd_tty_channel_desc {
 
 int smd_set_channel_list(const struct smd_tty_channel_desc *, int len);
 
-enum
-{
-	SMD_APPS_MODEM = 0
-};
 #endif
