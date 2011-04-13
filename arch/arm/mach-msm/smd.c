@@ -349,10 +349,9 @@ static void smd_state_change(struct smd_channel *ch,
 		}
 		break;
 	case SMD_SS_OPENED:
-		if (ch->send->state == SMD_SS_OPENING) {
+		if (ch->send->state != SMD_SS_OPENED)
 			ch_set_state(ch, SMD_SS_OPENED);
-			ch->notify(ch->priv, SMD_EVENT_OPEN);
-		}
+		ch->notify(ch->priv, SMD_EVENT_OPEN);
 		break;
 	case SMD_SS_FLUSHING:
 	case SMD_SS_RESET:
@@ -532,9 +531,7 @@ static int smd_stream_write(smd_channel_t *ch, const void *_data, int len)
 			break;
 	}
 
-	if (orig_len - len) {
-		ch->notify_other_cpu();
-	}
+	ch->notify_other_cpu();
 
 	return orig_len - len;
 }
@@ -795,14 +792,27 @@ int smd_open(const char *name, smd_channel_t **_ch,
 
 	spin_lock_irqsave(&smd_lock, flags);
 
-	if (ch->type == SMD_APPS_MODEM)
+	if (ch->type == SMD_TYPE_APPS_MODEM)
 		list_add(&ch->ch_list, &smd_ch_list_modem);
 	else
 		list_add(&ch->ch_list, &smd_ch_list_dsp);
 
-	smd_state_change(ch, ch->last_state, SMD_SS_OPENING);
-
+	/* If the remote side is CLOSING, we need to get it to
+	 * move to OPENING (which we'll do by moving from CLOSED to
+	 * OPENING) and then get it to move from OPENING to
+	 * OPENED (by doing the same state change ourselves).
+	 *
+	 * Otherwise, it should be OPENING and we can move directly
+	 * to OPENED so that it will follow.
+	 */
+	if (ch->recv->state == SMD_SS_CLOSING) {
+		ch->send->head = 0;
+		ch_set_state(ch, SMD_SS_OPENING);
+	} else {
+		ch_set_state(ch, SMD_SS_OPENED);
+	}
 	spin_unlock_irqrestore(&smd_lock, flags);
+	smd_kick(ch);
 
 	return 0;
 }
