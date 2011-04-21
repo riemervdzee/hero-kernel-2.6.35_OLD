@@ -744,22 +744,6 @@ static struct android_pmem_platform_data android_pmem_adsp_pdata = {
 	.cached       = 0,
 };
 
-static struct android_pmem_platform_data android_pmem_gpu0_pdata = {
-	.name         = "pmem_gpu0",
-	.start        = SMI32_MSM_PMEM_GPU0_BASE,
-	.size         = SMI32_MSM_PMEM_GPU0_SIZE,
-	.no_allocator = 1,
-	.cached       = 0,
-};
-
-static struct android_pmem_platform_data android_pmem_gpu1_pdata = {
-	.name         = "pmem_gpu1",
-	.start        = SMI32_MSM_PMEM_GPU1_BASE,
-	.size         = SMI32_MSM_PMEM_GPU1_SIZE,
-	.no_allocator = 1,
-	.cached       = 0,
-};
-
 static struct android_pmem_platform_data android_pmem_camera_pdata = {
 	.name         = "pmem_camera",
 	.start        = SMI32_MSM_PMEM_CAMERA_BASE,
@@ -784,22 +768,6 @@ static struct platform_device android_pmem_adsp_device = {
 	},
 };
 
-static struct platform_device android_pmem_gpu0_device = {
-	.name = "android_pmem",
-	.id   = 2,
-	.dev  = {
-		.platform_data = &android_pmem_gpu0_pdata
-	},
-};
-
-static struct platform_device android_pmem_gpu1_device = {
-	.name = "android_pmem",
-	.id   = 3,
-	.dev  = {
-		.platform_data = &android_pmem_gpu1_pdata
-	},
-};
-
 static struct platform_device android_pmem_camera_device = {
 	.name = "android_pmem",
 	.id   = 4,
@@ -818,10 +786,14 @@ static struct resource resources_hw3d[] = {
 	{
 		.flags	= IORESOURCE_MEM,
 		.name	= "smi",
+		.start  = SMI32_MSM_PMEM_GPU0_BASE,
+		.end    = SMI32_MSM_PMEM_GPU0_BASE + SMI32_MSM_PMEM_GPU0_SIZE - 1,
 	},
 	{
 		.flags	= IORESOURCE_MEM,
 		.name	= "ebi",
+		.start  = SMI32_MSM_PMEM_GPU1_BASE,
+		.end    = SMI32_MSM_PMEM_GPU1_BASE + SMI32_MSM_PMEM_GPU1_SIZE - 1,
 	},
 	{
 		.start	= INT_GRAPHICS,
@@ -1267,8 +1239,6 @@ static struct platform_device *devices[] __initdata = {
 	&android_usb_device,
 	&android_pmem_mdp_device,
 	&android_pmem_adsp_device,
-	&android_pmem_gpu0_device,
-	&android_pmem_gpu1_device,
 	&android_pmem_camera_device,
 	&hw3d_device,
 	&ram_console_device,
