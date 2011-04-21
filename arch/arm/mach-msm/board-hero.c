@@ -570,26 +570,14 @@ static int hero_phy_init_seq[] = {0x40, 0x31, 0x1, 0x0D, 0x1, 0x10, -1};
 
 static void hero_usb_phy_reset(void)
 {
-	u32 id;
-	int ret;
-
-	id = PCOM_CLKRGM_APPS_RESET_USB_PHY;
-	ret = msm_proc_comm(PCOM_CLK_REGIME_SEC_RESET_ASSERT, &id, NULL);
-	if (ret) {
-		pr_err("%s: Cannot assert (%d)\n", __func__, ret);
-		return;
-	}
-
-	msleep(1);
-
-	id = PCOM_CLKRGM_APPS_RESET_USB_PHY;
-	ret = msm_proc_comm(PCOM_CLK_REGIME_SEC_RESET_DEASSERT, &id, NULL);
-	if (ret) {
-		pr_err("%s: Cannot assert (%d)\n", __func__, ret);
-		return;
-	}
+	gpio_set_value(HERO_GPIO_USB_PHY_RST_N, 0);
+	mdelay(10);
+	gpio_set_value(HERO_GPIO_USB_PHY_RST_N, 1);
+	mdelay(10);
 }
 
+#if 0
+//TODO, check if neccesary?
 static void hero_usb_hw_reset(bool enable)
 {
 	u32 id;
@@ -607,12 +595,13 @@ static void hero_usb_hw_reset(bool enable)
 	if (ret)
 		pr_err("%s: Cannot set reset to %d (%d)\n", __func__, enable, ret);
 }
+#endif
 
 
 static struct msm_hsusb_platform_data msm_hsusb_pdata = {
 	.phy_init_seq	= hero_phy_init_seq,
 	.phy_reset		= hero_usb_phy_reset,
-	.hw_reset		= hero_usb_hw_reset,
+//	.hw_reset		= hero_usb_hw_reset, TODO, check if neccesary?
 //	.usb_connected	= notify_usb_connected, TODO!
 };
 
@@ -864,7 +853,7 @@ static struct platform_device ram_console_device = {
 	.resource      = ram_console_resources,
 };
 
-#else
+#else /* !USB_ADSP_EXPERIMENT */
 
 static void hero_phy_reset(void)
 {
