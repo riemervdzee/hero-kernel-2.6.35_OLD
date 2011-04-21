@@ -28,30 +28,29 @@
 #include <linux/sysdev.h>
 #include <linux/android_pmem.h>
 #include <linux/bma150.h>
-
+#include <linux/usb/android_composite.h>
 #include <linux/delay.h>
+#include <linux/gpio_event.h>
+#include <linux/mtd/nand.h>
+#include <linux/mtd/partitions.h>
+#include <linux/mmc/sdio_ids.h>
 
 #include <asm/gpio.h>
-#include <mach/hardware.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
 #include <asm/mach/flash.h>
 #include <asm/system.h>
-#include <mach/system.h>
-#include <mach/vreg.h>
-
 #include <asm/io.h>
 #include <asm/delay.h>
 #include <asm/setup.h>
-
-#include <linux/gpio_event.h>
-#include <linux/mtd/nand.h>
-#include <linux/mtd/partitions.h>
-
 #include <asm/mach/mmc.h>
-#include <linux/mmc/sdio_ids.h>
 
+#include <mach/hardware.h>
+#include <mach/system.h>
+#include <mach/vreg.h>
+#include <mach/msm_hsusb.h>
+#include <mach/msm_iomap.h>
 #include <mach/board.h>
 #include <mach/board_htc.h>
 #include <mach/msm_serial_debugger.h>
@@ -68,6 +67,8 @@
 #include "devices.h"
 #include "gpio_chip.h"
 #include "board-hero.h"
+
+#define USB_ADSP_EXPERIMENT
 
 static unsigned int hwid = 0;
 static unsigned int skuid = 0;
@@ -558,6 +559,313 @@ static struct platform_device msm_camera_sensor_mt9p012 = {
 	},
 };
 
+#ifdef USB_ADSP_EXPERIMENT
+/*static int mahimahi_phy_init_seq[] = {
+	0x0C, 0x31,
+	0x31, 0x32,
+	0x1D, 0x0D,
+	0x1D, 0x10,
+	-1 }; MAHIMAHI */
+static int hero_phy_init_seq[] = {0x40, 0x31, 0x1, 0x0D, 0x1, 0x10, -1};
+
+static void hero_usb_phy_reset(void)
+{
+	u32 id;
+	int ret;
+
+	id = PCOM_CLKRGM_APPS_RESET_USB_PHY;
+	ret = msm_proc_comm(PCOM_CLK_REGIME_SEC_RESET_ASSERT, &id, NULL);
+	if (ret) {
+		pr_err("%s: Cannot assert (%d)\n", __func__, ret);
+		return;
+	}
+
+	msleep(1);
+
+	id = PCOM_CLKRGM_APPS_RESET_USB_PHY;
+	ret = msm_proc_comm(PCOM_CLK_REGIME_SEC_RESET_DEASSERT, &id, NULL);
+	if (ret) {
+		pr_err("%s: Cannot assert (%d)\n", __func__, ret);
+		return;
+	}
+}
+
+static void hero_usb_hw_reset(bool enable)
+{
+	u32 id;
+	int ret;
+	u32 func;
+
+	id = PCOM_CLKRGM_APPS_RESET_USBH;
+	if (enable)
+		func = PCOM_CLK_REGIME_SEC_RESET_ASSERT;
+	else
+		func = PCOM_CLK_REGIME_SEC_RESET_DEASSERT;
+
+	ret = msm_proc_comm(func, &id, NULL);
+
+	if (ret)
+		pr_err("%s: Cannot set reset to %d (%d)\n", __func__, enable, ret);
+}
+
+
+static struct msm_hsusb_platform_data msm_hsusb_pdata = {
+	.phy_init_seq	= hero_phy_init_seq,
+	.phy_reset		= hero_usb_phy_reset,
+	.hw_reset		= hero_usb_hw_reset,
+//	.usb_connected	= notify_usb_connected, TODO!
+};
+
+static char *usb_functions_ums[] = {
+	"usb_mass_storage",
+};
+
+static char *usb_functions_ums_adb[] = {
+	"usb_mass_storage",
+	"adb",
+};
+
+static char *usb_functions_rndis[] = {
+	"rndis",
+};
+
+static char *usb_functions_rndis_adb[] = {
+	"rndis",
+	"adb",
+};
+
+#ifdef CONFIG_USB_ANDROID_DIAG
+static char *usb_functions_adb_diag[] = {
+	"usb_mass_storage",
+	"adb",
+	"diag",
+};
+#endif
+
+static char *usb_functions_all[] = {
+#ifdef CONFIG_USB_ANDROID_RNDIS
+	"rndis",
+#endif
+	"usb_mass_storage",
+	"adb",
+#ifdef CONFIG_USB_ANDROID_ACM
+	"acm",
+#endif
+#ifdef CONFIG_USB_ANDROID_DIAG
+	"diag",
+#endif
+};
+
+static struct android_usb_product usb_products[] = {
+	{
+		.product_id    = 0x0ff9, /* usb_mass_storage */
+		.num_functions = ARRAY_SIZE(usb_functions_ums),
+		.functions     = usb_functions_ums,
+	},
+	{
+		.product_id    = 0x0c99, /* usb_mass_storage + adb */
+		.num_functions = ARRAY_SIZE(usb_functions_ums_adb),
+		.functions     = usb_functions_ums_adb,
+	},
+	{
+		.product_id    = 0x0FFE, /* internet sharing */
+		.num_functions = ARRAY_SIZE(usb_functions_rndis),
+		.functions     = usb_functions_rndis,
+	},
+	/*
+	TODO: there isn't a equivalent in htc's kernel
+	{
+		.product_id    = 0x4e14,
+		.num_functions = ARRAY_SIZE(usb_functions_rndis_adb),
+		.functions     = usb_functions_rndis_adb,
+	}, */
+#ifdef CONFIG_USB_ANDROID_DIAG
+	{
+		.product_id    = 0x0c07,
+		.num_functions = ARRAY_SIZE(usb_functions_adb_diag),
+		.functions     = usb_functions_adb_diag,
+	},
+#endif
+};
+
+static struct usb_mass_storage_platform_data mass_storage_pdata = {
+	.nluns		= 1,
+	.vendor		= "HTC",
+	.product	= "Hero",
+	.release	= 0x0100,
+};
+
+static struct platform_device usb_mass_storage_device = {
+	.name = "usb_mass_storage",
+	.id   = -1,
+	.dev  = {
+		.platform_data = &mass_storage_pdata,
+	},
+};
+
+#ifdef CONFIG_USB_ANDROID_RNDIS
+static struct usb_ether_platform_data rndis_pdata = {
+	/* ethaddr is filled by board_serialno_setup */
+	.vendorID    = 0x0bb4,
+	.vendorDescr = "HTC",
+};
+
+static struct platform_device rndis_device = {
+	.name = "rndis",
+	.id   = -1,
+	.dev  = {
+		.platform_data = &rndis_pdata,
+	},
+};
+#endif
+
+static struct android_usb_platform_data android_usb_pdata = {
+	.vendor_id         = 0x0bb4,
+	.product_id        = 0x0c01,
+	.version           = 0x0100,
+	.product_name      = "Android Phone",
+	.manufacturer_name = "HTC",
+	.num_products      = ARRAY_SIZE(usb_products),
+	.products          = usb_products,
+	.num_functions     = ARRAY_SIZE(usb_functions_all),
+	.functions         = usb_functions_all,
+};
+
+static struct platform_device android_usb_device = {
+	.name = "android_usb",
+	.id   = -1,
+	.dev  = {
+		.platform_data = &android_usb_pdata,
+	},
+};
+
+static struct android_pmem_platform_data mdp_pmem_pdata = {
+	.name         = "pmem",
+	.start        = SMI32_MSM_PMEM_MDP_BASE,
+	.size         = SMI32_MSM_PMEM_MDP_SIZE,
+	.no_allocator = 0,
+	.cached       = 1,
+};
+
+static struct android_pmem_platform_data android_pmem_adsp_pdata = {
+	.name         = "pmem_adsp",
+	.start        = SMI32_MSM_PMEM_ADSP_BASE,
+	.size         = SMI32_MSM_PMEM_ADSP_SIZE,
+	.no_allocator = 0,
+	.cached       = 0,
+};
+
+static struct android_pmem_platform_data android_pmem_gpu0_pdata = {
+	.name         = "pmem_gpu0",
+	.start        = SMI32_MSM_PMEM_GPU0_BASE,
+	.size         = SMI32_MSM_PMEM_GPU0_SIZE,
+	.no_allocator = 1,
+	.cached       = 0,
+};
+
+static struct android_pmem_platform_data android_pmem_gpu1_pdata = {
+	.name         = "pmem_gpu1",
+	.start        = SMI32_MSM_PMEM_GPU1_BASE,
+	.size         = SMI32_MSM_PMEM_GPU1_SIZE,
+	.no_allocator = 1,
+	.cached       = 0,
+};
+
+static struct android_pmem_platform_data android_pmem_camera_pdata = {
+	.name         = "pmem_camera",
+	.start        = SMI32_MSM_PMEM_CAMERA_BASE,
+	.size         = SMI32_MSM_PMEM_CAMERA_SIZE,
+	.no_allocator = 1,
+	.cached       = 1,
+};
+
+static struct platform_device android_pmem_mdp_device = {
+	.name = "android_pmem",
+	.id   = 0,
+	.dev  = {
+		.platform_data = &mdp_pmem_pdata
+	},
+};
+
+static struct platform_device android_pmem_adsp_device = {
+	.name = "android_pmem",
+	.id   = 1,
+	.dev  = {
+		.platform_data = &android_pmem_adsp_pdata,
+	},
+};
+
+static struct platform_device android_pmem_gpu0_device = {
+	.name = "android_pmem",
+	.id   = 2,
+	.dev  = {
+		.platform_data = &android_pmem_gpu0_pdata
+	},
+};
+
+static struct platform_device android_pmem_gpu1_device = {
+	.name = "android_pmem",
+	.id   = 3,
+	.dev  = {
+		.platform_data = &android_pmem_gpu1_pdata
+	},
+};
+
+static struct platform_device android_pmem_camera_device = {
+	.name = "android_pmem",
+	.id   = 4,
+	.dev  = {
+		.platform_data = &android_pmem_camera_pdata
+	},
+};
+
+static struct resource resources_hw3d[] = {
+	{
+		.start	= 0xA0000000,
+		.end	= 0xA00fffff,
+		.flags	= IORESOURCE_MEM,
+		.name	= "regs",
+	},
+	{
+		.flags	= IORESOURCE_MEM,
+		.name	= "smi",
+	},
+	{
+		.flags	= IORESOURCE_MEM,
+		.name	= "ebi",
+	},
+	{
+		.start	= INT_GRAPHICS,
+		.end	= INT_GRAPHICS,
+		.flags	= IORESOURCE_IRQ,
+		.name	= "gfx",
+	},
+};
+
+static struct platform_device hw3d_device = {
+	.name          = "msm_hw3d",
+	.id            = 0,
+	.num_resources = ARRAY_SIZE(resources_hw3d),
+	.resource      = resources_hw3d,
+};
+
+static struct resource ram_console_resources[] = {
+	{
+		.start = SMI32_MSM_RAM_CONSOLE_BASE,
+		.end   = SMI32_MSM_RAM_CONSOLE_BASE + SMI32_MSM_RAM_CONSOLE_SIZE - 1,
+		.flags = IORESOURCE_MEM,
+	},
+};
+
+static struct platform_device ram_console_device = {
+	.name          = "ram_console",
+	.id            = -1,
+	.num_resources = ARRAY_SIZE(ram_console_resources),
+	.resource      = ram_console_resources,
+};
+
+#else
+
 static void hero_phy_reset(void)
 {
 	gpio_set_value(HERO_GPIO_USB_PHY_RST_N, 0);
@@ -565,6 +873,23 @@ static void hero_phy_reset(void)
 	gpio_set_value(HERO_GPIO_USB_PHY_RST_N, 1);
 	mdelay(10);
 }
+
+static struct msm_pmem_setting pmem_setting_32 = {
+	.pmem_start        = SMI32_MSM_PMEM_MDP_BASE,
+	.pmem_size         = SMI32_MSM_PMEM_MDP_SIZE,
+	.pmem_adsp_start   = SMI32_MSM_PMEM_ADSP_BASE,
+	.pmem_adsp_size    = SMI32_MSM_PMEM_ADSP_SIZE,
+	.pmem_gpu0_start   = SMI32_MSM_PMEM_GPU0_BASE,
+	.pmem_gpu0_size    = SMI32_MSM_PMEM_GPU0_SIZE,
+	.pmem_gpu1_start   = SMI32_MSM_PMEM_GPU1_BASE,
+	.pmem_gpu1_size    = SMI32_MSM_PMEM_GPU1_SIZE,
+	.pmem_camera_start = SMI32_MSM_PMEM_CAMERA_BASE,
+	.pmem_camera_size  = SMI32_MSM_PMEM_CAMERA_SIZE,
+	.ram_console_start = SMI32_MSM_RAM_CONSOLE_BASE,
+	.ram_console_size  = SMI32_MSM_RAM_CONSOLE_SIZE,
+};
+
+#endif
 
 static struct pwr_sink hero_pwrsink_table[] = {
 	{
@@ -861,21 +1186,6 @@ static struct platform_device hero_rfkill = {
 	.id = -1,
 };
 
-static struct msm_pmem_setting pmem_setting_32 = {
-	.pmem_start = SMI32_MSM_PMEM_MDP_BASE,
-	.pmem_size = SMI32_MSM_PMEM_MDP_SIZE,
-	.pmem_adsp_start = SMI32_MSM_PMEM_ADSP_BASE,
-	.pmem_adsp_size = SMI32_MSM_PMEM_ADSP_SIZE,
-	.pmem_gpu0_start = MSM_PMEM_GPU0_BASE,
-	.pmem_gpu0_size = MSM_PMEM_GPU0_SIZE,
-	.pmem_gpu1_start = SMI32_MSM_PMEM_GPU1_BASE,
-	.pmem_gpu1_size = SMI32_MSM_PMEM_GPU1_SIZE,
-	.pmem_camera_start = SMI32_MSM_PMEM_CAMERA_BASE,
-	.pmem_camera_size = SMI32_MSM_PMEM_CAMERA_SIZE,
-	.ram_console_start = SMI32_MSM_RAM_CONSOLE_BASE,
-	.ram_console_size = SMI32_MSM_RAM_CONSOLE_SIZE,
-};
-
 #define SND(num, desc) { .name = desc, .id = num }
 static struct snd_endpoint snd_endpoints_list[] = {
 	SND(0, "HANDSET"),
@@ -959,6 +1269,21 @@ static struct platform_device *devices[] __initdata = {
 	&hero_pwr_sink,
 #endif
 	&hero_snd,
+#ifdef USB_ADSP_EXPERIMENT
+	&msm_device_hsusb,
+	&usb_mass_storage_device,
+#ifdef CONFIG_USB_ANDROID_RNDIS
+	&rndis_device,
+#endif
+	&android_usb_device,
+	&android_pmem_mdp_device,
+	&android_pmem_adsp_device,
+	&android_pmem_gpu0_device,
+	&android_pmem_gpu1_device,
+	&android_pmem_camera_device,
+	&hw3d_device,
+	&ram_console_device,
+#endif
 };
 
 extern struct sys_timer msm_timer;
@@ -1120,9 +1445,13 @@ static void __init hero_init(void)
 	msm_device_uart_dm1.dev.platform_data = &msm_uart_dm1_pdata;
 #endif
 
+#ifdef USB_ADSP_EXPERIMENT
+	msm_device_hsusb.dev.platform_data = &msm_hsusb_pdata;
+	msm_hsusb_set_vbus_state(1);
+#else
 	msm_add_usb_devices(hero_phy_reset);
-
 	msm_add_mem_devices(&pmem_setting_32);
+#endif
 
 	msm_init_pmic_vibrator();
 
