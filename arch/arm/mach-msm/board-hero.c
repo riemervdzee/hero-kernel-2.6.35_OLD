@@ -68,8 +68,6 @@
 #include "gpio_chip.h"
 #include "board-hero.h"
 
-#define USB_ADSP_EXPERIMENT
-
 static unsigned int hwid = 0;
 static unsigned int skuid = 0;
 static unsigned int engineerid = 0;
@@ -559,7 +557,7 @@ static struct platform_device msm_camera_sensor_mt9p012 = {
 	},
 };
 
-#ifdef USB_ADSP_EXPERIMENT
+#ifdef CONFIG_HERO_EXPERIMENTAL_USBADSP
 /*static int mahimahi_phy_init_seq[] = {
 	0x0C, 0x31,
 	0x31, 0x32,
@@ -825,7 +823,7 @@ static struct platform_device ram_console_device = {
 	.resource      = ram_console_resources,
 };
 
-#else /* !USB_ADSP_EXPERIMENT */
+#else /* !CONFIG_HERO_EXPERIMENTAL_USBADSP */
 
 static void hero_phy_reset(void)
 {
@@ -1230,7 +1228,7 @@ static struct platform_device *devices[] __initdata = {
 	&hero_pwr_sink,
 #endif
 	&hero_snd,
-#ifdef USB_ADSP_EXPERIMENT
+#ifdef CONFIG_HERO_EXPERIMENTAL_USBADSP
 	&msm_device_hsusb,
 	&usb_mass_storage_device,
 #ifdef CONFIG_USB_ANDROID_RNDIS
@@ -1404,7 +1402,7 @@ static void __init hero_init(void)
 	msm_device_uart_dm1.dev.platform_data = &msm_uart_dm1_pdata;
 #endif
 
-#ifdef USB_ADSP_EXPERIMENT
+#ifdef CONFIG_HERO_EXPERIMENTAL_USBADSP
 	msm_device_hsusb.dev.platform_data = &msm_hsusb_pdata;
 	msm_hsusb_set_vbus_state(1);
 #else

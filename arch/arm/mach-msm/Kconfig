@@ -233,6 +233,16 @@ choice
 		  Select this to support the Hero CDMA device
 endchoice
 
+menu "Hero GSM specific devices"
+	depends on MACH_HERO
+
+config HERO_EXPERIMENTAL_USBADSP
+	depends on MACH_HERO
+	bool "Experimental usb-adsp"
+	help
+		Use experimental usb-adsp setup
+endmenu
+
 menu "HeroC specific devices"
 	depends on MACH_HEROC
 
