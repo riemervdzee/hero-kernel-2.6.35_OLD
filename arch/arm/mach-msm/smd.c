@@ -337,16 +337,12 @@ static void smd_state_change(struct smd_channel *ch,
 
 	switch (next) {
 	case SMD_SS_OPENING:
-		if (ch->send->state == SMD_SS_CLOSING ||
-			ch->send->state == SMD_SS_CLOSED) {
-			ch->recv->tail = 0;
-			ch->send->head = 0;
-			ch_set_state(ch, SMD_SS_OPENING);
-		}
+		ch->recv->tail = 0;
+		ch->send->head = 0;
+		ch_set_state(ch, SMD_SS_OPENING);
 		break;
 	case SMD_SS_OPENED:
-		if (ch->send->state != SMD_SS_OPENED)
-			ch_set_state(ch, SMD_SS_OPENED);
+		ch_set_state(ch, SMD_SS_OPENED);
 		ch->notify(ch->priv, SMD_EVENT_OPEN);
 		break;
 	case SMD_SS_FLUSHING:
@@ -354,10 +350,8 @@ static void smd_state_change(struct smd_channel *ch,
 		/* we should force them to close? */
 		break;
 	case SMD_SS_CLOSED:
-		if (ch->send->state == SMD_SS_OPENED) {
-			ch_set_state(ch, SMD_SS_CLOSING);
-			ch->notify(ch->priv, SMD_EVENT_CLOSE);
-		}
+		ch_set_state(ch, SMD_SS_CLOSING);
+		ch->notify(ch->priv, SMD_EVENT_CLOSE);
 		break;
 	}
 }
@@ -792,6 +786,8 @@ int smd_open(const char *name, smd_channel_t **_ch,
 		list_add(&ch->ch_list, &smd_ch_list_modem);
 	else
 		list_add(&ch->ch_list, &smd_ch_list_dsp);
+
+	smd_state_change(ch, ch->last_state, SMD_SS_OPENING);
 
 	/* If the remote side is CLOSING, we need to get it to
 	 * move to OPENING (which we'll do by moving from CLOSED to
