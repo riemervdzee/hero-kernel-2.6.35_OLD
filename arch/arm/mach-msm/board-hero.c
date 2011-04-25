@@ -1404,7 +1404,6 @@ static void __init hero_init(void)
 
 #ifdef CONFIG_HERO_EXPERIMENTAL_USBADSP
 	msm_device_hsusb.dev.platform_data = &msm_hsusb_pdata;
-	msm_hsusb_set_vbus_state(1);
 #else
 	msm_add_usb_devices(hero_phy_reset);
 	msm_add_mem_devices(&pmem_setting_32);
