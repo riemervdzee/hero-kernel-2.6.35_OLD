@@ -58,18 +58,21 @@
 #include <mach/msm_serial_hs.h>
 #include <mach/htc_pwrsink.h>
 #include <mach/msm_fb.h>
-#include "board-heroc-mach-h2w_v1.h"
 #include <mach/microp_i2c.h>
 #include <mach/htc_battery.h>
 #include <mach/drv_callback.h>
 
+#include <mach/htc_headset_mgr.h>
+#include <mach/htc_headset_gpio.h>
+//#include <mach/audio_jack.h>
+
+//#include "board-heroc-mach-h2w_v1.h"
+//#include "board-heroc-mach-audio_jack.h"
 #include "proc_comm.h"
 #include "devices.h"
 #include "gpio_chip.h"
 #include "board-heroc.h"
-//#include <mach/htc_headset.h>
 #include <linux/i2c-msm.h>
-#include "board-heroc-mach-audio_jack.h"
 #include <mach/perflock.h>
 // msm_hsusb
 
@@ -112,7 +115,7 @@ unsigned hero_engineerid(void)
 {
         return engineerid;
 }
-#ifdef CONFIG_HEROC_TS
+
 static int heroc_ts_power(int on)
 {
 	printk(KERN_INFO "heroc_ts_power:%d\n", on);
@@ -174,7 +177,7 @@ static struct synaptics_i2c_rmi_platform_data heroc_ts_data[] = {
                 .display_height = 480,
 	}
 };
-#endif
+
 #if 0
 // Is there any pre revision 1 CDMA Hero hardware out there?
 static struct microp_pin_config microp_pins_0[] = {
@@ -360,7 +363,6 @@ static struct tpa6130_platform_data headset_amp_platform_data = {
 };
 
 static struct i2c_board_info i2c_devices[] = {
-#ifdef CONFIG_HEROC_TS
 	{
 		I2C_BOARD_INFO(SYNAPTICS_I2C_RMI_NAME, 0x20),
 		.platform_data = &heroc_ts_data,
@@ -371,7 +373,6 @@ static struct i2c_board_info i2c_devices[] = {
 		.platform_data = &heroc_cypress_ts_data,
 		.irq = MSM_GPIO_TO_INT(HEROC_GPIO_TP_ATT_N)
 	},
-#endif
 	{
 		I2C_BOARD_INFO(MICROP_I2C_NAME, 0xCC >> 1),
 		.platform_data = &microp_data,
@@ -739,11 +740,19 @@ static int set_h2w_path(const char *val, struct kernel_param *kp)
 	return ret;
 }
 
+static void heroc_h2w_power(int on)
+{
+	if (on)
+		gpio_set_value(HEROC_GPIO_H2W_POWER, 1);
+	else
+		gpio_set_value(HEROC_GPIO_H2W_POWER, 0);
+}
+
 module_param_call(h2w_path, set_h2w_path, param_get_int,
 		  &heroc_h2w_path, S_IWUSR | S_IRUGO);
-
+#ifdef CONFIG_HTC_HEADSET
 static struct h2w_platform_data heroc_h2w_data = {
-	.h2w_power	 	= HEROC_GPIO_H2W_POWER,
+	.power_gpio	 	= HEROC_GPIO_H2W_POWER,
 	.cable_in1	 	= HEROC_GPIO_CABLE_IN1,
 	.cable_in2	 	= HEROC_GPIO_CABLE_IN2,
 	.h2w_clk 		= HEROC_GPIO_H2W_CLK,
@@ -751,8 +760,8 @@ static struct h2w_platform_data heroc_h2w_data = {
 	.headset_mic_35mm 	= HEROC_GPIO_HEADSET_MIC,
 	.ext_mic_sel 		= HEROC_GPIO_AUD_EXTMIC_SEL,
 	.debug_uart 		= H2W_UART3,
-	.config 		= h2w_configure,
-	.defconfig 		= h2w_defconfig,
+	.config_cpld 		= h2w_configure,
+	.init_cpld 		= h2w_defconfig,
 	.set_dat 		= set_h2w_dat,
 	.set_clk 		= set_h2w_clk,
 	.set_dat_dir 		= set_h2w_dat_dir,
@@ -763,13 +772,58 @@ static struct h2w_platform_data heroc_h2w_data = {
 };
 
 static struct platform_device heroc_h2w = {
-	.name 	= "htc_headset",
+	.name 	= "h2w",
 	.id 	= -1,
 	.dev 	= {
 		.platform_data = &heroc_h2w_data,
 	},
 };
+#endif
 
+#ifdef CONFIG_HTC_HEADSET_MGR
+static struct htc_headset_mgr_platform_data heroc_headset_mgr_data = {
+        .driver_flag 		= DRIVER_HS_MGR_RPC_SERVER,
+	.cable_in1 		= HEROC_GPIO_CABLE_IN1,
+        .cable_in2		= HEROC_GPIO_CABLE_IN2,
+        .h2w_clk		= HEROC_GPIO_H2W_CLK,
+        .h2w_data		= HEROC_GPIO_H2W_DATA,
+        .debug_uart		= H2W_UART3,
+        .headset_mic_35mm	= HEROC_GPIO_HEADSET_MIC,
+	.h2w_power		= heroc_h2w_power,
+        .config			= h2w_configure,
+        .set_dat		= set_h2w_dat,
+        .set_clk		= set_h2w_clk,
+        .set_dat_dir		= set_h2w_dat_dir,
+        .set_clk_dir		= set_h2w_clk_dir,
+        .get_dat		= get_h2w_dat,
+        .get_clk		= get_h2w_clk,
+};
+
+#ifdef CONFIG_HTC_HEADSET_GPIO
+static struct htc_headset_gpio_platform_data heroc_headset_gpio_data = {
+	.hpin_gpio		= HEROC_GPIO_35MM_HEADSET_DET,
+	.mic_select_gpio	= HEROC_GPIO_AUD_EXTMIC_SEL,
+	.mic_detect_gpio	= HEROC_GPIO_HEADSET_MIC,
+};
+
+static struct platform_device heroc_headset_gpio = {
+	.name 	= "HTC_HEADSET_GPIO",
+	.id	= -1,
+	.dev	= {
+		.platform_data = &heroc_headset_gpio_data,
+	},
+};
+#endif
+
+static struct platform_device heroc_headset_mgr = {
+	.name	= "HTC_HEADSET_MGR",
+	.id 	= -1,
+	.dev = {
+		.platform_data = &heroc_headset_mgr_data,
+	}
+};
+
+#endif
 static uint32_t h2w_gpio_table[] = {
         PCOM_GPIO_CFG(HEROC_GPIO_HEADSET_MIC, 0, GPIO_INPUT, GPIO_PULL_UP, GPIO_2MA), /* MCLK */
 };
@@ -779,19 +833,19 @@ void config_h2w_gpios(void)
         config_gpio_table(h2w_gpio_table, ARRAY_SIZE(h2w_gpio_table));
 }
 
-
+#ifdef CONFIG_HTC_AUDIO_JACK
 static struct audio_jack_platform_data heroc_jack_data = {
         .gpio   = HEROC_GPIO_35MM_HEADSET_DET,
 };
 
 static struct platform_device heroc_audio_jack = {
-	.name		= "audio-jack",
-	.id			= -1,
+	.name		= "audio_jack",
+	.id		= -1,
 	.dev		= {
 		.platform_data	= &heroc_jack_data,
 	},
 };
-
+#endif
 static struct platform_device heroc_rfkill = {
 	.name = "heroc_rfkill",
 	.id = -1,
@@ -895,9 +949,19 @@ static struct msm_i2c_device_platform_data heroc_i2c_device_data = {
 
 static struct platform_device *devices[] __initdata = {
         &msm_device_i2c,
+#ifdef CONFIG_HTC_HEADSET
 	&heroc_h2w,
+#endif
+#ifdef CONFIG_HTC_HEADSET_MGR
+	&heroc_headset_mgr,
+#ifdef CONFIG_HTC_HEADSET_GPIO
+	&heroc_headset_gpio,
+#endif
+#endif
 	&htc_battery_pdev,
+#ifdef CONFIG_HTC_AUDIO_JACK
 	&heroc_audio_jack,
+#endif
 	&heroc_rfkill,
 #ifdef CONFIG_HTC_PWRSINK
 	&heroc_pwr_sink,
@@ -1003,13 +1067,14 @@ static void __init heroc_init(void)
 
 	config_gpios();
 
-	gpio_request(HEROC_GPIO_H2W_POWER, "heroc_gpio_h2w_power");
-	gpio_request(HEROC_GPIO_CABLE_IN2, "heroc_gpio_cable_in2");
-        gpio_request(HEROC_GPIO_AUD_EXTMIC_SEL, "heroc_gpio_aud_extmic_sel");
-
+//	gpio_request(HEROC_GPIO_H2W_POWER, "heroc_gpio_h2w_power");
+//	gpio_request(HEROC_GPIO_CABLE_IN2, "heroc_gpio_cable_in2");
+	gpio_request(HEROC_GPIO_AUD_EXTMIC_SEL, "heroc_gpio_aud_extmic_sel");
+#ifdef CONFIG_HTC_HEADSET
 	config_h2w_gpios();
 	if (system_rev < 2)
                 heroc_h2w.name = "h2w";
+#endif
 	msm_hw_reset_hook = heroc_reset;
 
 	msm_acpu_clock_init(&heroc_clock_data);
