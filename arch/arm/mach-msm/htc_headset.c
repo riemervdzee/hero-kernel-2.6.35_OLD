@@ -88,6 +88,10 @@
 #define H2W_DBG(fmt, arg...) do {} while (0)
 #endif
 
+#define HTC_HEADSET_SUPPORT (hi->flags & HTC_11PIN_HEADSET_SUPPORT)
+#define H2W_DEVICE_SUPPORT (hi->flags & HTC_H2W_SUPPORT)
+#define H2W_11PIN_HEADSET_SUPPORT (HTC_HEADSET_SUPPORT || H2W_DEVICE_SUPPORT)
+
 static struct workqueue_struct *g_detection_work_queue;
 
 static void detection_work(struct work_struct *work);
@@ -116,6 +120,7 @@ struct h2w_info {
 	int headset_mic_35mm;
 	int ext_mic_sel;
 	int wfm_ant_sw;
+	int flags;
 
 	void (*config_cpld) (int);
 	void (*init_cpld) (void);
@@ -144,6 +149,7 @@ struct h2w_info {
 	H2W_INFO h2w_info;
 	H2W_SPEED speed;
 	struct vreg *vreg_h2w;
+	int power_gpio;
 };
 static struct h2w_info *hi;
 
@@ -571,13 +577,17 @@ err_plugin:
 
 static inline void h2w_dev_power_on(int on)
 {
-	if (!hi->vreg_h2w)
-		return;
-
-	if (on)
-		vreg_enable(hi->vreg_h2w);
-	else
-		vreg_disable(hi->vreg_h2w);
+	if (hi->vreg_h2w) {
+		if (on)
+			vreg_enable(hi->vreg_h2w);
+		else
+			vreg_disable(hi->vreg_h2w);
+	} else if (hi->power_gpio) {
+		if (on)
+			gpio_set_value(hi->power_gpio, 1);
+		else
+			gpio_set_value(hi->power_gpio, 0);
+	}
 }
 
 static int h2w_dev_detect(void)
@@ -693,7 +703,7 @@ static void insert_headset(int type)
 			/* Turn On Mic Bias */
 			turn_mic_bias_on(1);
 			/* Wait pin be stable */
-			msleep(200);
+			msleep(300);
 			/* Detect headset with or without microphone */
 			if (gpio_get_value(hi->headset_mic_35mm)) {
 				/* without microphone */
@@ -1082,14 +1092,15 @@ static void headset35mm_detection_work(struct work_struct *work)
 		printk(KERN_INFO "3.5mm_headset plug in\n");
 		/* ext mic switch to 3.5mm */
 		if (hi->ext_mic_sel)
-			gpio_direction_output(hi->ext_mic_sel, 0);
+			gpio_direction_output(hi->ext_mic_sel
+				,!(hi->flags & REVERSE_MIC_SEL)?0:1);
 		/* fm ant switch to 3.5 mm */
 		if (hi->wfm_ant_sw)
 			gpio_direction_output(hi->wfm_ant_sw, 0);
 		/* Turn On Mic Bias */
 		turn_mic_bias_on(1);
 		/* Wait for pin stable */
-		msleep(200);
+		msleep(300);
 		/* Detect headset with or without microphone */
 		if (gpio_get_value(hi->headset_mic_35mm)) {
 			/* without microphone */
@@ -1123,7 +1134,10 @@ static void headset35mm_detection_work(struct work_struct *work)
 		hi->headset_35mm_flag = 0;
 		/* ext mic switch to 11 pin */
 		if (hi->ext_mic_sel)
-			gpio_direction_output(hi->ext_mic_sel, 1);
+			gpio_direction_output(hi->ext_mic_sel, 
+				(!(hi->flags & REVERSE_MIC_SEL) && 
+				  H2W_11PIN_HEADSET_SUPPORT)
+				? 1 : 0);
 		/* fm ant switch to 11 pin */
 		if (hi->wfm_ant_sw)
 			gpio_direction_output(hi->wfm_ant_sw, 1);
@@ -1136,7 +1150,7 @@ static void headset35mm_detection_work(struct work_struct *work)
 
 void extended_headset(int insert)
 {
-	if (hi->headset_mic_35mm) {
+	if (hi && hi->headset_mic_35mm) {
 		hi->headset_35mm_insert = insert;
 		queue_work(g_detection_work_queue, &g_extend_detection_work);
 	}
@@ -1210,15 +1224,25 @@ static int h2w_probe(struct platform_device *pdev)
 	hi->get_dat = pdata->get_dat;
 	hi->get_clk = pdata->get_clk;
 	hi->speed = H2W_50KHz;
+	hi->flags = pdata->flags;
+
+	if (hi->flags) {
+		if (hi->flags & REVERSE_MIC_SEL)
+			printk(KERN_INFO "H2W: Flag: Reverse Mic Select\n");
+	}
+
 	/* obtain needed VREGs */
 	if (pdata->power_name)
 		hi->vreg_h2w = vreg_get(0, pdata->power_name);
+	if (pdata->power_gpio)
+		hi->power_gpio = pdata->power_gpio;
 
 	mutex_init(&hi->mutex_lock);
 
 	hi->sdev.name = "h2w";
 	hi->sdev.print_name = h2w_print_name;
 
+	printk(KERN_INFO "H2W:%s: switch_dev_register\n", __func__);
 	ret = switch_dev_register(&hi->sdev);
 	if (ret < 0)
 		goto err_switch_dev_register;
@@ -1228,7 +1252,7 @@ static int h2w_probe(struct platform_device *pdev)
 		ret = -ENOMEM;
 		goto err_create_work_queue;
 	}
-
+	printk(KERN_INFO "H2W:%s: headset_mic_35mm\n", __func__);
 	if (hi->headset_mic_35mm) {
 		ret = gpio_request(hi->headset_mic_35mm, "3.5mm_mic_detect");
 		if (ret < 0)
@@ -1251,28 +1275,41 @@ static int h2w_probe(struct platform_device *pdev)
 			goto err_request_btn_35mm_irq;
 	}
 
+	if(hi->power_gpio) {
+		printk(KERN_INFO "H2W:%s: h2w_gpio_power\n", __func__);
+		ret = gpio_request(hi->power_gpio, "h2w_gpio_power");
+		if (ret < 0)
+			goto err_request_power_gpio;
+	}
+	printk(KERN_INFO "H2W:%s: h2w_detect\n", __func__);
+
 	ret = gpio_request(hi->cable_in1, "h2w_detect");
 	if (ret < 0)
 		goto err_request_detect_gpio;
+	printk(KERN_INFO "H2W:%s: h2w_button\n", __func__);
 
 	ret = gpio_request(hi->cable_in2, "h2w_button");
 	if (ret < 0)
 		goto err_request_button_gpio;
+	printk(KERN_INFO "H2W:%s: <cable_in1\n", __func__);
 
 	ret = gpio_direction_input(hi->cable_in1);
 	if (ret < 0)
 		goto err_set_detect_gpio;
+	printk(KERN_INFO "H2W:%s: <cable_in2\n", __func__);
 
 	ret = gpio_direction_input(hi->cable_in2);
 	if (ret < 0)
 		goto err_set_button_gpio;
 
+	printk(KERN_INFO "H2W:%s: gpio_to_irq cable_in1\n", __func__);
 	hi->irq = gpio_to_irq(hi->cable_in1);
 	if (hi->irq < 0) {
 		ret = hi->irq;
 		goto err_get_h2w_detect_irq_num_failed;
 	}
 
+	printk(KERN_INFO "H2W:%s: gpio_to_irq cable_in2\n", __func__);
 	hi->irq_btn = gpio_to_irq(hi->cable_in2);
 	if (hi->irq_btn < 0) {
 		ret = hi->irq_btn;
@@ -1280,6 +1317,7 @@ static int h2w_probe(struct platform_device *pdev)
 	}
 
 	/* Set CPLD MUX to H2W <-> CPLD GPIO */
+	printk(KERN_INFO "H2W:%s: init_cpld\n", __func__);
 	hi->init_cpld();
 
 	hrtimer_init(&hi->timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
@@ -1311,11 +1349,15 @@ static int h2w_probe(struct platform_device *pdev)
 
 	/* ext mic switch to 11 pin*/
 	if (hi->ext_mic_sel)
-		gpio_direction_output(hi->ext_mic_sel, 1);
+		gpio_direction_output(hi->ext_mic_sel
+			, (!(hi->flags & REVERSE_MIC_SEL) &&
+			   H2W_11PIN_HEADSET_SUPPORT)	
+			? 1 : 0);
 	/* fm ant switch to 11 pin */
 	if (hi->wfm_ant_sw)
 		gpio_direction_output(hi->wfm_ant_sw, 1);
 
+	printk(KERN_INFO "H2W:%s: input_allocate_device\n", __func__);
 	hi->input = input_allocate_device();
 	if (!hi->input) {
 		ret = -ENOMEM;
@@ -1356,6 +1398,9 @@ err_set_detect_gpio:
 err_request_button_gpio:
 	gpio_free(hi->cable_in1);
 err_request_detect_gpio:
+	if (hi->power_gpio)
+		gpio_free(hi->power_gpio);
+err_request_power_gpio:
 	if (hi->headset_mic_35mm)
 		free_irq(hi->irq_btn_35mm, 0);
 err_request_btn_35mm_irq:

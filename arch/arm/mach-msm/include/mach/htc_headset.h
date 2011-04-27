@@ -18,10 +18,12 @@
 
 struct h2w_platform_data {
 	char *power_name;
+	int power_gpio;
 	int cable_in1;
 	int cable_in2;
 	int h2w_clk;
 	int h2w_data;
+	int flags;
 	int debug_uart;
 	int headset_mic_35mm;
 	int ext_mic_sel;
@@ -59,6 +61,14 @@ enum {
 	H2W_UART1	= 1,
 	H2W_UART3	= 2,
 	H2W_BT		= 3
+};
+
+enum {
+        REVERSE_MIC_SEL = 1UL << 0,
+        _35MM_MIC_DET_L2H = 1UL << 1,
+        FULL_SPEED_USB = 1UL << 2,
+        HTC_11PIN_HEADSET_SUPPORT = 1UL << 3,
+        HTC_H2W_SUPPORT = 1UL << 4,
 };
 
 #define RESEND_DELAY		(3)	/* ms */
