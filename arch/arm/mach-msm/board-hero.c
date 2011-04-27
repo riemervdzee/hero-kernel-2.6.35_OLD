@@ -525,12 +525,11 @@ static struct i2c_board_info i2c_devices[] = {
 	{
 		I2C_BOARD_INFO("mt9p012", 0x6C >> 1),
 	},
-};
-
-static struct i2c_board_info i2c_bma150 = {
-	I2C_BOARD_INFO(BMA150_I2C_NAME, 0x38),
-	.platform_data = &gsensor_platform_data,
-	.irq = MSM_GPIO_TO_INT(HERO_GPIO_GSENSOR_INT_N),
+	{
+		I2C_BOARD_INFO(BMA150_I2C_NAME, 0x38),
+		.platform_data = &gsensor_platform_data,
+		.irq = MSM_GPIO_TO_INT(HERO_GPIO_GSENSOR_INT_N),
+	},
 };
 
 static struct msm_camera_device_platform_data msm_camera_device_data = {
@@ -1433,7 +1432,6 @@ static void __init hero_init(void)
 		microp_data.cabc_backlight_enable = 1;
 	}
 
-	i2c_register_board_info(0, &i2c_bma150, 1);
 	i2c_register_board_info(0, i2c_devices, ARRAY_SIZE(i2c_devices));
 	platform_add_devices(devices, ARRAY_SIZE(devices));
 	
