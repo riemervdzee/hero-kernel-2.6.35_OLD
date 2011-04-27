@@ -1020,7 +1020,6 @@ static int get_h2w_clk(void)
 	return gpio_get_value(HERO_GPIO_H2W_CLK);
 }
 
-#ifdef CONFIG_HTC_HEADSET_V1
 static int set_h2w_path(const char *val, struct kernel_param *kp)
 {
 	int ret = -EINVAL;
@@ -1048,95 +1047,84 @@ static int set_h2w_path(const char *val, struct kernel_param *kp)
 	return ret;
 }
 
+static void hero_h2w_power(int on)
+{
+	if (on)
+		gpio_set_value(HERO_GPIO_EXT_3V_EN, 1);
+	else
+		gpio_set_value(HERO_GPIO_EXT_3V_EN, 0);
+}
+
 module_param_call(h2w_path, set_h2w_path, param_get_int,
 		&hero_h2w_path, S_IWUSR | S_IRUGO);
 
-#endif
+/* TODO combine to one struct, hardcode the differences? */
 static struct h2w_platform_data hero_h2w_data = {
-	.h2w_power		= HERO_GPIO_EXT_3V_EN,
-	.cable_in1		= HERO_GPIO_CABLE_IN1_XAXB,
-	.cable_in2		= HERO_GPIO_CABLE_IN2,
-	.h2w_clk		= HERO_GPIO_H2W_CLK,
-	.h2w_data		= HERO_GPIO_H2W_DATA,
-	.headset_mic_35mm	= HERO_GPIO_HEADSET_MIC,
-/*	.ext_mic_sel		= HERO_GPIO_AUD_EXTMIC_SEL, */
-	.debug_uart 		= H2W_UART3,
-	.config 		= h2w_configure,
-	.defconfig 		= h2w_defconfig,
-	.set_dat		= set_h2w_dat,
-	.set_clk		= set_h2w_clk,
-	.set_dat_dir		= set_h2w_dat_dir,
-	.set_clk_dir		= set_h2w_clk_dir,
-	.get_dat		= get_h2w_dat,
-	.get_clk		= get_h2w_clk,
-	.headset_mic_sel	= hero_headset_mic_select,
-	.flags	= HTC_11PIN_HEADSET_SUPPORT | HTC_H2W_SUPPORT,
+	.h2w_power        = HERO_GPIO_EXT_3V_EN,
+	.cable_in1        = HERO_GPIO_CABLE_IN1_XAXB,
+	.cable_in2        = HERO_GPIO_CABLE_IN2,
+	.h2w_clk          = HERO_GPIO_H2W_CLK,
+	.h2w_data         = HERO_GPIO_H2W_DATA,
+	.headset_mic_35mm = HERO_GPIO_HEADSET_MIC,
+	.debug_uart       = H2W_UART3,
+	.config           = h2w_configure,
+	.defconfig        = h2w_defconfig,
+	.set_dat          = set_h2w_dat,
+	.set_clk          = set_h2w_clk,
+	.set_dat_dir      = set_h2w_dat_dir,
+	.set_clk_dir      = set_h2w_clk_dir,
+	.get_dat          = get_h2w_dat,
+	.get_clk          = get_h2w_clk,
+	.headset_mic_sel  = hero_headset_mic_select,
+	.flags            = HTC_11PIN_HEADSET_SUPPORT | HTC_H2W_SUPPORT,
 };
 
 static struct h2w_platform_data hero_h2w_data_xc = {
-	.h2w_power		= HERO_GPIO_EXT_3V_EN,
-	.cable_in1		= HERO_GPIO_CABLE_IN1,
-	.cable_in2		= HERO_GPIO_CABLE_IN2,
-	.h2w_clk		= HERO_GPIO_H2W_CLK,
-	.h2w_data		= HERO_GPIO_H2W_DATA,
-	.headset_mic_35mm	= HERO_GPIO_HEADSET_MIC,
-	.ext_mic_sel		= HERO_GPIO_AUD_EXTMIC_SEL,
-	.debug_uart 		= H2W_UART3,
-	.config 		= h2w_configure,
-	.defconfig 		= h2w_defconfig,
-	.set_dat		= set_h2w_dat,
-	.set_clk		= set_h2w_clk,
-	.set_dat_dir		= set_h2w_dat_dir,
-	.set_clk_dir		= set_h2w_clk_dir,
-	.get_dat		= get_h2w_dat,
-	.get_clk		= get_h2w_clk,
-	.flags	= HTC_11PIN_HEADSET_SUPPORT | HTC_H2W_SUPPORT,
-/*	.headset_mic_sel	= hero_headset_mic_select, */
+	.h2w_power        = HERO_GPIO_EXT_3V_EN,
+	.cable_in1        = HERO_GPIO_CABLE_IN1,
+	.cable_in2        = HERO_GPIO_CABLE_IN2,
+	.h2w_clk          = HERO_GPIO_H2W_CLK,
+	.h2w_data         = HERO_GPIO_H2W_DATA,
+	.headset_mic_35mm = HERO_GPIO_HEADSET_MIC,
+	.ext_mic_sel      = HERO_GPIO_AUD_EXTMIC_SEL,
+	.debug_uart       = H2W_UART3,
+	.config           = h2w_configure,
+	.defconfig        = h2w_defconfig,
+	.set_dat          = set_h2w_dat,
+	.set_clk          = set_h2w_clk,
+	.set_dat_dir      = set_h2w_dat_dir,
+	.set_clk_dir      = set_h2w_clk_dir,
+	.get_dat          = get_h2w_dat,
+	.get_clk          = get_h2w_clk,
+	.flags            = HTC_11PIN_HEADSET_SUPPORT | HTC_H2W_SUPPORT,
 };
 
 static struct h2w_platform_data hero_h2w_data_xe = {
-	.h2w_power		= HERO_GPIO_EXT_3V_EN,
-	.cable_in1		= HERO_GPIO_CABLE_IN1,
-	.cable_in2		= HERO_GPIO_CABLE_IN2,
-	.h2w_clk		= HERO_GPIO_H2W_CLK,
-	.h2w_data		= HERO_GPIO_H2W_DATA,
-	.headset_mic_35mm	= HERO_GPIO_HEADSET_MIC,
-	.ext_mic_sel		= HERO_GPIO_AUD_EXTMIC_SEL,
-	.debug_uart 		= H2W_UART3,
-	.config 		= h2w_configure,
-	.defconfig 		= h2w_defconfig,
-	.set_dat		= set_h2w_dat,
-	.set_clk		= set_h2w_clk,
-	.set_dat_dir		= set_h2w_dat_dir,
-	.set_clk_dir		= set_h2w_clk_dir,
-	.get_dat		= get_h2w_dat,
-	.get_clk		= get_h2w_clk,
-/*	.headset_mic_sel	= hero_headset_mic_select, */
-	.flags	= _35MM_MIC_DET_L2H | HTC_11PIN_HEADSET_SUPPORT |
-				HTC_H2W_SUPPORT,
+	.h2w_power        = HERO_GPIO_EXT_3V_EN,
+	.cable_in1        = HERO_GPIO_CABLE_IN1,
+	.cable_in2        = HERO_GPIO_CABLE_IN2,
+	.h2w_clk          = HERO_GPIO_H2W_CLK,
+	.h2w_data         = HERO_GPIO_H2W_DATA,
+	.headset_mic_35mm = HERO_GPIO_HEADSET_MIC,
+	.ext_mic_sel      = HERO_GPIO_AUD_EXTMIC_SEL,
+	.debug_uart       = H2W_UART3,
+	.config           = h2w_configure,
+	.defconfig        = h2w_defconfig,
+	.set_dat          = set_h2w_dat,
+	.set_clk          = set_h2w_clk,
+	.set_dat_dir      = set_h2w_dat_dir,
+	.set_clk_dir      = set_h2w_clk_dir,
+	.get_dat          = get_h2w_dat,
+	.get_clk          = get_h2w_clk,
+	.flags            = _35MM_MIC_DET_L2H |
+						HTC_11PIN_HEADSET_SUPPORT | HTC_H2W_SUPPORT,
 };
 
 static struct platform_device hero_h2w = {
-	.name		= "h2w",
-	.id			= -1,
-	.dev		= {
-		.platform_data	= &hero_h2w_data,
-	},
-};
-
-static struct platform_device hero_h2w_xc = {
-	.name		= "h2w",
-	.id			= -1,
-	.dev		= {
-		.platform_data	= &hero_h2w_data_xc,
-	},
-};
-
-static struct platform_device hero_h2w_xe = {
-	.name		= "h2w",
-	.id			= -1,
-	.dev		= {
-		.platform_data	= &hero_h2w_data_xe,
+	.name = "h2w",
+	.id   = -1,
+	.dev  = {
+		.platform_data = &hero_h2w_data,
 	},
 };
 
@@ -1224,6 +1212,7 @@ static struct platform_device *devices[] __initdata = {
 	&msm_camera_sensor_mt9p012,
 	&htc_battery_pdev,
 	&hero_rfkill,
+	&hero_h2w,
 #ifdef CONFIG_HTC_PWRSINK
 	&hero_pwr_sink,
 #endif
@@ -1418,11 +1407,7 @@ static void __init hero_init(void)
 	msm_i2c_gpio_init();
 	msm_device_i2c.dev.platform_data = &hero_i2c_device_data;
 
-	platform_add_devices(devices, ARRAY_SIZE(devices));
-
 	if (system_rev == 0 || system_rev == 1) {
-		 platform_device_register(&hero_h2w);
-
 		for (rc = 0; rc < ARRAY_SIZE(i2c_devices); rc++) {
 			if (!strcmp(i2c_devices[rc].type, MICROP_I2C_NAME))
 				i2c_devices[rc].irq = MSM_GPIO_TO_INT(HERO_GPIO_UP_INT_N_XAXB);
@@ -1430,11 +1415,9 @@ static void __init hero_init(void)
 				i2c_devices[rc].irq = MSM_GPIO_TO_INT(HERO_GPIO_COMPASS_INT_N_XAXB);
 		}
 	} else if (system_rev == 2 || system_rev == 3) /*XC and XD*/
-		platform_device_register(&hero_h2w_xc);
+		hero_h2w.dev.platform_data = &hero_h2w_data_xc;
 	else /*above XE*/
-		platform_device_register(&hero_h2w_xe);
-
-	i2c_register_board_info(0, &i2c_bma150, 1);
+		hero_h2w.dev.platform_data = &hero_h2w_data_xe;
 
 	if (hero_engineerid() || system_rev > 2) {
 		if (system_rev >= 4) {
@@ -1449,7 +1432,10 @@ static void __init hero_init(void)
 		}
 		microp_data.cabc_backlight_enable = 1;
 	}
+
+	i2c_register_board_info(0, &i2c_bma150, 1);
 	i2c_register_board_info(0, i2c_devices, ARRAY_SIZE(i2c_devices));
+	platform_add_devices(devices, ARRAY_SIZE(devices));
 	
 	hero_init_panel();
 }
