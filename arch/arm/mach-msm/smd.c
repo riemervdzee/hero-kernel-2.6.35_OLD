@@ -63,6 +63,11 @@ static struct shared_info smd_info = {
 	.state = (unsigned) &dummy_state,
 };
 
+#ifdef CONFIG_BUILD_CIQ
+static int msm_smd_ciq_info;
+module_param_named(ciq_info, msm_smd_ciq_info,
+                  int, S_IRUGO | S_IWUSR | S_IWGRP);
+#endif
 module_param_named(debug_mask, msm_smd_debug_mask,
 		   int, S_IRUGO | S_IWUSR | S_IWGRP);
 
@@ -196,9 +201,9 @@ static int smd_packet_write_avail(struct smd_channel *ch)
 
 static int ch_is_open(struct smd_channel *ch)
 {
-	return (ch->recv->state == SMD_SS_OPENED ||
-		ch->recv->state == SMD_SS_FLUSHING)
-		&& (ch->send->state == SMD_SS_OPENED);
+	return ((ch->recv->state == SMD_SS_OPENED) ||
+                (ch->recv->state == SMD_SS_FLUSHING)) &&
+		(ch->send->state == SMD_SS_OPENED);
 }
 
 /* provide a pointer and length to readable data in the fifo */
@@ -240,7 +245,6 @@ static int ch_read(struct smd_channel *ch, void *_data, int len)
 
 		if (n > len)
 			n = len;
-
 		if (_data)
 			memcpy(data, ptr, n);
 
@@ -337,22 +341,35 @@ static void smd_state_change(struct smd_channel *ch,
 
 	switch (next) {
 	case SMD_SS_OPENING:
-		ch->recv->tail = 0;
-		ch->send->head = 0;
-		ch_set_state(ch, SMD_SS_OPENING);
-		break;
+               if (ch->send->state == SMD_SS_CLOSING ||
+                   ch->send->state == SMD_SS_CLOSED) {
+                       ch->recv->tail = 0;
+                       ch->send->head = 0;
+                       ch_set_state(ch, SMD_SS_OPENING);
+               }
+               break;	
 	case SMD_SS_OPENED:
-		ch_set_state(ch, SMD_SS_OPENED);
+		/* 
+		 * heroc only set state/notified when
+		 * state == SMD_SS_OPENING
+		 */
+		if (ch->send->state != SMD_SS_OPENED)
+			ch_set_state(ch, SMD_SS_OPENED);
 		ch->notify(ch->priv, SMD_EVENT_OPEN);
 		break;
+	case SMD_SS_CLOSED:
+               if (ch->send->state == SMD_SS_OPENED) {
+                       ch_set_state(ch, SMD_SS_CLOSING);
+                       ch->notify(ch->priv, SMD_EVENT_CLOSE);
+               }
+               break;
 	case SMD_SS_FLUSHING:
 	case SMD_SS_RESET:
 		/* we should force them to close? */
-		break;
-	case SMD_SS_CLOSED:
-		ch_set_state(ch, SMD_SS_CLOSING);
+		/* Heroc kernel doesn't have this fall
+		  through */
+	default:
 		ch->notify(ch->priv, SMD_EVENT_CLOSE);
-		break;
 	}
 }
 
@@ -363,6 +380,11 @@ static void handle_smd_irq(struct list_head *list, void (*notify)(void))
 	int do_notify = 0;
 	unsigned ch_flags;
 	unsigned tmp;
+#ifdef CONFIG_BUILD_CIQ
+       /* put here to make sure we got the disable/enable index */
+       if (!msm_smd_ciq_info)
+               msm_smd_ciq_info = (*(volatile uint32_t *)(MSM_SHARED_RAM_BASE + 0xFC11C));
+#endif
 
 	spin_lock_irqsave(&smd_lock, flags);
 	list_for_each_entry(ch, list, ch_list) {
@@ -404,13 +426,14 @@ static irqreturn_t smd_modem_irq_handler(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
-#if defined(CONFIG_QDSP6)
+/* Heroc includes this unconditionally? */
+//#if defined(CONFIG_QDSP6)
 static irqreturn_t smd_dsp_irq_handler(int irq, void *data)
 {
 	handle_smd_irq(&smd_ch_list_dsp, notify_dsp_smd);
 	return IRQ_HANDLED;
 }
-#endif
+//#endif
 
 static void smd_fake_irq_handler(unsigned long arg)
 {
@@ -490,6 +513,14 @@ static int smd_is_packet(int chn, unsigned type)
 		return 0;
 
 	/* older AMSS reports SMD_KIND_UNKNOWN always */
+#if defined(CONFIG_ARCH_MSM7225)
+       if (chn == 1)
+               return 0;
+#endif
+#ifdef CONFIG_BUILD_CIQ
+       if (chn == 26)
+               return 0;
+#endif
 	if ((chn > 4) || (chn == 1))
 		return 1;
 	else
@@ -505,8 +536,6 @@ static int smd_stream_write(smd_channel_t *ch, const void *_data, int len)
 
 	if (len < 0)
 		return -EINVAL;
-	else if (len == 0)
-		return 0;
 
 	while ((xfer = ch_write_buffer(ch, &ptr)) != 0) {
 		if (!ch_is_open(ch))
@@ -530,10 +559,8 @@ static int smd_packet_write(smd_channel_t *ch, const void *_data, int len)
 {
 	unsigned hdr[5];
 
-	if (len < 0)
+	if (len <= 0)
 		return -EINVAL;
-	else if (len == 0)
-		return 0;
 
 	if (smd_stream_write_avail(ch) < (len + SMD_HEADER_SIZE))
 		return -ENOMEM;
@@ -583,7 +610,7 @@ static int smd_packet_read(smd_channel_t *ch, void *data, int len)
 
 	return r;
 }
-
+//This will need testing on a lot of systems... drastic change
 #ifdef CONFIG_MSM_SMD_PKG3
 /*
  * This allocator assumes an SMD Package v3 which only exists on
@@ -592,7 +619,7 @@ static int smd_packet_read(smd_channel_t *ch, void *data, int len)
 static inline int smd_alloc_channel_for_package_version(struct smd_channel *ch)
 {
 	struct smd_shared_v1 *shared1;
-
+	
 	shared1 = smem_alloc(ID_SMD_CHANNELS + ch->n, sizeof(*shared1));
 	if (!shared1) {
 		pr_err("smd_alloc_channel() cid %d does not exist\n", ch->n);
@@ -615,7 +642,7 @@ static inline int smd_alloc_channel_for_package_version(struct smd_channel *ch)
 	struct smd_shared_v2 *shared2;
 	void *buffer;
 	unsigned buffer_sz;
-
+	
 	shared2 = smem_alloc(SMEM_SMD_BASE_ID + ch->n, sizeof(*shared2));
 	buffer = smem_item(SMEM_SMD_FIFO_BASE_ID + ch->n, &buffer_sz);
 
@@ -635,7 +662,7 @@ static inline int smd_alloc_channel_for_package_version(struct smd_channel *ch)
 	return 0;
 }
 #endif /* CONFIG_MSM_SMD_PKG3 */
-
+ 
 static int smd_alloc_channel(const char *name, uint32_t cid, uint32_t type)
 {
 	struct smd_channel *ch;
@@ -653,9 +680,9 @@ static int smd_alloc_channel(const char *name, uint32_t cid, uint32_t type)
 	}
 
 	ch->fifo_mask = ch->fifo_size - 1;
-	ch->type = type & SMD_TYPE_MASK;
+	ch->type = type;
 
-	if (ch->type == SMD_TYPE_APPS_MODEM)
+	if ((type & SMD_TYPE_MASK) == SMD_TYPE_APPS_MODEM)
 		ch->notify_other_cpu = notify_modem_smd;
 	else
 		ch->notify_other_cpu = notify_dsp_smd;
@@ -674,16 +701,14 @@ static int smd_alloc_channel(const char *name, uint32_t cid, uint32_t type)
 		ch->update_state = update_stream_state;
 	}
 
-	if (ch->type == SMD_TYPE_APPS_MODEM)
+	if ((type & SMD_TYPE_MASK) == SMD_TYPE_APPS_MODEM)
 		memcpy(ch->name, "SMD_", 4);
 	else
 		memcpy(ch->name, "DSP_", 4);
-
 	memcpy(ch->name + 4, name, 20);
 	ch->name[23] = 0;
-
 	ch->pdev.name = ch->name;
-	ch->pdev.id = ch->type;
+	ch->pdev.id = ch->type & SMD_TYPE_MASK;
 
 	pr_info("smd_alloc_channel() cid=%02d size=%05d '%s'\n",
 		ch->n, ch->fifo_size, ch->name);
@@ -782,12 +807,12 @@ int smd_open(const char *name, smd_channel_t **_ch,
 
 	spin_lock_irqsave(&smd_lock, flags);
 
-	if (ch->type == SMD_TYPE_APPS_MODEM)
+	if ((ch->type & SMD_TYPE_MASK) == SMD_TYPE_APPS_MODEM)
 		list_add(&ch->ch_list, &smd_ch_list_modem);
 	else
 		list_add(&ch->ch_list, &smd_ch_list_dsp);
 
-	smd_state_change(ch, ch->last_state, SMD_SS_OPENING);
+	// smd_state_change(ch, ch->last_state, SMD_SS_OPENING);
 
 	/* If the remote side is CLOSING, we need to get it to
 	 * move to OPENING (which we'll do by moving from CLOSED to
@@ -876,22 +901,22 @@ int smd_wait_until_writable(smd_channel_t *ch, int bytes)
 
 int smd_wait_until_opened(smd_channel_t *ch, int timeout_us)
 {
-#define POLL_INTERVAL_USEC	200
-	int count = 0;
+#define POLL_INTERVAL_USEC     200
+       int count = 0;
 
-	if (timeout_us)
-		count = timeout_us / (POLL_INTERVAL_USEC + 1) + 1;
+       if (timeout_us)
+               count = timeout_us / (POLL_INTERVAL_USEC + 1) + 1;
 
-	do {
-		if (ch_is_open(ch))
-			return 0;
-		if (count--)
-			udelay(POLL_INTERVAL_USEC);
-		else
-			break;
-	} while (1);
+       do {
+               if (ch_is_open(ch))
+                       return 0;
+               if (count--)
+                       udelay(POLL_INTERVAL_USEC);
+               else
+                       break;
+       } while (1);
 
-	return -1;
+       return -1;
 }
 
 int smd_cur_packet_size(smd_channel_t *ch)
@@ -1029,18 +1054,18 @@ int smsm_set_sleep_duration(uint32_t delay)
 
 int smsm_set_sleep_limit(uint32_t sleep_limit)
 {
-	struct msm_dem_slave_data *ptr;
+       struct msm_dem_slave_data *ptr;
 
-	ptr = smem_find(SMEM_APPS_DEM_SLAVE_DATA, sizeof(*ptr));
-	if (ptr == NULL) {
-		pr_err("smsm_set_sleep_limit <SM NO APPS_DEM_SLAVE_DATA>\n");
-		return -EIO;
-	}
-	if (msm_smd_debug_mask & MSM_SMSM_DEBUG)
-		pr_info("smsm_set_sleep_limit %d -> %d\n",
-		       ptr->resources_used, sleep_limit);
-	ptr->resources_used = sleep_limit;
-	return 0;
+       ptr = smem_find(SMEM_APPS_DEM_SLAVE_DATA, sizeof(*ptr));
+       if (ptr == NULL) {
+               pr_err("smsm_set_sleep_limit <SM NO APPS_DEM_SLAVE_DATA>\n");
+               return -EIO;
+       }
+       if (msm_smd_debug_mask & MSM_SMSM_DEBUG)
+               pr_info("smsm_set_sleep_limit %d -> %d\n",
+                      ptr->resources_used, sleep_limit);
+       ptr->resources_used = sleep_limit;
+       return 0;
 }
 
 #else
@@ -1063,8 +1088,9 @@ int smsm_set_sleep_duration(uint32_t delay)
 
 inline int smsm_set_sleep_limit(uint32_t sleep_limit)
 {
-	return 0;
+       return 0;
 }
+
 #endif
 
 int smd_core_init(void)

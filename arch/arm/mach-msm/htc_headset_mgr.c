@@ -35,13 +35,12 @@
 #include <linux/jiffies.h>
 #include <linux/gpio.h>
 #include <linux/slab.h>
-
 #include <asm/atomic.h>
 #include <asm/mach-types.h>
 
 #include <mach/board.h>
 #include <mach/vreg.h>
-#include <mach/atmega_microp.h>
+//#include <mach/atmega_microp.h>
 
 #include <mach/htc_headset_mgr.h>
 
@@ -207,7 +206,7 @@ void button_released(int type)
 	input_sync(hi->input);
 }
 
-void headset_button_event(int is_press, int type)
+void Headset_button_event(int is_press, int type)
 {
 	if (!hs_hpin_stable()) {
 		H2WI("The HPIN is unstable, SKIP THE BUTTON EVENT.");
@@ -309,10 +308,10 @@ static void button_35mm_do_work(struct work_struct *w)
 			H2WI("3.5mm RC: WRONG Button Pressed");
 			return;
 		}
-		headset_button_event(1, key);
+		Headset_button_event(1, key);
 	} else { /* key release */
 		if (atomic_read(&hi->btn_state))
-			headset_button_event(0, atomic_read(&hi->btn_state));
+			Headset_button_event(0, atomic_read(&hi->btn_state));
 		else
 			H2WI("3.5mm RC: WRONG Button Release");
 	}
