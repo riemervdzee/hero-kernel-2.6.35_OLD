@@ -393,6 +393,7 @@ struct alc_spec {
 	/* other flags */
 	unsigned int no_analog :1; /* digital I/O only */
 	unsigned int dual_adc_switch:1; /* switch ADCs (for ALC275) */
+	unsigned int single_input_src:1;
 	int init_amp;
 	int codec_variant;	/* flag for other variants */
 
@@ -1127,11 +1128,8 @@ static void alc_automute_speaker(struct hda_codec *codec, int pinctl)
 		nid = spec->autocfg.hp_pins[i];
 		if (!nid)
 			break;
-		if (snd_hda_jack_detect(codec, nid)) {
-			spec->jack_present = 1;
-			break;
-		}
-		alc_report_jack(codec, spec->autocfg.hp_pins[i]);
+		alc_report_jack(codec, nid);
+		spec->jack_present |= snd_hda_jack_detect(codec, nid);
 	}
 
 	mute = spec->jack_present ? HDA_AMP_MUTE : 0;
@@ -3801,6 +3799,8 @@ static struct hda_amp_list alc880_lg_loopbacks[] = {
  * Common callbacks
  */
 
+static void alc_init_special_input_src(struct hda_codec *codec);
+
 static int alc_init(struct hda_codec *codec)
 {
 	struct alc_spec *spec = codec->spec;
@@ -3811,6 +3811,7 @@ static int alc_init(struct hda_codec *codec)
 
 	for (i = 0; i < spec->num_init_verbs; i++)
 		snd_hda_sequence_write(codec, spec->init_verbs[i]);
+	alc_init_special_input_src(codec);
 
 	if (spec->init_hook)
 		spec->init_hook(codec);
@@ -5444,6 +5445,7 @@ static void fixup_single_adc(struct hda_codec *codec)
 			spec->capsrc_nids += i;
 		spec->adc_nids += i;
 		spec->num_adc_nids = 1;
+		spec->single_input_src = 1;
 	}
 }
 
@@ -5453,6 +5455,16 @@ static void fixup_dual_adc_switch(struct hda_codec *codec)
 	struct alc_spec *spec = codec->spec;
 	init_capsrc_for_pin(codec, spec->ext_mic.pin);
 	init_capsrc_for_pin(codec, spec->int_mic.pin);
+}
+
+/* initialize some special cases for input sources */
+static void alc_init_special_input_src(struct hda_codec *codec)
+{
+	struct alc_spec *spec = codec->spec;
+	if (spec->dual_adc_switch)
+		fixup_dual_adc_switch(codec);
+	else if (spec->single_input_src)
+		init_capsrc_for_pin(codec, spec->autocfg.inputs[0].pin);
 }
 
 static void set_capture_mixer(struct hda_codec *codec)
@@ -5470,7 +5482,7 @@ static void set_capture_mixer(struct hda_codec *codec)
 		int mux = 0;
 		int num_adcs = spec->num_adc_nids;
 		if (spec->dual_adc_switch)
-			fixup_dual_adc_switch(codec);
+			num_adcs = 1;
 		else if (spec->auto_mic)
 			fixup_automic_adc(codec);
 		else if (spec->input_mux) {
@@ -5479,8 +5491,6 @@ static void set_capture_mixer(struct hda_codec *codec)
 			else if (spec->input_mux->num_items == 1)
 				fixup_single_adc(codec);
 		}
-		if (spec->dual_adc_switch)
-			num_adcs = 1;
 		spec->cap_mixer = caps[mux][num_adcs - 1];
 	}
 }
@@ -10739,23 +10749,28 @@ static void alc882_auto_init_hp_out(struct hda_codec *codec)
 	hda_nid_t pin, dac;
 	int i;
 
-	for (i = 0; i < ARRAY_SIZE(spec->autocfg.hp_pins); i++) {
-		pin = spec->autocfg.hp_pins[i];
-		if (!pin)
-			break;
-		dac = spec->multiout.hp_nid;
-		if (!dac)
-			dac = spec->multiout.dac_nids[0]; /* to front */
-		alc882_auto_set_output_and_unmute(codec, pin, PIN_HP, dac);
+	if (spec->autocfg.line_out_type != AUTO_PIN_HP_OUT) {
+		for (i = 0; i < ARRAY_SIZE(spec->autocfg.hp_pins); i++) {
+			pin = spec->autocfg.hp_pins[i];
+			if (!pin)
+				break;
+			dac = spec->multiout.hp_nid;
+			if (!dac)
+				dac = spec->multiout.dac_nids[0]; /* to front */
+			alc882_auto_set_output_and_unmute(codec, pin, PIN_HP, dac);
+		}
 	}
-	for (i = 0; i < ARRAY_SIZE(spec->autocfg.speaker_pins); i++) {
-		pin = spec->autocfg.speaker_pins[i];
-		if (!pin)
-			break;
-		dac = spec->multiout.extra_out_nid[0];
-		if (!dac)
-			dac = spec->multiout.dac_nids[0]; /* to front */
-		alc882_auto_set_output_and_unmute(codec, pin, PIN_OUT, dac);
+
+	if (spec->autocfg.line_out_type != AUTO_PIN_SPEAKER_OUT) {
+		for (i = 0; i < ARRAY_SIZE(spec->autocfg.speaker_pins); i++) {
+			pin = spec->autocfg.speaker_pins[i];
+			if (!pin)
+				break;
+			dac = spec->multiout.extra_out_nid[0];
+			if (!dac)
+				dac = spec->multiout.dac_nids[0]; /* to front */
+			alc882_auto_set_output_and_unmute(codec, pin, PIN_OUT, dac);
+		}
 	}
 }
 
@@ -14824,6 +14839,7 @@ static const struct alc_fixup alc269_fixups[] = {
 			{0x01, AC_VERB_SET_GPIO_MASK, 0x04},
 			{0x01, AC_VERB_SET_GPIO_DIRECTION, 0x04},
 			{0x01, AC_VERB_SET_GPIO_DATA, 0x00},
+			{0x19, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_VREFGRD},
 			{ }
 		}
 	},
@@ -19379,6 +19395,7 @@ static const struct alc_fixup alc662_fixups[] = {
 };
 
 static struct snd_pci_quirk alc662_fixup_tbl[] = {
+	SND_PCI_QUIRK(0x1025, 0x0308, "Acer Aspire 8942G", ALC662_FIXUP_ASPIRE),
 	SND_PCI_QUIRK(0x1025, 0x038b, "Acer Aspire 8943G", ALC662_FIXUP_ASPIRE),
 	SND_PCI_QUIRK(0x144d, 0xc051, "Samsung R720", ALC662_FIXUP_IDEAPAD),
 	SND_PCI_QUIRK(0x17aa, 0x38af, "Lenovo Ideapad Y550P", ALC662_FIXUP_IDEAPAD),

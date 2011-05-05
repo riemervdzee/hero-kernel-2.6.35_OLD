@@ -157,7 +157,7 @@ static int get_ls_adc_level(uint8_t *data)
 	return 0;
 }
 
-void report_lightseneor_data(void)
+void report_lightsensor_data(void)
 {
 	uint8_t data[3];
 	int ret;
@@ -210,7 +210,7 @@ static void enable_intr_do_work(struct work_struct *w)
 		}
 	}
 
-	report_lightseneor_data();
+	report_lightsensor_data();
 }
 
 static void lightsensor_do_work(struct work_struct *w)
@@ -221,7 +221,7 @@ static void lightsensor_do_work(struct work_struct *w)
 		msleep(300);
 	}
 
-	report_lightseneor_data();
+	report_lightsensor_data();
 }
 
 static irqreturn_t lightsensor_irq_handler(int irq, void *data)

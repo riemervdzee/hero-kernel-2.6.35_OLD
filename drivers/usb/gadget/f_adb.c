@@ -25,6 +25,7 @@
 #include <linux/wait.h>
 #include <linux/err.h>
 #include <linux/interrupt.h>
+#include <linux/sched.h>
 
 #include <linux/types.h>
 #include <linux/device.h>
@@ -321,6 +322,7 @@ requeue_req:
 	if (ret < 0) {
 		dev->error = 1;
 		r = ret;
+		usb_ep_dequeue(dev->ep_out, req);
 		goto done;
 	}
 	if (!dev->error) {

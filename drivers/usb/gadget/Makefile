@@ -24,7 +24,11 @@ obj-$(CONFIG_USB_FSL_QE)	+= fsl_qe_udc.o
 obj-$(CONFIG_USB_CI13XXX)	+= ci13xxx_udc.o
 obj-$(CONFIG_USB_S3C_HSOTG)	+= s3c-hsotg.o
 obj-$(CONFIG_USB_LANGWELL)	+= langwell_udc.o
-obj-$(CONFIG_USB_MSM_72K)	+= msm72k_udc.o
+ifdef CONFIG_USB_MSM_72K_HTC
+  obj-$(CONFIG_USB_MSM_72K_HTC)	+= msm72k_udc_htc.o
+else
+  obj-$(CONFIG_USB_MSM_72K)	+= msm72k_udc.o
+endif
 
 #
 # USB gadget drivers
@@ -67,6 +71,7 @@ obj-$(CONFIG_USB_ANDROID_ADB)	+= f_adb.o
 obj-$(CONFIG_USB_ANDROID_MASS_STORAGE)	+= f_mass_storage.o
 obj-$(CONFIG_USB_ANDROID_MTP)	+= f_mtp.o
 obj-$(CONFIG_USB_ANDROID_RNDIS)	+= f_rndis.o u_ether.o
+obj-$(CONFIG_USB_ANDROID_ACCESSORY)	+= f_accessory.o
 
 # MSM specific
 obj-$(CONFIG_USB_ANDROID_DIAG)	+= diag.o

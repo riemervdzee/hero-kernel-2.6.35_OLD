@@ -1383,7 +1383,7 @@ static int do_mode_sense(struct fsg_common *common, struct fsg_buffhd *bh)
 		memset(buf+2, 0, 10);	/* None of the fields are changeable */
 
 		if (!changeable_values) {
-			buf[2] = 0x04;	/* Write cache enable, */
+			buf[2] = 0x00;	/* Write cache disable, */
 					/* Read cache not disabled */
 					/* No cache retention priorities */
 			put_unaligned_be16(0xffff, &buf[4]);
@@ -2996,6 +2996,17 @@ static int fsg_bind(struct usb_configuration *c, struct usb_function *f)
 		return i;
 	fsg_intf_desc.bInterfaceNumber = i;
 	fsg->interface_number = i;
+
+#ifdef CONFIG_USB_ANDROID_MASS_STORAGE
+	/* HACK!!  Android doesn't rebind on new configurations, instead it
+	 * separates functionality in different products.  Thus config_buf()
+	 * in composite.c is set to rewrite bInterfaceNumber to match the
+	 * actual function configuration of the active product.  Since that
+	 * number is checked in fsg_setup, we need to know it.  So we cheat,
+	 * knowing that UMS is the first function in all of our "products".
+	 */
+	fsg->interface_number = 0;
+#endif
 
 	/* Find all the endpoints we will use */
 	ep = usb_ep_autoconfig(gadget, &fsg_fs_bulk_in_desc);

@@ -74,6 +74,44 @@ config MSM_MDP40
 	depends on ARCH_MSM7X30
 	default y
 
+config PERFLOCK
+  depends on CPU_FREQ
+  depends on ARCH_QSD8X50 || ARCH_MSM7X30 || ARCH_MSM7X00A || ARCH_MSM7227 || ARCH_MSM7225
+  default n
+  bool "HTC Performance Lock"
+
+config PERFLOCK_BOOT_LOCK
+  depends on PERFLOCK
+  depends on ARCH_QSD8X50 || ARCH_MSM7X30 || ARCH_MSM7X00A || ARCH_MSM7227 || ARCH_MSM7225
+  default n
+  bool "Boot Time Performance Lock"
+
+config PERFLOCK_SCREEN_POLICY
+  depends on PERFLOCK
+  depends on ARCH_QSD8X50 || ARCH_MSM7X00A || ARCH_MSM7227 || ARCH_MSM7225
+  default n
+  bool "Change Cpufreq Policy while Screen ON/OFF"
+
+config PERFLOCK_SCREEN_ON_MIN
+  depends on PERFLOCK_SCREEN_POLICY
+  int "Minimum speed while screen on"
+  default MSM_CPU_FREQ_MIN
+
+config PERFLOCK_SCREEN_ON_MAX
+  depends on PERFLOCK_SCREEN_POLICY
+  int "Maximum speed while screen on"
+  default MSM_CPU_FREQ_MAX
+
+config PERFLOCK_SCREEN_OFF_MIN
+  depends on PERFLOCK_SCREEN_POLICY
+  int "Minimum speed while screen off"
+  default MSM_CPU_FREQ_MIN
+
+config PERFLOCK_SCREEN_OFF_MAX
+  depends on PERFLOCK_SCREEN_POLICY
+  int "Maximum speed while screen off"
+  default MSM_CPU_FREQ_MAX
+
 config MSM_REMOTE_SPINLOCK_DEKKERS
 	bool
 
@@ -98,6 +136,7 @@ config MSM_AMSS_VERSION
 	default 6220 if MSM_AMSS_VERSION_6220
 	default 6225 if MSM_AMSS_VERSION_6225
 	default 6350 if MSM_AMSS_VERSION_6350
+        default 3200 if MSM_AMSS_VERSION_3200
 
 choice
 	prompt "AMSS modem firmware version"
@@ -119,6 +158,9 @@ choice
 
 	config MSM_AMSS_VERSION_6350
 		bool "6.3.50"
+         
+         config MSM_AMSS_VERSION_3200
+ 	        bool "3.2.00"
 endchoice
 
 menu "Qualcomm MSM Board Type"
@@ -154,7 +196,7 @@ config MACH_MSM7X30_FLUID
 
 config MACH_SWORDFISH
 	depends on ARCH_QSD8X50
-	default y
+	default n
 	bool "Swordfish Board (QCT SURF8250)"
 	help
 	  Support for the Qualcomm SURF8250 eval board.
@@ -231,7 +273,7 @@ config MSM_PROC_COMM
 	bool
 
 config MACH_SAPPHIRE
-	depends on ARCH_MSM7X00A && !MACH_TROUT && !MACH_HALIBUT
+	depends on ARCH_MSM7X00A
 	default y
 	bool "Sapphire"
 
@@ -268,16 +310,37 @@ choice
 		  Select this to support the Bravo CDMA device
 endchoice
 
+config MACH_INCREDIBLE
+	depends on ARCH_QSD8X50
+	default n
+	bool "Incredible"
+	help
+	  Select this to support the Incredible device
+
+config MACH_INCREDIBLEC
+	depends on ARCH_QSD8X50
+	default n
+	bool "IncredibleC"
+	help
+	  Select this to support the IncredibleC device
+
+config MACH_SUPERSONIC
+	depends on ARCH_QSD8X50
+	default n
+	bool "Supersonic (HTC EVO 4G)"
+	help
+	  Select this to support the Supersonic device
+
 config MACH_QSD8X50_FFA
 	depends on ARCH_QSD8X50
-	default y
+	default n
 	bool "8x50-ffa"
 	help
 	  Select this to support the 8x50 ffa device
 
 config MACH_MSM7X30_SURF
 	depends on ARCH_MSM7X30
-	default y
+	default n
 	bool "QCT SURF7x30 Board"
 	help
 	  Select this to support the Qualcomm SURF7X30 development board
@@ -308,6 +371,16 @@ config TROUT_BATTCHG
 	default y
 	bool "Trout battery / charger driver"
 
+config HTC_BATTCHG
+	depends on MSM_ONCRPCROUTER && POWER_SUPPLY
+	default n
+	bool "HTC battery / charger driver"
+
+config HTC_BATTCHG_SMEM
+	depends on HTC_BATTCHG
+	default n
+	bool "Read Battery Info via SMEM"
+
 config HTC_PWRSPLY
 	depends on MSM_ONCRPCROUTER && POWER_SUPPLY && !TROUT_BATTCHG
 	default y
@@ -319,6 +392,14 @@ config HTC_PWRSINK
 	depends on MSM_SMD
 	default y
 	bool "HTC Power Sink Driver"
+
+config HTC_POWER_COLLAPSE_MAGIC
+  default n
+  bool "Check Power Collapse State"
+
+config HTC_ONMODE_CHARGING
+  default n
+  bool "Low-power hibernate charging support"
 
 config CACHE_FLUSH_RANGE_LIMIT
 	hex "Cache flush range limit"
@@ -368,7 +449,7 @@ choice
 
 	config MSM7X00A_SLEEP_WAIT_FOR_INTERRUPT
 		bool "Wait for interrupt"
-endchoice	  
+endchoice
 
 config MSM7X00A_SLEEP_MODE
 	int
@@ -403,7 +484,7 @@ choice
 
 	config MSM7X00A_IDLE_SLEEP_WAIT_FOR_INTERRUPT
 		bool "Wait for interrupt"
-endchoice	  
+endchoice
 
 config MSM7X00A_IDLE_SLEEP_MODE
 	int
@@ -500,7 +581,7 @@ config MSM_V2_TLMM
 	bool
 
 config MSM_DAL
-	default n 
+	default n
 	bool "MSM Driver Access Layer (DAL RPC)"
 	help
 	  Support for the DAL RPC interface used to communicate with
@@ -566,6 +647,22 @@ config MSM_ADSP
 	help
 	  Provides access to registers needed by the userspace aDSP library.
 
+config HTC_ACOUSTIC
+        tristate "HTC acoustic driver"
+	depends on ARCH_MSM7X00A
+        default y
+        help
+          The driver provide user space use shared memory allocate by using
+          RPC code.
+
+config HTC_ACOUSTIC_QSD
+        tristate "HTC acoustic driver for QSD"
+        depends on ARCH_QSD8X50
+        default y
+        help
+          Provides user space use shared memory allocate by using RPC code.
+          Provides headset amp, mic bias and speaker amp control.
+
 config MSM_ADSP_REPORT_EVENTS
 	bool "Report modem events from the DSP"
 	default y
@@ -600,7 +697,7 @@ config WIFI_CONTROL_FUNC
 	bool "Enable WiFi control function abstraction"
 	help
 	  Enables Power/Reset/Carddetect function abstraction
-	
+
 config WIFI_MEM_PREALLOC
 	depends on WIFI_CONTROL_FUNC
 	bool "Preallocate memory for WiFi buffers"
@@ -612,6 +709,32 @@ config ARCH_MSM_FLASHLIGHT
         depends on ARCH_MSM
         help
           The flashlight driver is for MSM series.
+
+config MICROP_COMMON
+        tristate "MICROP COMMON Driver"
+        depends on I2C
+        help
+          HTC Microp-P support.
+
+config HTC_HEADSET_MGR
+        tristate "HTC headset manager driver"
+        default n
+        help
+          Provides support of HTC headset manager.
+
+config HTC_HEADSET_GPIO
+        tristate "HTC GPIO headset detection driver"
+        depends on HTC_HEADSET_MGR
+        default n
+        help
+          Provides support of HTC GPIO headset detection.
+
+config HTC_HEADSET_MICROP
+        tristate "HTC Micro-P headset detection driver"
+        depends on HTC_HEADSET_MGR && MICROP_COMMON
+        default n
+        help
+          Provides support of HTC Micro-P headset detection.
 
 config VIRTUAL_KPANIC_PARTITION
 	bool "Create virtual kpanic partition"
@@ -634,5 +757,6 @@ config VIRTUAL_KPANIC_SRC
 	default "cache"
 	help
 	  Sets the partition to steal from to make the virtual one.
-	
+
+
 endif

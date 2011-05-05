@@ -191,7 +191,8 @@ static inline void usb_set_serial_data(struct usb_serial *serial, void *data)
  * @id_table: pointer to a list of usb_device_id structures that define all
  *	of the devices this structure can support.
  * @num_ports: the number of different ports this device will have.
- * @bulk_in_size: bytes to allocate for bulk-in buffer (0 = end-point size)
+ * @bulk_in_size: minimum number of bytes to allocate for bulk-in buffer
+ *	(0 = end-point size)
  * @bulk_out_size: bytes to allocate for bulk-out buffer (0 = end-point size)
  * @calc_num_ports: pointer to a function to determine how many ports this
  *	device has dynamically.  It will be called after the probe()
@@ -347,6 +348,9 @@ extern int usb_serial_generic_prepare_write_buffer(struct usb_serial_port *port,
 extern int usb_serial_handle_sysrq_char(struct usb_serial_port *port,
 					unsigned int ch);
 extern int usb_serial_handle_break(struct usb_serial_port *port);
+extern void usb_serial_handle_dcd_change(struct usb_serial_port *usb_port,
+					 struct tty_struct *tty,
+					 unsigned int status);
 
 
 extern int usb_serial_bus_register(struct usb_serial_driver *device);

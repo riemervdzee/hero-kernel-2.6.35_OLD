@@ -24,6 +24,7 @@
 #include <linux/kernel.h>
 #include <linux/platform_device.h>
 #include <linux/usb/android_composite.h>
+#include <linux/usb/f_accessory.h>
 
 #include <linux/android_pmem.h>
 #include <linux/synaptics_i2c_rmi.h>
@@ -68,8 +69,6 @@ extern void msm_init_pmic_vibrator(void);
 extern void __init mahimahi_audio_init(void);
 
 extern int microp_headset_has_mic(void);
-
-static void config_gpio_table(uint32_t *table, int len);
 
 static int mahimahi_phy_init_seq[] = {
 	0x0C, 0x31,
@@ -143,6 +142,11 @@ static char *usb_functions_rndis_adb[] = {
 	"adb",
 };
 
+#ifdef CONFIG_USB_ANDROID_ACCESSORY
+static char *usb_functions_accessory[] = { "accessory" };
+static char *usb_functions_accessory_adb[] = { "accessory", "adb" };
+#endif
+
 #ifdef CONFIG_USB_ANDROID_DIAG
 static char *usb_functions_adb_diag[] = {
 	"usb_mass_storage",
@@ -154,6 +158,9 @@ static char *usb_functions_adb_diag[] = {
 static char *usb_functions_all[] = {
 #ifdef CONFIG_USB_ANDROID_RNDIS
 	"rndis",
+#endif
+#ifdef CONFIG_USB_ANDROID_ACCESSORY
+	"accessory",
 #endif
 	"usb_mass_storage",
 	"adb",
@@ -186,6 +193,20 @@ static struct android_usb_product usb_products[] = {
 		.num_functions	= ARRAY_SIZE(usb_functions_rndis_adb),
 		.functions	= usb_functions_rndis_adb,
 	},
+#ifdef CONFIG_USB_ANDROID_ACCESSORY
+	{
+		.vendor_id	= USB_ACCESSORY_VENDOR_ID,
+		.product_id	= USB_ACCESSORY_PRODUCT_ID,
+		.num_functions	= ARRAY_SIZE(usb_functions_accessory),
+		.functions	= usb_functions_accessory,
+	},
+	{
+		.vendor_id	= USB_ACCESSORY_VENDOR_ID,
+		.product_id	= USB_ACCESSORY_ADB_PRODUCT_ID,
+		.num_functions	= ARRAY_SIZE(usb_functions_accessory_adb),
+		.functions	= usb_functions_accessory_adb,
+	},
+#endif
 #ifdef CONFIG_USB_ANDROID_DIAG
 	{
 		.product_id	= 0x4e17,
@@ -530,8 +551,6 @@ static struct i2c_board_info rev_CX_i2c_devices[] = {
 		I2C_BOARD_INFO("smb329", 0x6E >> 1),
 	},
 };
-
-static void config_gpio_table(uint32_t *table, int len);
 
 static uint32_t camera_off_gpio_table[] = {
 	/* CAMERA */
@@ -949,16 +968,6 @@ static int __init board_serialno_setup(char *serialno)
 	return 1;
 }
 __setup("androidboot.serialno=", board_serialno_setup);
-
-static void config_gpio_table(uint32_t *table, int len)
-{
-	int n;
-	unsigned id;
-	for(n = 0; n < len; n++) {
-		id = table[n];
-		msm_proc_comm(PCOM_RPC_GPIO_TLMM_CONFIG_EX, &id, 0);
-	}
-}
 
 static struct msm_acpu_clock_platform_data mahimahi_clock_data = {
 	.acpu_switch_time_us	= 20,
