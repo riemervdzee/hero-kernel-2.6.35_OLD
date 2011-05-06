@@ -20,8 +20,8 @@
 #define MSM_EBI_BASE				0x19200000
 #define MSM_EBI_SMI32_256MB_SIZE	0x0C600000
 
-#define MSM_PMEM_GPU0_BASE	        0x00000000
-#define MSM_PMEM_GPU0_SIZE	        0x00700000
+#define SMI32_MSM_PMEM_GPU0_BASE	0x00000000
+#define SMI32_MSM_PMEM_GPU0_SIZE	0x00700000
 
 
 #define DECLARE_MSM_IOMAP
@@ -110,6 +110,7 @@
 #define HERO_GPIO_VSYNC                 (97)
 
 int hero_init_mmc(unsigned int sys_rev);
+int __init hero_init_panel(void);
 void config_hero_camera_on_gpios(void);
 void config_hero_camera_off_gpios(void);
 unsigned int camera_is_micron_5M(void);

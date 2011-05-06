@@ -18,6 +18,7 @@
 #include <linux/input.h>
 #include <linux/interrupt.h>
 #include <linux/i2c.h>
+#include <linux/i2c-msm.h>
 #include <linux/irq.h>
 #include <linux/leds.h>
 #include <linux/switch.h>
@@ -27,30 +28,30 @@
 #include <linux/sysdev.h>
 #include <linux/android_pmem.h>
 #include <linux/bma150.h>
-
+#include <linux/usb/android_composite.h>
+#include <linux/usb/f_accessory.h>
 #include <linux/delay.h>
+#include <linux/gpio_event.h>
+#include <linux/mtd/nand.h>
+#include <linux/mtd/partitions.h>
+#include <linux/mmc/sdio_ids.h>
 
 #include <asm/gpio.h>
-#include <mach/hardware.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
 #include <asm/mach/flash.h>
 #include <asm/system.h>
-#include <mach/system.h>
-#include <mach/vreg.h>
-
 #include <asm/io.h>
 #include <asm/delay.h>
 #include <asm/setup.h>
-
-#include <linux/gpio_event.h>
-#include <linux/mtd/nand.h>
-#include <linux/mtd/partitions.h>
-
 #include <asm/mach/mmc.h>
-#include <linux/mmc/sdio_ids.h>
 
+#include <mach/hardware.h>
+#include <mach/system.h>
+#include <mach/vreg.h>
+#include <mach/msm_hsusb.h>
+#include <mach/msm_iomap.h>
 #include <mach/board.h>
 #include <mach/board_htc.h>
 #include <mach/msm_serial_debugger.h>
@@ -522,20 +523,16 @@ static struct i2c_board_info i2c_devices[] = {
 		.platform_data = &compass_platform_data,
 		.irq = MSM_GPIO_TO_INT(HERO_GPIO_COMPASS_INT_N),
 	},
-#ifdef CONFIG_MT9P012
 	{
 		I2C_BOARD_INFO("mt9p012", 0x6C >> 1),
 	},
-#endif
+	{
+		I2C_BOARD_INFO(BMA150_I2C_NAME, 0x38),
+		.platform_data = &gsensor_platform_data,
+		.irq = MSM_GPIO_TO_INT(HERO_GPIO_GSENSOR_INT_N),
+	},
 };
 
-static struct i2c_board_info i2c_bma150 = {
-	I2C_BOARD_INFO(BMA150_I2C_NAME, 0x38),
-	.platform_data = &gsensor_platform_data,
-	.irq = MSM_GPIO_TO_INT(HERO_GPIO_GSENSOR_INT_N),
-};
-
-#ifdef CONFIG_MT9P012
 static struct msm_camera_device_platform_data msm_camera_device_data = {
 	.camera_gpio_on  = config_hero_camera_on_gpios,
 	.camera_gpio_off = config_hero_camera_off_gpios,
@@ -559,7 +556,296 @@ static struct platform_device msm_camera_sensor_mt9p012 = {
 		.platform_data = &msm_camera_sensor_mt9p012_data,
 	},
 };
+
+#ifdef CONFIG_HERO_EXPERIMENTAL_USBADSP
+/*static int mahimahi_phy_init_seq[] = {
+	0x0C, 0x31,
+	0x31, 0x32,
+	0x1D, 0x0D,
+	0x1D, 0x10,
+	-1 }; MAHIMAHI */
+static int hero_phy_init_seq[] = {0x40, 0x31, 0x1, 0x0D, 0x1, 0x10, -1};
+
+static void hero_usb_phy_reset(void)
+{
+	gpio_set_value(HERO_GPIO_USB_PHY_RST_N, 0);
+	mdelay(10);
+	gpio_set_value(HERO_GPIO_USB_PHY_RST_N, 1);
+	mdelay(10);
+}
+
+#if 0
+//TODO, check if neccesary?
+static void hero_usb_hw_reset(bool enable)
+{
+	u32 id;
+	int ret;
+	u32 func;
+
+	id = PCOM_CLKRGM_APPS_RESET_USBH;
+	if (enable)
+		func = PCOM_CLK_REGIME_SEC_RESET_ASSERT;
+	else
+		func = PCOM_CLK_REGIME_SEC_RESET_DEASSERT;
+
+	ret = msm_proc_comm(func, &id, NULL);
+
+	if (ret)
+		pr_err("%s: Cannot set reset to %d (%d)\n", __func__, enable, ret);
+}
 #endif
+
+
+static struct msm_hsusb_platform_data msm_hsusb_pdata = {
+	.phy_init_seq	= hero_phy_init_seq,
+	.phy_reset		= hero_usb_phy_reset,
+//	.hw_reset		= hero_usb_hw_reset, TODO, check if neccesary?
+//	.usb_connected	= notify_usb_connected, TODO!
+};
+
+static char *usb_functions_ums[] = {
+	"usb_mass_storage",
+};
+
+static char *usb_functions_ums_adb[] = {
+	"usb_mass_storage",
+	"adb",
+};
+
+static char *usb_functions_rndis[] = {
+	"rndis",
+};
+
+static char *usb_functions_rndis_adb[] = {
+	"rndis",
+	"adb",
+};
+
+#ifdef CONFIG_USB_ANDROID_ACCESSORY
+static char *usb_functions_accessory[] = { "accessory" };
+static char *usb_functions_accessory_adb[] = { "accessory", "adb" };
+#endif
+
+#ifdef CONFIG_USB_ANDROID_DIAG
+static char *usb_functions_adb_diag[] = {
+	"usb_mass_storage",
+	"adb",
+	"diag",
+};
+#endif
+
+static char *usb_functions_all[] = {
+#ifdef CONFIG_USB_ANDROID_RNDIS
+	"rndis",
+#endif
+#ifdef CONFIG_USB_ANDROID_ACCESSORY
+	"accessory",
+#endif
+	"usb_mass_storage",
+	"adb",
+#ifdef CONFIG_USB_ANDROID_ACM
+	"acm",
+#endif
+#ifdef CONFIG_USB_ANDROID_DIAG
+	"diag",
+#endif
+};
+
+static struct android_usb_product usb_products[] = {
+	{
+		.product_id    = 0x0ff9, /* usb_mass_storage */
+		.num_functions = ARRAY_SIZE(usb_functions_ums),
+		.functions     = usb_functions_ums,
+	},
+	{
+		.product_id    = 0x0c99, /* usb_mass_storage + adb */
+		.num_functions = ARRAY_SIZE(usb_functions_ums_adb),
+		.functions     = usb_functions_ums_adb,
+	},
+	{
+		.product_id    = 0x0FFE, /* internet sharing */
+		.num_functions = ARRAY_SIZE(usb_functions_rndis),
+		.functions     = usb_functions_rndis,
+	},
+	/*
+	TODO: there isn't a equivalent in htc's kernel
+	{
+		.product_id    = 0x4e14,
+		.num_functions = ARRAY_SIZE(usb_functions_rndis_adb),
+		.functions     = usb_functions_rndis_adb,
+	}, */
+#ifdef CONFIG_USB_ANDROID_ACCESSORY
+	{
+		.vendor_id	= USB_ACCESSORY_VENDOR_ID,
+		.product_id	= USB_ACCESSORY_PRODUCT_ID,
+		.num_functions	= ARRAY_SIZE(usb_functions_accessory),
+		.functions	= usb_functions_accessory,
+	},
+	{
+		.vendor_id	= USB_ACCESSORY_VENDOR_ID,
+		.product_id	= USB_ACCESSORY_ADB_PRODUCT_ID,
+		.num_functions	= ARRAY_SIZE(usb_functions_accessory_adb),
+		.functions	= usb_functions_accessory_adb,
+	},
+#endif
+#ifdef CONFIG_USB_ANDROID_DIAG
+	{
+		.product_id    = 0x0c07,
+		.num_functions = ARRAY_SIZE(usb_functions_adb_diag),
+		.functions     = usb_functions_adb_diag,
+	},
+#endif
+};
+
+static struct usb_mass_storage_platform_data mass_storage_pdata = {
+	.nluns		= 1,
+	.vendor		= "HTC",
+	.product	= "Hero",
+	.release	= 0x0100,
+};
+
+static struct platform_device usb_mass_storage_device = {
+	.name = "usb_mass_storage",
+	.id   = -1,
+	.dev  = {
+		.platform_data = &mass_storage_pdata,
+	},
+};
+
+#ifdef CONFIG_USB_ANDROID_RNDIS
+static struct usb_ether_platform_data rndis_pdata = {
+	/* ethaddr is filled by board_serialno_setup */
+	.vendorID    = 0x0bb4,
+	.vendorDescr = "HTC",
+};
+
+static struct platform_device rndis_device = {
+	.name = "rndis",
+	.id   = -1,
+	.dev  = {
+		.platform_data = &rndis_pdata,
+	},
+};
+#endif
+
+static struct android_usb_platform_data android_usb_pdata = {
+	.vendor_id         = 0x0bb4,
+	.product_id        = 0x0c01,
+	.version           = 0x0100,
+	.product_name      = "Android Phone",
+	.manufacturer_name = "HTC",
+	.num_products      = ARRAY_SIZE(usb_products),
+	.products          = usb_products,
+	.num_functions     = ARRAY_SIZE(usb_functions_all),
+	.functions         = usb_functions_all,
+};
+
+static struct platform_device android_usb_device = {
+	.name = "android_usb",
+	.id   = -1,
+	.dev  = {
+		.platform_data = &android_usb_pdata,
+	},
+};
+
+static struct android_pmem_platform_data mdp_pmem_pdata = {
+	.name         = "pmem",
+	.start        = SMI32_MSM_PMEM_MDP_BASE,
+	.size         = SMI32_MSM_PMEM_MDP_SIZE,
+	.no_allocator = 0,
+	.cached       = 1,
+};
+
+static struct android_pmem_platform_data android_pmem_adsp_pdata = {
+	.name         = "pmem_adsp",
+	.start        = SMI32_MSM_PMEM_ADSP_BASE,
+	.size         = SMI32_MSM_PMEM_ADSP_SIZE,
+	.no_allocator = 0,
+	.cached       = 0,
+};
+
+static struct android_pmem_platform_data android_pmem_camera_pdata = {
+	.name         = "pmem_camera",
+	.start        = SMI32_MSM_PMEM_CAMERA_BASE,
+	.size         = SMI32_MSM_PMEM_CAMERA_SIZE,
+	.no_allocator = 1,
+	.cached       = 1,
+};
+
+static struct platform_device android_pmem_mdp_device = {
+	.name = "android_pmem",
+	.id   = 0,
+	.dev  = {
+		.platform_data = &mdp_pmem_pdata
+	},
+};
+
+static struct platform_device android_pmem_adsp_device = {
+	.name = "android_pmem",
+	.id   = 1,
+	.dev  = {
+		.platform_data = &android_pmem_adsp_pdata,
+	},
+};
+
+static struct platform_device android_pmem_camera_device = {
+	.name = "android_pmem",
+	.id   = 4,
+	.dev  = {
+		.platform_data = &android_pmem_camera_pdata
+	},
+};
+
+static struct resource resources_hw3d[] = {
+	{
+		.start	= 0xA0000000,
+		.end	= 0xA00fffff,
+		.flags	= IORESOURCE_MEM,
+		.name	= "regs",
+	},
+	{
+		.flags	= IORESOURCE_MEM,
+		.name	= "smi",
+		.start  = SMI32_MSM_PMEM_GPU0_BASE,
+		.end    = SMI32_MSM_PMEM_GPU0_BASE + SMI32_MSM_PMEM_GPU0_SIZE - 1,
+	},
+	{
+		.flags	= IORESOURCE_MEM,
+		.name	= "ebi",
+		.start  = SMI32_MSM_PMEM_GPU1_BASE,
+		.end    = SMI32_MSM_PMEM_GPU1_BASE + SMI32_MSM_PMEM_GPU1_SIZE - 1,
+	},
+	{
+		.start	= INT_GRAPHICS,
+		.end	= INT_GRAPHICS,
+		.flags	= IORESOURCE_IRQ,
+		.name	= "gfx",
+	},
+};
+
+static struct platform_device hw3d_device = {
+	.name          = "msm_hw3d",
+	.id            = 0,
+	.num_resources = ARRAY_SIZE(resources_hw3d),
+	.resource      = resources_hw3d,
+};
+
+static struct resource ram_console_resources[] = {
+	{
+		.start = SMI32_MSM_RAM_CONSOLE_BASE,
+		.end   = SMI32_MSM_RAM_CONSOLE_BASE + SMI32_MSM_RAM_CONSOLE_SIZE - 1,
+		.flags = IORESOURCE_MEM,
+	},
+};
+
+static struct platform_device ram_console_device = {
+	.name          = "ram_console",
+	.id            = -1,
+	.num_resources = ARRAY_SIZE(ram_console_resources),
+	.resource      = ram_console_resources,
+};
+
+#else /* !CONFIG_HERO_EXPERIMENTAL_USBADSP */
 
 static void hero_phy_reset(void)
 {
@@ -568,6 +854,23 @@ static void hero_phy_reset(void)
 	gpio_set_value(HERO_GPIO_USB_PHY_RST_N, 1);
 	mdelay(10);
 }
+
+static struct msm_pmem_setting pmem_setting_32 = {
+	.pmem_start        = SMI32_MSM_PMEM_MDP_BASE,
+	.pmem_size         = SMI32_MSM_PMEM_MDP_SIZE,
+	.pmem_adsp_start   = SMI32_MSM_PMEM_ADSP_BASE,
+	.pmem_adsp_size    = SMI32_MSM_PMEM_ADSP_SIZE,
+	.pmem_gpu0_start   = SMI32_MSM_PMEM_GPU0_BASE,
+	.pmem_gpu0_size    = SMI32_MSM_PMEM_GPU0_SIZE,
+	.pmem_gpu1_start   = SMI32_MSM_PMEM_GPU1_BASE,
+	.pmem_gpu1_size    = SMI32_MSM_PMEM_GPU1_SIZE,
+	.pmem_camera_start = SMI32_MSM_PMEM_CAMERA_BASE,
+	.pmem_camera_size  = SMI32_MSM_PMEM_CAMERA_SIZE,
+	.ram_console_start = SMI32_MSM_RAM_CONSOLE_BASE,
+	.ram_console_size  = SMI32_MSM_RAM_CONSOLE_SIZE,
+};
+
+#endif
 
 static struct pwr_sink hero_pwrsink_table[] = {
 	{
@@ -739,7 +1042,6 @@ static int get_h2w_clk(void)
 	return gpio_get_value(HERO_GPIO_H2W_CLK);
 }
 
-#ifdef CONFIG_HTC_HEADSET_V1
 static int set_h2w_path(const char *val, struct kernel_param *kp)
 {
 	int ret = -EINVAL;
@@ -767,116 +1069,90 @@ static int set_h2w_path(const char *val, struct kernel_param *kp)
 	return ret;
 }
 
+static void hero_h2w_power(int on)
+{
+	if (on)
+		gpio_set_value(HERO_GPIO_EXT_3V_EN, 1);
+	else
+		gpio_set_value(HERO_GPIO_EXT_3V_EN, 0);
+}
+
 module_param_call(h2w_path, set_h2w_path, param_get_int,
 		&hero_h2w_path, S_IWUSR | S_IRUGO);
 
-#endif
+/* TODO combine to one struct, hardcode the differences? */
 static struct h2w_platform_data hero_h2w_data = {
-	.h2w_power		= HERO_GPIO_EXT_3V_EN,
-	.cable_in1		= HERO_GPIO_CABLE_IN1_XAXB,
-	.cable_in2		= HERO_GPIO_CABLE_IN2,
-	.h2w_clk		= HERO_GPIO_H2W_CLK,
-	.h2w_data		= HERO_GPIO_H2W_DATA,
-	.headset_mic_35mm	= HERO_GPIO_HEADSET_MIC,
-/*	.ext_mic_sel		= HERO_GPIO_AUD_EXTMIC_SEL, */
-	.debug_uart 		= H2W_UART3,
-	.config 		= h2w_configure,
-	.defconfig 		= h2w_defconfig,
-	.set_dat		= set_h2w_dat,
-	.set_clk		= set_h2w_clk,
-	.set_dat_dir		= set_h2w_dat_dir,
-	.set_clk_dir		= set_h2w_clk_dir,
-	.get_dat		= get_h2w_dat,
-	.get_clk		= get_h2w_clk,
-	.headset_mic_sel	= hero_headset_mic_select,
-	.flags	= HTC_11PIN_HEADSET_SUPPORT | HTC_H2W_SUPPORT,
+	.h2w_power        = HERO_GPIO_EXT_3V_EN,
+	.cable_in1        = HERO_GPIO_CABLE_IN1_XAXB,
+	.cable_in2        = HERO_GPIO_CABLE_IN2,
+	.h2w_clk          = HERO_GPIO_H2W_CLK,
+	.h2w_data         = HERO_GPIO_H2W_DATA,
+	.headset_mic_35mm = HERO_GPIO_HEADSET_MIC,
+	.debug_uart       = H2W_UART3,
+	.config           = h2w_configure,
+	.defconfig        = h2w_defconfig,
+	.set_dat          = set_h2w_dat,
+	.set_clk          = set_h2w_clk,
+	.set_dat_dir      = set_h2w_dat_dir,
+	.set_clk_dir      = set_h2w_clk_dir,
+	.get_dat          = get_h2w_dat,
+	.get_clk          = get_h2w_clk,
+	.headset_mic_sel  = hero_headset_mic_select,
+	.flags            = HTC_11PIN_HEADSET_SUPPORT | HTC_H2W_SUPPORT,
 };
 
 static struct h2w_platform_data hero_h2w_data_xc = {
-	.h2w_power		= HERO_GPIO_EXT_3V_EN,
-	.cable_in1		= HERO_GPIO_CABLE_IN1,
-	.cable_in2		= HERO_GPIO_CABLE_IN2,
-	.h2w_clk		= HERO_GPIO_H2W_CLK,
-	.h2w_data		= HERO_GPIO_H2W_DATA,
-	.headset_mic_35mm	= HERO_GPIO_HEADSET_MIC,
-	.ext_mic_sel		= HERO_GPIO_AUD_EXTMIC_SEL,
-	.debug_uart 		= H2W_UART3,
-	.config 		= h2w_configure,
-	.defconfig 		= h2w_defconfig,
-	.set_dat		= set_h2w_dat,
-	.set_clk		= set_h2w_clk,
-	.set_dat_dir		= set_h2w_dat_dir,
-	.set_clk_dir		= set_h2w_clk_dir,
-	.get_dat		= get_h2w_dat,
-	.get_clk		= get_h2w_clk,
-	.flags	= HTC_11PIN_HEADSET_SUPPORT | HTC_H2W_SUPPORT,
-/*	.headset_mic_sel	= hero_headset_mic_select, */
+	.h2w_power        = HERO_GPIO_EXT_3V_EN,
+	.cable_in1        = HERO_GPIO_CABLE_IN1,
+	.cable_in2        = HERO_GPIO_CABLE_IN2,
+	.h2w_clk          = HERO_GPIO_H2W_CLK,
+	.h2w_data         = HERO_GPIO_H2W_DATA,
+	.headset_mic_35mm = HERO_GPIO_HEADSET_MIC,
+	.ext_mic_sel      = HERO_GPIO_AUD_EXTMIC_SEL,
+	.debug_uart       = H2W_UART3,
+	.config           = h2w_configure,
+	.defconfig        = h2w_defconfig,
+	.set_dat          = set_h2w_dat,
+	.set_clk          = set_h2w_clk,
+	.set_dat_dir      = set_h2w_dat_dir,
+	.set_clk_dir      = set_h2w_clk_dir,
+	.get_dat          = get_h2w_dat,
+	.get_clk          = get_h2w_clk,
+	.flags            = HTC_11PIN_HEADSET_SUPPORT | HTC_H2W_SUPPORT,
 };
 
 static struct h2w_platform_data hero_h2w_data_xe = {
-	.h2w_power		= HERO_GPIO_EXT_3V_EN,
-	.cable_in1		= HERO_GPIO_CABLE_IN1,
-	.cable_in2		= HERO_GPIO_CABLE_IN2,
-	.h2w_clk		= HERO_GPIO_H2W_CLK,
-	.h2w_data		= HERO_GPIO_H2W_DATA,
-	.headset_mic_35mm	= HERO_GPIO_HEADSET_MIC,
-	.ext_mic_sel		= HERO_GPIO_AUD_EXTMIC_SEL,
-	.debug_uart 		= H2W_UART3,
-	.config 		= h2w_configure,
-	.defconfig 		= h2w_defconfig,
-	.set_dat		= set_h2w_dat,
-	.set_clk		= set_h2w_clk,
-	.set_dat_dir		= set_h2w_dat_dir,
-	.set_clk_dir		= set_h2w_clk_dir,
-	.get_dat		= get_h2w_dat,
-	.get_clk		= get_h2w_clk,
-/*	.headset_mic_sel	= hero_headset_mic_select, */
-	.flags	= _35MM_MIC_DET_L2H | HTC_11PIN_HEADSET_SUPPORT |
-				HTC_H2W_SUPPORT,
+	.h2w_power        = HERO_GPIO_EXT_3V_EN,
+	.cable_in1        = HERO_GPIO_CABLE_IN1,
+	.cable_in2        = HERO_GPIO_CABLE_IN2,
+	.h2w_clk          = HERO_GPIO_H2W_CLK,
+	.h2w_data         = HERO_GPIO_H2W_DATA,
+	.headset_mic_35mm = HERO_GPIO_HEADSET_MIC,
+	.ext_mic_sel      = HERO_GPIO_AUD_EXTMIC_SEL,
+	.debug_uart       = H2W_UART3,
+	.config           = h2w_configure,
+	.defconfig        = h2w_defconfig,
+	.set_dat          = set_h2w_dat,
+	.set_clk          = set_h2w_clk,
+	.set_dat_dir      = set_h2w_dat_dir,
+	.set_clk_dir      = set_h2w_clk_dir,
+	.get_dat          = get_h2w_dat,
+	.get_clk          = get_h2w_clk,
+	.flags            = _35MM_MIC_DET_L2H |
+						HTC_11PIN_HEADSET_SUPPORT | HTC_H2W_SUPPORT,
 };
 
 static struct platform_device hero_h2w = {
-	.name		= "h2w",
-	.id			= -1,
-	.dev		= {
-		.platform_data	= &hero_h2w_data,
-	},
-};
-
-static struct platform_device hero_h2w_xc = {
-	.name		= "h2w",
-	.id			= -1,
-	.dev		= {
-		.platform_data	= &hero_h2w_data_xc,
-	},
-};
-
-static struct platform_device hero_h2w_xe = {
-	.name		= "h2w",
-	.id			= -1,
-	.dev		= {
-		.platform_data	= &hero_h2w_data_xe,
+	.name = "h2w",
+	.id   = -1,
+	.dev  = {
+		.platform_data = &hero_h2w_data,
 	},
 };
 
 static struct platform_device hero_rfkill = {
 	.name = "hero_rfkill",
 	.id = -1,
-};
-
-static struct msm_pmem_setting pmem_setting_32 = {
-	.pmem_start = SMI32_MSM_PMEM_MDP_BASE,
-	.pmem_size = SMI32_MSM_PMEM_MDP_SIZE,
-	.pmem_adsp_start = SMI32_MSM_PMEM_ADSP_BASE,
-	.pmem_adsp_size = SMI32_MSM_PMEM_ADSP_SIZE,
-	.pmem_gpu0_start = MSM_PMEM_GPU0_BASE,
-	.pmem_gpu0_size = MSM_PMEM_GPU0_SIZE,
-	.pmem_gpu1_start = SMI32_MSM_PMEM_GPU1_BASE,
-	.pmem_gpu1_size = SMI32_MSM_PMEM_GPU1_SIZE,
-	.pmem_camera_start = SMI32_MSM_PMEM_CAMERA_BASE,
-	.pmem_camera_size = SMI32_MSM_PMEM_CAMERA_SIZE,
-	.ram_console_start = SMI32_MSM_RAM_CONSOLE_BASE,
-	.ram_console_size = SMI32_MSM_RAM_CONSOLE_SIZE,
 };
 
 #define SND(num, desc) { .name = desc, .id = num }
@@ -939,6 +1215,12 @@ static struct platform_device hero_snd = {
 	},
 };
 
+static struct msm_i2c_device_platform_data hero_i2c_device_data = {
+	.i2c_clock = 100000,
+	.clock_strength = GPIO_8MA,
+	.data_strength = GPIO_4MA,
+};
+
 static struct platform_device *devices[] __initdata = {
 	&msm_device_smd,
 	&msm_device_nand,
@@ -949,15 +1231,27 @@ static struct platform_device *devices[] __initdata = {
 	&msm_device_uart1,
 #endif
 	&msm_device_uart3,
-#ifdef CONFIG_MT9P012
 	&msm_camera_sensor_mt9p012,
-#endif
 	&htc_battery_pdev,
 	&hero_rfkill,
+	&hero_h2w,
 #ifdef CONFIG_HTC_PWRSINK
 	&hero_pwr_sink,
 #endif
 	&hero_snd,
+#ifdef CONFIG_HERO_EXPERIMENTAL_USBADSP
+	&msm_device_hsusb,
+	&usb_mass_storage_device,
+#ifdef CONFIG_USB_ANDROID_RNDIS
+	&rndis_device,
+#endif
+	&android_usb_device,
+	&android_pmem_mdp_device,
+	&android_pmem_adsp_device,
+	&android_pmem_camera_device,
+	&hw3d_device,
+	&ram_console_device,
+#endif
 };
 
 extern struct sys_timer msm_timer;
@@ -1119,9 +1413,12 @@ static void __init hero_init(void)
 	msm_device_uart_dm1.dev.platform_data = &msm_uart_dm1_pdata;
 #endif
 
+#ifdef CONFIG_HERO_EXPERIMENTAL_USBADSP
+	msm_device_hsusb.dev.platform_data = &msm_hsusb_pdata;
+#else
 	msm_add_usb_devices(hero_phy_reset);
-
 	msm_add_mem_devices(&pmem_setting_32);
+#endif
 
 	msm_init_pmic_vibrator();
 
@@ -1129,11 +1426,10 @@ static void __init hero_init(void)
 	if (rc)
 		printk(KERN_CRIT "%s: MMC init failure (%d)\n", __func__, rc);
 
-	platform_add_devices(devices, ARRAY_SIZE(devices));
+	msm_i2c_gpio_init();
+	msm_device_i2c.dev.platform_data = &hero_i2c_device_data;
 
 	if (system_rev == 0 || system_rev == 1) {
-		 platform_device_register(&hero_h2w);
-
 		for (rc = 0; rc < ARRAY_SIZE(i2c_devices); rc++) {
 			if (!strcmp(i2c_devices[rc].type, MICROP_I2C_NAME))
 				i2c_devices[rc].irq = MSM_GPIO_TO_INT(HERO_GPIO_UP_INT_N_XAXB);
@@ -1141,11 +1437,9 @@ static void __init hero_init(void)
 				i2c_devices[rc].irq = MSM_GPIO_TO_INT(HERO_GPIO_COMPASS_INT_N_XAXB);
 		}
 	} else if (system_rev == 2 || system_rev == 3) /*XC and XD*/
-		platform_device_register(&hero_h2w_xc);
+		hero_h2w.dev.platform_data = &hero_h2w_data_xc;
 	else /*above XE*/
-		platform_device_register(&hero_h2w_xe);
-
-	i2c_register_board_info(0, &i2c_bma150, 1);
+		hero_h2w.dev.platform_data = &hero_h2w_data_xe;
 
 	if (hero_engineerid() || system_rev > 2) {
 		if (system_rev >= 4) {
@@ -1160,7 +1454,11 @@ static void __init hero_init(void)
 		}
 		microp_data.cabc_backlight_enable = 1;
 	}
+
 	i2c_register_board_info(0, i2c_devices, ARRAY_SIZE(i2c_devices));
+	platform_add_devices(devices, ARRAY_SIZE(devices));
+	
+	hero_init_panel();
 }
 
 static void __init hero_fixup(struct machine_desc *desc, struct tag *tags,

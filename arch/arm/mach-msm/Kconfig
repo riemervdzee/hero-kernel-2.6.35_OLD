@@ -136,7 +136,7 @@ config MSM_AMSS_VERSION
 	default 6220 if MSM_AMSS_VERSION_6220
 	default 6225 if MSM_AMSS_VERSION_6225
 	default 6350 if MSM_AMSS_VERSION_6350
-        default 3200 if MSM_AMSS_VERSION_3200
+	default 3200 if MSM_AMSS_VERSION_3200
 
 choice
 	prompt "AMSS modem firmware version"
@@ -277,10 +277,75 @@ config MACH_SAPPHIRE
 	default y
 	bool "Sapphire"
 
-config MACH_HERO
+choice
 	depends on ARCH_MSM7X00A
+	prompt "Hero"
+	default MACH_HERO_NONE
+	help
+	  Select this to support the Hero GSM or CDMA device
+
+	config MACH_HERO_NONE
+		bool "None"
+
+	config MACH_HERO
+		bool "GSM"
+		help
+		  Select this to support the Hero GSM device
+
+	config MACH_HEROC
+		bool "CDMA"
+		help
+		  Select this to support the Hero CDMA device
+endchoice
+
+menu "Hero GSM specific devices"
+	depends on MACH_HERO
+
+config HERO_EXPERIMENTAL_USBADSP
+	depends on MACH_HERO
+	bool "Experimental usb-adsp"
+	help
+		Use experimental usb-adsp setup
+endmenu
+
+menu "HeroC specific devices"
+	depends on MACH_HEROC
+
+config HEROC_SERIAL
+	depends on MACH_HEROC
+	default n
+	bool "Serial Support"
+	help
+		Support for serial
+
+config HEROC_CAMERA
+	depends on MACH_HEROC
 	default y
-	bool "Hero"
+	bool "Camera Support"
+	help
+		Support for s5k3e2fx camera
+
+config HEROC_TS
+	depends on MACH_HEROC
+	default y
+	bool "Touchscreen Support"
+	help
+		Support for the touchscreen
+
+config HEROC_H2W
+	depends on MACH_HEROC
+	default n
+	bool "h22 Support"
+	help
+		No clue
+
+config HEROC_AUDIO_JACK
+	depends on MACH_HEROC
+	default n
+	bool "Old audio jack support"
+	help
+		Leave disabled for now
+endmenu
 
 config MACH_MAHIMAHI
 	depends on ARCH_QSD8X50
