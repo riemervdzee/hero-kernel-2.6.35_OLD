@@ -425,6 +425,10 @@ config MACH_MSM7X30_SURF
 	help
 	  Select this to support the Qualcomm SURF7X30 development board
 
+config MSM_AMSS_SUPPORT_256MB_EBI1
+	default n
+	bool "AMSS that support unified 128MB and 256MB EBI1"
+
 config JESUS_PHONE
 	depends on ARCH_QSD8X50 || ARCH_MSM7X00A || ARCH_MSM7227 || ARCH_MSM7225
 	default n
