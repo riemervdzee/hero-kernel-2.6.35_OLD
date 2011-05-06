@@ -51,6 +51,7 @@ extern const char *yaffs_guts_c_version;
 #include <linux/interrupt.h>
 #include <linux/string.h>
 #include <linux/ctype.h>
+#include <linux/semaphore.h>
 
 #include "asm/div64.h"
 
@@ -367,14 +368,14 @@ static const struct super_operations yaffs_super_ops = {
 static void yaffs_GrossLock(yaffs_Device *dev)
 {
 	T(YAFFS_TRACE_OS, ("yaffs locking %p\n", current));
-	down(&dev->grossLock);
+	mutex_lock(&dev->grossLock);
 	T(YAFFS_TRACE_OS, ("yaffs locked %p\n", current));
 }
 
 static void yaffs_GrossUnlock(yaffs_Device *dev)
 {
 	T(YAFFS_TRACE_OS, ("yaffs unlocking %p\n", current));
-	up(&dev->grossLock);
+	mutex_unlock(&dev->grossLock);
 }
 
 
@@ -2267,7 +2268,7 @@ static struct super_block *yaffs_internal_read_super(int yaffsVersion,
         YINIT_LIST_HEAD(&dev->searchContexts);
         dev->removeObjectCallback = yaffs_RemoveObjectCallback;
 
-	init_MUTEX(&dev->grossLock);
+	mutex_init(&dev->grossLock);
 
 	yaffs_GrossLock(dev);
 
