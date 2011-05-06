@@ -205,8 +205,8 @@ static int bma_release(struct inode *inode, struct file *file)
 	return 0;
 }
 
-static int bma_ioctl(struct inode *inode, struct file *file, unsigned int cmd,
-	   unsigned long arg)
+/* Most Likely it'll require some mutexes around all this? */
+static int bma_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
 
 	void __user *argp = (void __user *)arg;
@@ -307,7 +307,7 @@ static struct file_operations bma_fops = {
 	.owner = THIS_MODULE,
 	.open = bma_open,
 	.release = bma_release,
-	.ioctl = bma_ioctl,
+	.unlocked_ioctl = bma_ioctl,
 };
 
 static struct miscdevice bma_device = {
