@@ -21,7 +21,6 @@
 #include <linux/delay.h>
 #include <linux/gpio.h>
 #include <asm/mach-types.h>
-#include "gpio_chip.h"
 #include "proc_comm.h"
 #include "board-hero.h"
 

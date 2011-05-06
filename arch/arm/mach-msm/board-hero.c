@@ -18,12 +18,11 @@
 #include <linux/input.h>
 #include <linux/interrupt.h>
 #include <linux/i2c.h>
-#include <linux/i2c-msm.h>
+//#include <linux/i2c-msm.h>
 #include <linux/irq.h>
 #include <linux/leds.h>
 #include <linux/switch.h>
 #include <linux/synaptics_i2c_rmi.h>
-#include <linux/cy8c_tmg_ts.h>
 #include <linux/akm8973.h>
 #include <linux/sysdev.h>
 #include <linux/android_pmem.h>
@@ -46,6 +45,7 @@
 #include <asm/delay.h>
 #include <asm/setup.h>
 #include <asm/mach/mmc.h>
+#include <asm/setup.h>
 
 #include <mach/hardware.h>
 #include <mach/system.h>
@@ -58,15 +58,17 @@
 #include <mach/msm_serial_hs.h>
 #include <mach/htc_pwrsink.h>
 #include <mach/msm_fb.h>
-#include <mach/h2w_v1.h>
+//#include <mach/h2w_v1.h>
 #include <mach/microp_i2c.h>
 #include <mach/htc_battery.h>
+#ifdef CONFIG_PERFLOCK
 #include <mach/perflock.h>
+#endif
 #include <mach/drv_callback.h>
 
 #include "proc_comm.h"
 #include "devices.h"
-#include "gpio_chip.h"
+//#include "gpio_chip.h"
 #include "board-hero.h"
 
 static unsigned int hwid = 0;
@@ -118,19 +120,6 @@ static int hero_ts_power(int on)
 	}
 	return 0;
 }
-
-static struct cy8c_i2c_platform_data hero_cypress_ts_data = {
-	.version = 0x0001,
-	.abs_x_min = 0,
-	.abs_x_max = 319,
-	.abs_y_min = 0,
-	.abs_y_max = 479,
-	.abs_pressure_min = 0,
-	.abs_pressure_max = 255,
-	.abs_width_min = 0,
-	.abs_width_max = 15,
-	.power = hero_ts_power,
-};
 
 static struct synaptics_i2c_rmi_platform_data hero_ts_data[] = {
 	{
@@ -506,11 +495,6 @@ static struct i2c_board_info i2c_devices[] = {
 	{
 		I2C_BOARD_INFO(SYNAPTICS_I2C_RMI_NAME, 0x20),
 		.platform_data = &hero_ts_data,
-		.irq = MSM_GPIO_TO_INT(HERO_GPIO_TP_ATT_N)
-	},
-	{
-		I2C_BOARD_INFO(CYPRESS_TMG_NAME, 0x13),
-		.platform_data = &hero_cypress_ts_data,
 		.irq = MSM_GPIO_TO_INT(HERO_GPIO_TP_ATT_N)
 	},
 	{
@@ -976,6 +960,7 @@ static uint32_t uart3_off_gpio_table[] = {
 		      GPIO_INPUT, GPIO_NO_PULL, GPIO_2MA),
 };
 
+#if 0
 static int hero_h2w_path = H2W_GPIO;
 
 static void h2w_configure(int route)
@@ -1149,6 +1134,7 @@ static struct platform_device hero_h2w = {
 		.platform_data = &hero_h2w_data,
 	},
 };
+#endif
 
 static struct platform_device hero_rfkill = {
 	.name = "hero_rfkill",
@@ -1215,11 +1201,13 @@ static struct platform_device hero_snd = {
 	},
 };
 
+#if 0
 static struct msm_i2c_device_platform_data hero_i2c_device_data = {
 	.i2c_clock = 100000,
 	.clock_strength = GPIO_8MA,
 	.data_strength = GPIO_4MA,
 };
+#endif
 
 static struct platform_device *devices[] __initdata = {
 	&msm_device_smd,
@@ -1234,7 +1222,9 @@ static struct platform_device *devices[] __initdata = {
 	&msm_camera_sensor_mt9p012,
 	&htc_battery_pdev,
 	&hero_rfkill,
+#if 0
 	&hero_h2w,
+#endif
 #ifdef CONFIG_HTC_PWRSINK
 	&hero_pwr_sink,
 #endif
@@ -1349,6 +1339,27 @@ static void __init config_gpios(void)
 	config_hero_camera_off_gpios();
 }
 
+static int __init board_serialno_setup(char *serialno)
+{
+#ifdef CONFIG_USB_ANDROID_RNDIS
+	int i;
+	char *src = serialno;
+
+	/* create a fake MAC address from our serial number.
+	 * first byte is 0x02 to signify locally administered.
+	 */
+	rndis_pdata.ethaddr[0] = 0x02;
+	for (i = 0; *src; i++) {
+		/* XOR the USB serial across the remaining bytes */
+		rndis_pdata.ethaddr[i % (ETH_ALEN - 1) + 1] ^= *src++;
+	}
+#endif
+
+	android_usb_pdata.serial_number = serialno;
+	return 1;
+}
+__setup("androidboot.serialno=", board_serialno_setup);
+
 static struct msm_acpu_clock_platform_data hero_clock_data = {
 	.acpu_switch_time_us = 20,
 	.max_speed_delta_khz = 256000,
@@ -1361,18 +1372,18 @@ static struct msm_acpu_clock_platform_data hero_clock_data = {
 #endif
 };
 
+#ifdef CONFIG_PERFLOCK
 static unsigned hero_perf_acpu_table[] = {
 	245760000,
 	480000000,
 	528000000,
 };
 
-
 static struct perflock_platform_data hero_perflock_data = {
 	.perf_acpu_table = hero_perf_acpu_table,
 	.table_size = ARRAY_SIZE(hero_perf_acpu_table),
 };
-
+#endif
 
 #ifdef CONFIG_SERIAL_MSM_HS
 static struct msm_serial_hs_platform_data msm_uart_dm1_pdata = {
@@ -1401,7 +1412,9 @@ static void __init hero_init(void)
 	gpio_request(HERO_GPIO_AUD_EXTMIC_SEL, "hero_gpio_aud_extmic_sel");
 
 	msm_acpu_clock_init(&hero_clock_data);
+#ifdef CONFIG_PERFLOCK
 	perflock_init(&hero_perflock_data);
+#endif
 
 #if defined(CONFIG_MSM_SERIAL_DEBUGGER)
 	if (!opt_disable_uart3)
@@ -1426,8 +1439,10 @@ static void __init hero_init(void)
 	if (rc)
 		printk(KERN_CRIT "%s: MMC init failure (%d)\n", __func__, rc);
 
+#if 0
 	msm_i2c_gpio_init();
 	msm_device_i2c.dev.platform_data = &hero_i2c_device_data;
+#endif
 
 	if (system_rev == 0 || system_rev == 1) {
 		for (rc = 0; rc < ARRAY_SIZE(i2c_devices); rc++) {
@@ -1436,10 +1451,14 @@ static void __init hero_init(void)
 			if (!strcmp(i2c_devices[rc].type, AKM8973_I2C_NAME))
 				i2c_devices[rc].irq = MSM_GPIO_TO_INT(HERO_GPIO_COMPASS_INT_N_XAXB);
 		}
+#if 0
 	} else if (system_rev == 2 || system_rev == 3) /*XC and XD*/
 		hero_h2w.dev.platform_data = &hero_h2w_data_xc;
 	else /*above XE*/
 		hero_h2w.dev.platform_data = &hero_h2w_data_xe;
+#else
+	}
+#endif
 
 	if (hero_engineerid() || system_rev > 2) {
 		if (system_rev >= 4) {
@@ -1464,10 +1483,9 @@ static void __init hero_init(void)
 static void __init hero_fixup(struct machine_desc *desc, struct tag *tags,
 				  char **cmdline, struct meminfo *mi)
 {
-	mi->nr_banks		= 1;
-	mi->bank[0].start	= PHYS_OFFSET;
-	mi->bank[0].node	= PHYS_TO_NID(PHYS_OFFSET);
-	mi->bank[0].size	= MSM_EBI_SMI32_256MB_SIZE;
+	mi->nr_banks = 1;
+	mi->bank[0].start = PHYS_OFFSET;
+	mi->bank[0].size  = MSM_EBI_SMI32_256MB_SIZE;
 
 	hwid		= parse_tag_hwid((const struct tag *)tags);
 	skuid		= parse_tag_skuid((const struct tag *)tags);
@@ -1484,8 +1502,6 @@ static void __init hero_map_io(void)
 MACHINE_START(HERO, "hero")
 /* Maintainer: Kant Kang <kant_kang@htc.com> */
 #ifdef CONFIG_MSM_DEBUG_UART
-	.phys_io        = MSM_DEBUG_UART_PHYS,
-	.io_pg_offst    = ((MSM_DEBUG_UART_BASE) >> 18) & 0xfffc,
 #endif
 	.boot_params    = MSM_EBI_BASE + 0x100,
 	.fixup          = hero_fixup,

@@ -28,18 +28,13 @@
 #include <mach/vreg.h>
 #include <mach/htc_pwrsink.h>
 
-#include <asm/mach/mmc.h>
+#include <mach/mmc.h>
 
 #include "devices.h"
-#include "gpio_chip.h"
 #include "board-hero.h"
 #include "proc_comm.h"
 
-// #define DEBUG_SDSLOT_VDD 1
-
-/* r porting 29 */
-extern int msm_add_sdcc(unsigned int controller, struct mmc_platform_data *plat,
-			unsigned int stat_irq, unsigned long stat_irq_flags);
+ #define DEBUG_SDSLOT_VDD 0
 
 /* ---- SDCARD ---- */
 
@@ -155,12 +150,14 @@ static unsigned int hero_sdslot_status(struct device *dev)
 
 static unsigned int hero_sdslot_type = MMC_TYPE_SD;
 
-static struct mmc_platform_data hero_sdslot_data = {
+static struct msm_mmc_platform_data hero_sdslot_data = {
 	.ocr_mask	= HERO_MMC_VDD,
 	//.status_irq	= MSM_GPIO_TO_INT(HERO_GPIO_SDMC_CD_N),
 	.status		= hero_sdslot_status,
 	.translate_vdd	= hero_sdslot_switchvdd,
+#if 0
 	.slot_type	= &hero_sdslot_type,
+#endif
 };
 
 
@@ -232,7 +229,7 @@ static unsigned int hero_wifi_status(struct device *dev)
 	return hero_wifi_cd;
 }
 
-static struct mmc_platform_data hero_wifi_data = {
+static struct msm_mmc_platform_data hero_wifi_data = {
 	.ocr_mask               = MMC_VDD_28_29,
 	.built_in               = 1,
 	.status                 = hero_wifi_status,
