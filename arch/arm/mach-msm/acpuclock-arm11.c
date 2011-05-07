@@ -74,9 +74,9 @@ enum {
 	VDD_1 = 1,
 	VDD_2 = 2,
 	VDD_3 = 3,
-	VDD_4 = 4,
-	VDD_5 = 5,
-	VDD_6 = 6,
+	VDD_4 = 3,
+	VDD_5 = 3,
+	VDD_6 = 3,
 	VDD_7 = 7,
 	VDD_END
 };
@@ -99,7 +99,7 @@ struct clkctl_acpu_speed {
 
 /*
  * ACPU speed table. Complete table is shown but certain speeds are commented
- * out to optimized speed switching. Initalize loops_per_jiffy to 0.
+ * out to optimized speed switching. Initialize loops_per_jiffy to 0.
  *
  * Table stepping up/down is optimized for 256mhz jumps while staying on the
  * same PLL.
@@ -212,9 +212,9 @@ static int pc_pll_request(unsigned id, unsigned on)
 unsigned long acpuclk_power_collapse(int from_idle)
 {
 	int ret = acpuclk_get_rate();
+	enum setrate_reason reason = (from_idle) ? SETRATE_PC_IDLE : SETRATE_PC;
 	if (ret > drv_state.power_collapse_khz)
-		acpuclk_set_rate(drv_state.power_collapse_khz * 1000,
-        (from_idle ? SETRATE_PC_IDLE : SETRATE_PC));
+		acpuclk_set_rate(drv_state.power_collapse_khz * 1000, reason);
 	return ret * 1000;
 }
 
@@ -227,8 +227,7 @@ unsigned long acpuclk_wait_for_irq(void)
 {
 	int ret = acpuclk_get_rate();
 	if (ret > drv_state.wait_for_irq_khz)
-		acpuclk_set_rate(drv_state.wait_for_irq_khz * 1000,
-				SETRATE_SWFI);
+		acpuclk_set_rate(drv_state.wait_for_irq_khz * 1000, SETRATE_SWFI);
 	return ret * 1000;
 }
 
@@ -401,7 +400,7 @@ int acpuclk_set_rate(unsigned long rate, enum setrate_reason reason)
 
 	/* Set wait states for CPU in/between frequency changes */
 	reg_clkctl = readl(A11S_CLK_CNTL_ADDR);
-	reg_clkctl |= (100 << 16); /* set WT_ST_CNT */
+	reg_clkctl |= (100 << 14); /* set WT_ST_CNT */
 	writel(reg_clkctl, A11S_CLK_CNTL_ADDR);
 
 #if PERF_SWITCH_DEBUG
@@ -565,7 +564,7 @@ uint32_t acpuclk_get_switch_time(void)
  * Clock driver initialization
  *---------------------------------------------------------------------------*/
 
-/* Initalize the lpj field in the acpu_freq_tbl. */
+/* Initialize the lpj field in the acpu_freq_tbl. */
 static void __init lpj_init(void)
 {
 	int i;
