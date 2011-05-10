@@ -950,8 +950,7 @@ static void handle_endpoint(struct usb_info *ui, unsigned bit)
 		req->live = 0;
 		if (req->dead)
 			do_free_req(ui, req);
-
-		if (req->req.complete) {
+		else if (req->req.complete) {
 			spin_unlock_irqrestore(&ui->lock, flags);
 			req->req.complete(&ept->ep, &req->req);
 			spin_lock_irqsave(&ui->lock, flags);
@@ -1002,7 +1001,7 @@ done:
 static void flush_endpoint_sw(struct msm_endpoint *ept)
 {
 	struct usb_info *ui = ept->ui;
-	struct msm_request *req;
+	struct msm_request *req, *next_req = NULL;
 	unsigned long flags;
 
 	/* inactive endpoints have nothing to do here */
@@ -1023,6 +1022,13 @@ static void flush_endpoint_sw(struct msm_endpoint *ept)
 		req->live = 0;
 		req->req.status = -ECONNRESET;
 		req->req.actual = 0;
+
+		/*
+		 * Gadget driver may free the request in completion
+		 * handler. So keep a copy of next req pointer
+		 * before calling completion handler.
+		 */
+		next_req = req->next;
 		if (req->req.complete) {
 			spin_unlock_irqrestore(&ui->lock, flags);
 			req->req.complete(&ept->ep, &req->req);
@@ -1030,7 +1036,7 @@ static void flush_endpoint_sw(struct msm_endpoint *ept)
 		}
 		if (req->dead)
 			do_free_req(ui, req);
-		req = req->next;
+		req = next_req;
 	}
 	spin_unlock_irqrestore(&ui->lock, flags);
 }
@@ -1203,12 +1209,12 @@ static ssize_t store_usb_serial_number(struct device *dev,
 	struct device_attribute *attr, const char *buf, size_t count)
 {
 	struct msm_hsusb_platform_data *pdata = dev->platform_data;
+	char *serialno = "000000000000";
 
 	if (buf[0] == '0' || buf[0] == '1') {
 		memset(mfg_df_serialno, 0x0, sizeof(mfg_df_serialno));
 		if (buf[0] == '0') {
-			strncpy(mfg_df_serialno, "000000000000",
-				strlen("000000000000"));
+			strncpy(mfg_df_serialno, serialno, strlen(serialno));
 			use_mfg_serialno = 1;
 			android_set_serialno(mfg_df_serialno);
 		} else {
