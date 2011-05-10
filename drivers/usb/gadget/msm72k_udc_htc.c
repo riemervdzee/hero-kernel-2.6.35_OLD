@@ -190,8 +190,8 @@ struct usb_info {
 	unsigned state;
 	unsigned flags;
 
-	unsigned	online:1;
-	unsigned	running:1;
+	atomic_t online;
+	atomic_t running;
 
 	struct dma_pool *pool;
 
@@ -243,10 +243,10 @@ struct usb_info {
 	struct clk *otgclk;
 	struct clk *ebi1clk;
 
-	unsigned int ep0_dir;
-	u16 test_mode;
+	atomic_t ep0_dir;
+	atomic_t test_mode;
 
-	u8 remote_wakeup;
+	atomic_t remote_wakeup;
 	enum usb_connect_type connect_type;
 	u8 in_lpm;
 
@@ -597,7 +597,7 @@ int usb_ept_queue_xfer(struct msm_endpoint *ept, struct usb_request *_req)
 		return -EBUSY;
 	}
 
-	if (!ui->online && (ept->num != 0)) {
+	if (!atomic_read(&ui->online) && (ept->num != 0)) {
 		req->req.status = -ESHUTDOWN;
 		spin_unlock_irqrestore(&ui->lock, flags);
 		INFO("usb_ept_queue_xfer() called while offline\n");
@@ -677,7 +677,7 @@ static void ep0_queue_ack_complete(struct usb_ep *ep,
 	/* queue up the receive of the ACK response from the host */
 	if (_req->status == 0 && _req->actual == _req->length) {
 		req->length = 0;
-		if (ui->ep0_dir == USB_DIR_IN)
+		if (atomic_read(&ui->ep0_dir) == USB_DIR_IN)
 			usb_ept_queue_xfer(&ui->ep0out, req);
 		else
 			usb_ept_queue_xfer(&ui->ep0in, req);
@@ -694,11 +694,12 @@ static void ep0_setup_ack_complete(struct usb_ep *ep, struct usb_request *req)
 	struct msm_endpoint *ept = to_msm_endpoint(ep);
 	struct usb_info *ui = ept->ui;
 	unsigned int temp;
+	int test_mode = atomic_read(&ui->test_mode);
 
-	if (!ui->test_mode)
+	if (!test_mode)
 		return;
 
-	switch (ui->test_mode) {
+	switch (test_mode) {
 	case J_TEST:
 		pr_info("usb electrical test mode: (J)\n");
 		temp = readl(USB_PORTSC) & (~PORTSC_PTC);
@@ -760,9 +761,9 @@ static void handle_setup(struct usb_info *ui)
 	writel(EPT_RX(0), USB_ENDPTSETUPSTAT);
 
 	if (ctl.bRequestType & USB_DIR_IN)
-		ui->ep0_dir = USB_DIR_IN;
+		atomic_set(&ui->ep0_dir, USB_DIR_IN);
 	else
-		ui->ep0_dir = USB_DIR_OUT;
+		atomic_set(&ui->ep0_dir, USB_DIR_OUT);
 
 	/* any pending ep0 transactions must be canceled */
 	flush_endpoint(&ui->ep0out);
@@ -803,8 +804,8 @@ static void handle_setup(struct usb_info *ui)
 			{
 				u16 temp = 0;
 
-				temp |= (ui->remote_wakeup <<
-						USB_DEVICE_REMOTE_WAKEUP);
+				temp |= (atomic_read(&ui->remote_wakeup)
+						<< USB_DEVICE_REMOTE_WAKEUP);
 				memcpy(req->buf, &temp, 2);
 				break;
 			}
@@ -843,7 +844,7 @@ static void handle_setup(struct usb_info *ui)
 	}
 	if (ctl.bRequestType == (USB_DIR_OUT | USB_TYPE_STANDARD)) {
 		if (ctl.bRequest == USB_REQ_SET_CONFIGURATION)
-			ui->online = !!ctl.wValue;
+			atomic_set(&ui->online, !!ctl.wValue);
 		else if (ctl.bRequest == USB_REQ_SET_ADDRESS) {
 			/* write address delayed (will take effect
 			** after the next IN txn)
@@ -857,22 +858,22 @@ static void handle_setup(struct usb_info *ui)
 				case J_TEST:
 				case K_TEST:
 				case SE0_NAK_TEST:
-					if (!ui->test_mode) {
+					if (!atomic_read(&ui->test_mode)) {
 						disable_charger = 1;
 						queue_delayed_work(ui->usb_wq, &ui->chg_work, 0);
 					}
 				case TST_PKT_TEST:
-					ui->test_mode = ctl.wIndex;
+					atomic_set(&ui->test_mode, ctl.wIndex);
 					goto ack;
 				}
 				goto stall;
 			case USB_DEVICE_REMOTE_WAKEUP:
-				ui->remote_wakeup = 1;
+				atomic_set(&ui->remote_wakeup, 1);
 				goto ack;
 			}
 		} else if ((ctl.bRequest == USB_REQ_CLEAR_FEATURE) &&
 				(ctl.wValue == USB_DEVICE_REMOTE_WAKEUP)) {
-			ui->remote_wakeup = 0;
+			atomic_set(&ui->remote_wakeup, 0);
 			goto ack;
 		}
 	}
@@ -1060,7 +1061,7 @@ static irqreturn_t usb_interrupt(int irq, void *data)
 	writel(n, USB_USBSTS);
 
 	/* somehow we got an IRQ while in the reset sequence: ignore it */
-	if (ui->running == 0)
+	if (!atomic_read(&ui->running))
 		return IRQ_HANDLED;
 
 	if (n & STS_PCI) {
@@ -1088,11 +1089,11 @@ static irqreturn_t usb_interrupt(int irq, void *data)
 		writel(0xffffffff, USB_ENDPTFLUSH);
 		writel(0, USB_ENDPTCTRL(1));
 
-		if (ui->online != 0) {
+		if (atomic_read(&ui->online)) {
 			/* marking us offline will cause ept queue attempts
 			** to fail
 			*/
-			ui->online = 0;
+			atomic_set(&ui->online, 0);
 
 			flush_all_endpoints(ui);
 
@@ -1559,7 +1560,7 @@ static void usb_reset(struct usb_info *ui)
 	printk(KERN_INFO "hsusb: reset controller\n");
 
 	spin_lock_irqsave(&ui->lock, flags);
-	ui->running = 0;
+	atomic_set(&ui->running, 0);
 	spin_unlock_irqrestore(&ui->lock, flags);
 
 	/* disable usb interrupts */
@@ -1613,7 +1614,7 @@ static void usb_reset(struct usb_info *ui)
 	configure_endpoints(ui);
 
 	/* marking us offline will cause ept queue attempts to fail */
-	ui->online = 0;
+	atomic_set(&ui->online, 0);
 
 	/* terminate any pending transactions */
 	flush_all_endpoints(ui);
@@ -1630,7 +1631,7 @@ static void usb_reset(struct usb_info *ui)
 	msm72k_pullup(&ui->gadget, 1);
 
 	spin_lock_irqsave(&ui->lock, flags);
-	ui->running = 1;
+	atomic_set(&ui->running, 1);
 	spin_unlock_irqrestore(&ui->lock, flags);
 }
 
@@ -2097,10 +2098,10 @@ static void usb_do_work(struct work_struct *w)
 			if (flags & USB_FLAG_VBUS_OFFLINE) {
 				pr_info("hsusb: ONLINE -> OFFLINE\n");
 
+				atomic_set(&ui->running, 0);
+				atomic_set(&ui->online, 0);
 				/* synchronize with irq context */
 				spin_lock_irqsave(&ui->lock, iflags);
-				ui->running = 0;
-				ui->online = 0;
 				writel(0x00080000, USB_USBCMD);
 				spin_unlock_irqrestore(&ui->lock, iflags);
 
@@ -2131,14 +2132,16 @@ static void usb_do_work(struct work_struct *w)
 				usb_do_work_check_vbus(ui);
 				break;
 			}
+
 			if (flags & USB_FLAG_RESET) {
 				pr_info("hsusb: ONLINE -> RESET\n");
 				if (ui->connect_type == CONNECT_TYPE_AC) {
 					pr_info("hsusb: RESET -> ONLINE\n");
 					break;
 				}
+
+				atomic_set(&ui->online, 0);
 				spin_lock_irqsave(&ui->lock, iflags);
-				ui->online = 0;
 				msm72k_pullup(&ui->gadget, 0);
 				spin_unlock_irqrestore(&ui->lock, iflags);
 				usb_reset(ui);
@@ -2411,7 +2414,7 @@ msm72k_queue(struct usb_ep *_ep, struct usb_request *req, gfp_t gfp_flags)
 		if (!req->length)
 			goto ep_queue_done;
 		else {
-			if (ui->ep0_dir == USB_DIR_OUT) {
+			if (atomic_read(&ui->ep0_dir) == USB_DIR_OUT) {
 				ep = &ui->ep0out;
 				ep->ep.driver_data = ui->ep0in.ep.driver_data;
 			}
@@ -2577,12 +2580,12 @@ static int msm72k_wakeup(struct usb_gadget *_gadget)
 	struct usb_info *ui = container_of(_gadget, struct usb_info, gadget);
 	unsigned long flags;
 
-	if (!ui->remote_wakeup) {
+	if (!atomic_read(&ui->remote_wakeup)) {
 		pr_err("%s: remote wakeup not supported\n", __func__);
 		return -ENOTSUPP;
 	}
 
-	if (!ui->online) {
+	if (!atomic_read(&ui->online)) {
 		pr_err("%s: device is not configured\n", __func__);
 		return -ENODEV;
 	}
