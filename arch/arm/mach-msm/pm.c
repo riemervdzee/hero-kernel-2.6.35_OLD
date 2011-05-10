@@ -694,16 +694,11 @@ void msm_pm_flush_console(void)
 static void msm_pm_restart(char str, const char *cmd)
 {
 	msm_pm_flush_console();
-
-	/* If there's a hard reset hook and the restart_reason
-	 * is the default, prefer that to the (slower) proc_comm
-	 * reset command.
-	 */
-	if ((restart_reason == 0x776655AA) && msm_hw_reset_hook) {
-		msm_hw_reset_hook();
-	} else {
+	/*  always reboot device through proc comm */
+	if (restart_reason == 0x6f656d99)
+		msm_proc_comm(PCOM_RESET_CHIP_IMM, &restart_reason, 0);
+	else
 		msm_proc_comm(PCOM_RESET_CHIP, &restart_reason, 0);
-	}
 	for (;;) ;
 }
 
