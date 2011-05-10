@@ -655,7 +655,7 @@ static void ep0_complete(struct usb_ep *ep, struct usb_request *req)
 	struct usb_info *ui = ept->ui;
 
 	req->complete = r->gadget_complete;
-	r->gadget_complete = NULL;
+	r->gadget_complete = 0;
 	if	(req->complete)
 		req->complete(&ui->ep0in.ep, req);
 }
@@ -664,15 +664,9 @@ static void ep0_queue_ack_complete(struct usb_ep *ep,
 	struct usb_request *_req)
 {
 	struct msm_request *r = to_msm_request(_req);
-	completion_func gadget_complete = r->gadget_complete;
 	struct msm_endpoint *ept = to_msm_endpoint(ep);
 	struct usb_info *ui = ept->ui;
 	struct usb_request *req = ui->setup_req;
-
-	if (gadget_complete) {
-		r->gadget_complete = NULL;
-		gadget_complete(ep, req);
-	}
 
 	/* queue up the receive of the ACK response from the host */
 	if (_req->status == 0 && _req->actual == _req->length) {
@@ -747,7 +741,7 @@ static void ep0_setup_send(struct usb_info *ui, unsigned length)
 
 	req->length = length;
 	req->complete = ep0_queue_ack_complete;
-	r->gadget_complete = NULL;
+	r->gadget_complete = 0;
 	usb_ept_queue_xfer(ept, req);
 }
 
@@ -1723,13 +1717,6 @@ static void usb_lpm_enter(struct usb_info *ui)
 	clk_set_rate(ui->ebi1clk, 0);
 	ui->in_lpm = 1;
 	spin_unlock_irqrestore(&ui->lock, iflags);
-
-	if (board_mfg_mode() == 1) {/*for MFG adb unstable in FROYO ROM*/
-		printk(KERN_INFO "usb: idle_wake_unlock and perf unlock\n");
-		wake_unlock(&vbus_idle_wake_lock);
-		if (is_perf_lock_active(&usb_perf_lock))
-			perf_unlock(&usb_perf_lock);
-	}
 }
 
 static void usb_lpm_exit(struct usb_info *ui)
@@ -1747,13 +1734,6 @@ static void usb_lpm_exit(struct usb_info *ui)
 		clk_enable(ui->otgclk);
 	usb_wakeup_phy(ui);
 	ui->in_lpm = 0;
-
-	if (board_mfg_mode() == 1) {/*for MFG adb unstable in FROYO ROM*/
-		printk(KERN_INFO "usb: idle_wake_lock and perf lock\n");
-		wake_lock(&vbus_idle_wake_lock);
-		if (!is_perf_lock_active(&usb_perf_lock))
-			perf_lock(&usb_perf_lock);
-	}
 }
 
 #ifdef CONFIG_DOCK_ACCESSORY_DETECT
