@@ -668,12 +668,13 @@ static struct android_usb_product usb_products[] = {
 		.functions     = usb_functions_rndis,
 	},
 	/*
-	TODO: there isn't a equivalent in htc's kernel
+	 * TODO: check whether this is working or not. Kinda a guess
+	 */
 	{
-		.product_id    = 0x4e14,
+		.product_id    = 0x0FFC,
 		.num_functions = ARRAY_SIZE(usb_functions_rndis_adb),
 		.functions     = usb_functions_rndis_adb,
-	}, */
+	},
 #ifdef CONFIG_USB_ANDROID_ACCESSORY
 	{
 		.vendor_id	= USB_ACCESSORY_VENDOR_ID,
@@ -1386,6 +1387,8 @@ static void __init hero_init(void)
 {
 	int rc;
 	printk("hero_init() revision = 0x%X\n", system_rev);
+
+	android_usb_pdata.serial_number = board_serialno();
 
 	/*
 	 * Setup common MSM GPIOS
