@@ -24,9 +24,9 @@
 #include <linux/delay.h>
 #include <linux/io.h>
 #include <linux/wakelock.h>
-#include <mach/system.h>
-/* new */
 #include <linux/slab.h>
+#include <mach/system.h>
+
 #define DEBUG 0
 
 enum {
@@ -77,8 +77,10 @@ struct msm_i2c_dev {
 	int                 flush_cnt;
 	void                *complete;
 	struct wake_lock    wakelock;
+	bool                is_suspended;
 	int                 clk_drv_str;
 	int                 dat_drv_str;
+	int                 skip_recover;
 };
 
 #if DEBUG
@@ -336,7 +338,12 @@ msm_i2c_xfer(struct i2c_adapter *adap, struct i2c_msg msgs[], int num)
 	long timeout;
 	unsigned long flags;
 
-	wake_lock(&dev->wakelock);
+	/*
+	 * If there is an i2c_xfer after driver has been suspended,
+	 * grab wakelock to abort suspend.
+	 */
+	if (dev->is_suspended)
+		wake_lock(&dev->wakelock);
 	clk_enable(dev->clk);
 	enable_irq(dev->irq);
 
@@ -344,9 +351,11 @@ msm_i2c_xfer(struct i2c_adapter *adap, struct i2c_msg msgs[], int num)
 	if (ret) {
 		dev_err(dev->dev, "Still busy in starting xfer(%02X)\n",
 			msgs->addr);
-		ret = msm_i2c_recover_bus_busy(dev);
-		if (ret)
-			goto err;
+		if (!dev->skip_recover) {
+			ret = msm_i2c_recover_bus_busy(dev);
+			if (ret)
+				goto err;
+		}
 	}
 
 	spin_lock_irqsave(&dev->lock, flags);
@@ -398,12 +407,15 @@ msm_i2c_xfer(struct i2c_adapter *adap, struct i2c_msg msgs[], int num)
 	if (ret < 0) {
 		dev_err(dev->dev, "Error during data xfer (%d) (%02X)\n",
 			ret, msgs->addr);
-		msm_i2c_recover_bus_busy(dev);
+		if (!dev->skip_recover)
+			msm_i2c_recover_bus_busy(dev);
 	}
 err:
 	disable_irq(dev->irq);
 	clk_disable(dev->clk);
-	wake_unlock(&dev->wakelock);
+	if (dev->is_suspended)
+		wake_unlock(&dev->wakelock);
+
 	return ret;
 }
 
@@ -488,10 +500,12 @@ msm_i2c_probe(struct platform_device *pdev)
 		dev->clk_drv_str = 0;
 		dev->dat_drv_str = 0;
 		i2c_clock = 100000;
+		dev->skip_recover = 1;
 	}
 
-	msm_set_i2c_mux(false, NULL, NULL,
-		dev->clk_drv_str, dev->dat_drv_str);
+	if (!dev->skip_recover)
+		msm_set_i2c_mux(false, NULL, NULL,
+			dev->clk_drv_str, dev->dat_drv_str);
 
 	clk_enable(clk);
 
@@ -521,7 +535,8 @@ msm_i2c_probe(struct platform_device *pdev)
 	}
 
 	ret = request_irq(dev->irq, msm_i2c_interrupt,
-			IRQF_DISABLED | IRQF_TRIGGER_RISING, pdev->name, dev);
+			IRQF_DISABLED | IRQF_TRIGGER_RISING | IRQF_TIMER,
+			pdev->name, dev);
 	if (ret) {
 		dev_err(&pdev->dev, "request_irq failed\n");
 		goto err_request_irq_failed;
@@ -562,12 +577,41 @@ msm_i2c_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static int msm_i2c_suspend_noirq(struct device *device)
+{
+	struct platform_device *pdev = to_platform_device(device);
+	struct msm_i2c_dev *dev = platform_get_drvdata(pdev);
+
+	/* Block to allow any i2c_xfers to finish */
+	i2c_lock_adapter(&dev->adapter);
+	dev->is_suspended = true;
+	i2c_unlock_adapter(&dev->adapter);
+	return 0;
+}
+
+static int msm_i2c_resume_noirq(struct device *device) {
+	struct platform_device *pdev = to_platform_device(device);
+	struct msm_i2c_dev *dev = platform_get_drvdata(pdev);
+
+	/* Block to allow any i2c_xfers to finish */
+	i2c_lock_adapter(&dev->adapter);
+	dev->is_suspended = false;
+	i2c_unlock_adapter(&dev->adapter);
+	return 0;
+}
+
+static struct dev_pm_ops msm_i2c_pm_ops = {
+	.suspend_noirq	= msm_i2c_suspend_noirq,
+	.resume_noirq	= msm_i2c_resume_noirq,
+};
+
 static struct platform_driver msm_i2c_driver = {
 	.probe		= msm_i2c_probe,
 	.remove		= msm_i2c_remove,
 	.driver		= {
 		.name	= "msm_i2c",
 		.owner	= THIS_MODULE,
+		.pm = &msm_i2c_pm_ops,
 	},
 };
 
