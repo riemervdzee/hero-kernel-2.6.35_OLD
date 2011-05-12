@@ -201,9 +201,9 @@ static int smd_packet_write_avail(struct smd_channel *ch)
 
 static int ch_is_open(struct smd_channel *ch)
 {
-	return ((ch->recv->state == SMD_SS_OPENED) ||
-                (ch->recv->state == SMD_SS_FLUSHING)) &&
-		(ch->send->state == SMD_SS_OPENED);
+	return (ch->recv->state == SMD_SS_OPENED ||
+		ch->recv->state == SMD_SS_FLUSHING)
+		&& (ch->send->state == SMD_SS_OPENED);
 }
 
 /* provide a pointer and length to readable data in the fifo */
@@ -368,9 +368,9 @@ static void handle_smd_irq(struct list_head *list, void (*notify)(void))
 	unsigned ch_flags;
 	unsigned tmp;
 #ifdef CONFIG_BUILD_CIQ
-       /* put here to make sure we got the disable/enable index */
-       if (!msm_smd_ciq_info)
-               msm_smd_ciq_info = (*(volatile uint32_t *)(MSM_SHARED_RAM_BASE + 0xFC11C));
+	/* put here to make sure we got the disable/enable index */
+	if (!msm_smd_ciq_info)
+		msm_smd_ciq_info = (*(volatile uint32_t *)(MSM_SHARED_RAM_BASE + 0xFC11C));
 #endif
 
 	spin_lock_irqsave(&smd_lock, flags);
@@ -413,14 +413,13 @@ static irqreturn_t smd_modem_irq_handler(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
-/* Heroc includes this unconditionally? */
-//#if defined(CONFIG_QDSP6)
+#if defined(CONFIG_QDSP6)
 static irqreturn_t smd_dsp_irq_handler(int irq, void *data)
 {
 	handle_smd_irq(&smd_ch_list_dsp, notify_dsp_smd);
 	return IRQ_HANDLED;
 }
-//#endif
+#endif
 
 static void smd_fake_irq_handler(unsigned long arg)
 {
@@ -501,12 +500,12 @@ static int smd_is_packet(int chn, unsigned type)
 
 	/* older AMSS reports SMD_KIND_UNKNOWN always */
 #if defined(CONFIG_ARCH_MSM7225)
-       if (chn == 1)
-               return 0;
+	if (chn == 1)
+		return 0;
 #endif
 #ifdef CONFIG_BUILD_CIQ
-       if (chn == 26)
-               return 0;
+	if (chn == 26)
+		return 0;
 #endif
 	if ((chn > 4) || (chn == 1))
 		return 1;
@@ -799,8 +798,6 @@ int smd_open(const char *name, smd_channel_t **_ch,
 	else
 		list_add(&ch->ch_list, &smd_ch_list_dsp);
 
-	// smd_state_change(ch, ch->last_state, SMD_SS_OPENING);
-
 	/* If the remote side is CLOSING, we need to get it to
 	 * move to OPENING (which we'll do by moving from CLOSED to
 	 * OPENING) and then get it to move from OPENING to
@@ -888,22 +885,22 @@ int smd_wait_until_writable(smd_channel_t *ch, int bytes)
 
 int smd_wait_until_opened(smd_channel_t *ch, int timeout_us)
 {
-#define POLL_INTERVAL_USEC     200
-       int count = 0;
+#define POLL_INTERVAL_USEC	200
+	int count = 0;
 
-       if (timeout_us)
-               count = timeout_us / (POLL_INTERVAL_USEC + 1) + 1;
+	if (timeout_us)
+		count = timeout_us / (POLL_INTERVAL_USEC + 1) + 1;
 
-       do {
-               if (ch_is_open(ch))
-                       return 0;
-               if (count--)
-                       udelay(POLL_INTERVAL_USEC);
-               else
-                       break;
-       } while (1);
+	do {
+		if (ch_is_open(ch))
+			return 0;
+		if (count--)
+			udelay(POLL_INTERVAL_USEC);
+		else
+			break;
+	} while (1);
 
-       return -1;
+	return -1;
 }
 
 int smd_cur_packet_size(smd_channel_t *ch)
@@ -1041,18 +1038,18 @@ int smsm_set_sleep_duration(uint32_t delay)
 
 int smsm_set_sleep_limit(uint32_t sleep_limit)
 {
-       struct msm_dem_slave_data *ptr;
+	struct msm_dem_slave_data *ptr;
 
-       ptr = smem_find(SMEM_APPS_DEM_SLAVE_DATA, sizeof(*ptr));
-       if (ptr == NULL) {
-               pr_err("smsm_set_sleep_limit <SM NO APPS_DEM_SLAVE_DATA>\n");
-               return -EIO;
-       }
-       if (msm_smd_debug_mask & MSM_SMSM_DEBUG)
-               pr_info("smsm_set_sleep_limit %d -> %d\n",
-                      ptr->resources_used, sleep_limit);
-       ptr->resources_used = sleep_limit;
-       return 0;
+	ptr = smem_find(SMEM_APPS_DEM_SLAVE_DATA, sizeof(*ptr));
+	if (ptr == NULL) {
+		pr_err("smsm_set_sleep_limit <SM NO APPS_DEM_SLAVE_DATA>\n");
+		return -EIO;
+	}
+	if (msm_smd_debug_mask & MSM_SMSM_DEBUG)
+		pr_info("smsm_set_sleep_limit %d -> %d\n",
+		       ptr->resources_used, sleep_limit);
+	ptr->resources_used = sleep_limit;
+	return 0;
 }
 
 #else
@@ -1075,7 +1072,7 @@ int smsm_set_sleep_duration(uint32_t delay)
 
 inline int smsm_set_sleep_limit(uint32_t sleep_limit)
 {
-       return 0;
+	return 0;
 }
 
 #endif
