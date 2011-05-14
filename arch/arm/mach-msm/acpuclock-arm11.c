@@ -68,15 +68,14 @@ static struct clock_state drv_state = { 0 };
 
 static void __init acpuclk_init(void);
 
-/* MSM7201A Levels 3-6 all correspond to 1.2V, level 7 corresponds to 1.325V. */
 enum {
 	VDD_0 = 0,
 	VDD_1 = 1,
 	VDD_2 = 2,
 	VDD_3 = 3,
-	VDD_4 = 3,
-	VDD_5 = 3,
-	VDD_6 = 3,
+	VDD_4 = 4,
+	VDD_5 = 5,
+	VDD_6 = 6,
 	VDD_7 = 7,
 	VDD_END
 };
