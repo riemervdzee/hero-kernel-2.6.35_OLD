@@ -798,22 +798,9 @@ int smd_open(const char *name, smd_channel_t **_ch,
 	else
 		list_add(&ch->ch_list, &smd_ch_list_dsp);
 
-	/* If the remote side is CLOSING, we need to get it to
-	 * move to OPENING (which we'll do by moving from CLOSED to
-	 * OPENING) and then get it to move from OPENING to
-	 * OPENED (by doing the same state change ourselves).
-	 *
-	 * Otherwise, it should be OPENING and we can move directly
-	 * to OPENED so that it will follow.
-	 */
-	if (ch->recv->state == SMD_SS_CLOSING) {
-		ch->send->head = 0;
-		ch_set_state(ch, SMD_SS_OPENING);
-	} else {
-		ch_set_state(ch, SMD_SS_OPENED);
-	}
+	smd_state_change(ch, ch->last_state, SMD_SS_OPENING);
+
 	spin_unlock_irqrestore(&smd_lock, flags);
-	smd_kick(ch);
 
 	return 0;
 }
