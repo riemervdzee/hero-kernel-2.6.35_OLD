@@ -341,21 +341,28 @@ static void smd_state_change(struct smd_channel *ch,
 
 	switch (next) {
 	case SMD_SS_OPENING:
-		ch->recv->tail = 0;
-		ch->send->head = 0;
-		ch_set_state(ch, SMD_SS_OPENING);
+		if (ch->send->state == SMD_SS_CLOSING ||
+		    ch->send->state == SMD_SS_CLOSED) {
+			ch->recv->tail = 0;
+			ch->send->head = 0;
+			ch_set_state(ch, SMD_SS_OPENING);
+		}
 		break;
 	case SMD_SS_OPENED:
-		ch_set_state(ch, SMD_SS_OPENED);
-		ch->notify(ch->priv, SMD_EVENT_OPEN);
+		if (ch->send->state == SMD_SS_OPENING) {
+			ch_set_state(ch, SMD_SS_OPENED);
+			ch->notify(ch->priv, SMD_EVENT_OPEN);
+		}
 		break;
 	case SMD_SS_FLUSHING:
 	case SMD_SS_RESET:
 		/* we should force them to close? */
 		break;
 	case SMD_SS_CLOSED:
-		ch_set_state(ch, SMD_SS_CLOSING);
-		ch->notify(ch->priv, SMD_EVENT_CLOSE);
+		if (ch->send->state == SMD_SS_OPENED) {
+			ch_set_state(ch, SMD_SS_CLOSING);
+			ch->notify(ch->priv, SMD_EVENT_CLOSE);
+		}
 		break;
 	}
 }
@@ -522,6 +529,8 @@ static int smd_stream_write(smd_channel_t *ch, const void *_data, int len)
 
 	if (len < 0)
 		return -EINVAL;
+	else if (len == 0)
+		return 0;
 
 	while ((xfer = ch_write_buffer(ch, &ptr)) != 0) {
 		if (!ch_is_open(ch))
@@ -545,8 +554,10 @@ static int smd_packet_write(smd_channel_t *ch, const void *_data, int len)
 {
 	unsigned hdr[5];
 
-	if (len <= 0)
+	if (len < 0)
 		return -EINVAL;
+	else if (len == 0)
+		return 0;
 
 	if (smd_stream_write_avail(ch) < (len + SMD_HEADER_SIZE))
 		return -ENOMEM;
@@ -666,9 +677,9 @@ static int smd_alloc_channel(const char *name, uint32_t cid, uint32_t type)
 	}
 
 	ch->fifo_mask = ch->fifo_size - 1;
-	ch->type = type;
+	ch->type = type & SMD_TYPE_MASK;
 
-	if ((type & SMD_TYPE_MASK) == SMD_TYPE_APPS_MODEM)
+	if (ch->type == SMD_TYPE_APPS_MODEM)
 		ch->notify_other_cpu = notify_modem_smd;
 	else
 		ch->notify_other_cpu = notify_dsp_smd;
@@ -687,14 +698,16 @@ static int smd_alloc_channel(const char *name, uint32_t cid, uint32_t type)
 		ch->update_state = update_stream_state;
 	}
 
-	if ((type & SMD_TYPE_MASK) == SMD_TYPE_APPS_MODEM)
+	if (ch->type == SMD_TYPE_APPS_MODEM)
 		memcpy(ch->name, "SMD_", 4);
 	else
 		memcpy(ch->name, "DSP_", 4);
+
 	memcpy(ch->name + 4, name, 20);
 	ch->name[23] = 0;
+
 	ch->pdev.name = ch->name;
-	ch->pdev.id = ch->type & SMD_TYPE_MASK;
+	ch->pdev.id = ch->type;
 
 	pr_info("smd_alloc_channel() cid=%02d size=%05d '%s'\n",
 		ch->n, ch->fifo_size, ch->name);
@@ -793,7 +806,7 @@ int smd_open(const char *name, smd_channel_t **_ch,
 
 	spin_lock_irqsave(&smd_lock, flags);
 
-	if ((ch->type & SMD_TYPE_MASK) == SMD_TYPE_APPS_MODEM)
+	if (ch->type == SMD_TYPE_APPS_MODEM)
 		list_add(&ch->ch_list, &smd_ch_list_modem);
 	else
 		list_add(&ch->ch_list, &smd_ch_list_dsp);
@@ -964,9 +977,9 @@ static irqreturn_t smsm_irq_handler(int irq, void *data)
 int smsm_change_state(enum smsm_state_item item,
 		      uint32_t clear_mask, uint32_t set_mask)
 {
-	unsigned long addr = smd_info.state + item * 4;
 	unsigned long flags;
 	unsigned state;
+	unsigned addr = smd_info.state + item * 4;
 
 	if (!smd_info.ready)
 		return -EIO;
