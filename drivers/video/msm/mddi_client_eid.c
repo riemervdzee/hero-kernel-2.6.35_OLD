@@ -74,7 +74,7 @@ struct panel_info {
 	struct msmfb_callback *fb_callback;
 	struct wake_lock idle_lock;
 	int samsung_got_int;
-	int irq;
+	atomic_t depth;
 };
 
 static struct cabc_config cabc_config;
@@ -89,10 +89,12 @@ static struct platform_device mddi_samsung_cabc = {
 static struct clk *ebi1_clk;
 static void samsung_dump_vsync(void)
 {
+	unsigned long rate = clk_get_rate(ebi1_clk);
+
 	printk(KERN_INFO "STATUS %d %s EBI1 %lu\n",
 		readl(VSYNC_STATUS) & 0x04,
 		readl(VSYNC_EN) & 0x04 ? "ENABLED" : "DISABLED",
-		clk_get_rate(ebi1_clk));
+		rate);
 }
 
 static inline void samsung_clear_vsync(void)
@@ -124,6 +126,12 @@ samsung_request_vsync(struct msm_panel_data *panel_data,
 	if (panel->samsung_got_int) {
 		panel->samsung_got_int = 0;
 		client_data->activate_link(client_data); /* clears interrupt */
+	}
+	
+	if (atomic_read(&panel->depth) <= 0) {
+		atomic_inc(&panel->depth);
+		samsung_clear_vsync();
+		enable_irq(gpio_to_irq(97));
 	}
 }
 
@@ -238,8 +246,8 @@ eid_client_init(struct msm_mddi_bridge_platform_data *bridge,
 
 	if (panel->panel_id == PANEL_ESPRESSO_SHARP) {
 		eid_cmd(client_data, DCON, prm, 4, 0x00, 0x00, 0x00, 0x00);
-		eid_cmd(client_data, DISCTL, prm, 12, 0x14, 0x14, 0x0f, 0x1b, 0x07,
-			0x1b, 0x07, 0x12, 0x02, 0x18, 0x18, 0x00);
+		eid_cmd(client_data, DISCTL, prm, 12, 0x14, 0x14, 0x0f, 0x13, 0x0f,
+			0x13, 0x0f, 0x12, 0x02, 0x18, 0x18, 0x00);
 
 		eid_cmd(client_data, 0xf6, prm, 4, 0x80, 0x10, 0x09, 0x00);
 
@@ -277,7 +285,7 @@ eid_client_init(struct msm_mddi_bridge_platform_data *bridge,
 			0x1f, 0x00, 0x00);
 
 		eid_cmd(client_data, SLPOUT, prm, 4, 0x00, 0x00, 0x00, 0x00);
-		hr_msleep(150);
+		hr_msleep(160);
 
 		eid_cmd(client_data, 0x29, prm, 4, 0x00, 0x00, 0x00, 0x00);
 
@@ -285,34 +293,26 @@ eid_client_init(struct msm_mddi_bridge_platform_data *bridge,
 		return 0;
 	}
 
-	if (panel->panel_id != PANEL_ESPRESSO_TPO)
-                eid_pwrctl(client_data, panel->panel_id, 0x00, 0x00);
-        else
-                eid_cmd(client_data, 0xF3, prm, 12, 0x01, 0x00, 0x2a, 0x00,
-                        0x09, 0x33, 0x75, 0x75, 0x00, 0x00, 0x00, 0x00);
-
-	if (panel->panel_id != PANEL_ESPRESSO_TPO)
-	       eid_cmd(client_data, SLPOUT, prm, 4, 0x00, 0x00, 0x00, 0x00);
-
-	if (panel->panel_id == PANEL_ESPRESSO_TPO) {
-		eid_cmd(client_data, DISCTL, prm, 12, 0x16, 0x16, 0x0f, 0x1b,
-			0x07, 0x1b, 0x07, 0x10, 0x02, 0x16, 0x16, 0x00);
-	} else if (panel->panel_id == PANEL_LIBERTY_EID_24pin) {
-		hr_msleep(10);
+	eid_pwrctl(client_data, panel->panel_id, 0x00, 0x00);
+	if (panel->panel_id == PANEL_ESPRESSO_TPO)
+		hr_msleep(15);	//more than 10ms
+	eid_cmd(client_data, SLPOUT, prm, 4, 0x00, 0x00, 0x00, 0x00);
+	hr_msleep(20);
+	if (panel->panel_id == PANEL_ESPRESSO_TPO)
+		eid_cmd(client_data, DISCTL, prm, 12, 0x16, 0x16, 0x0f, 0x11,
+			0x11, 0x11, 0x11, 0x10, 0x02, 0x16, 0x16, 0x00);
+	else if (panel->panel_id == PANEL_LIBERTY_EID_24pin)
 		eid_cmd(client_data, DISCTL, prm, 12, 0x16, 0x16, 0x0f, 0x1b,
 			0x07, 0x1b, 0x07, 0x10, 0x00, 0x16, 0x16, 0x00);
-	} else if (panel->panel_id == PANEL_LIBERTY_TPO) {
-		hr_msleep(20);
+	else if (panel->panel_id == PANEL_LIBERTY_TPO)
 		eid_cmd(client_data, DISCTL, prm, 12, 0x16, 0x16, 0x0f, 0x1b,
 			0x07, 0x11, 0x11, 0x10, 0x00, 0x16, 0x16, 0x00);
-	} else {
-		hr_msleep(20);
+	else
 		eid_cmd(client_data, DISCTL, prm, 12, 0x16, 0x16, 0x0f, 0x11,
 			0x11, 0x11, 0x11, 0x10, 0x00, 0x16, 0x16, 0x00);
-	}
-
-	if (panel->panel_id != PANEL_ESPRESSO_TPO)
-                eid_pwrctl(client_data, panel->panel_id, 0x01, 0x00);
+	if (panel->panel_id == PANEL_ESPRESSO_TPO)
+		hr_msleep(15);	//more than 10ms
+	eid_pwrctl(client_data, panel->panel_id, 0x01, 0x00);
 
 	if (panel->panel_id == PANEL_EID_40pin)
 		eid_cmd(client_data, VCMCTL, prm, 8, 0x2a, 0x2a, 0x19, 0x19,
@@ -351,47 +351,32 @@ eid_client_init(struct msm_mddi_bridge_platform_data *bridge,
             (panel->panel_id == PANEL_ESPRESSO_TPO))
 		eid_cmd(client_data, GATECTL, prm, 4, 0x11, 0x3b, 0x00, 0x00);
 	else
-	        eid_cmd(client_data, GATECTL, prm, 4, 0x44, 0x3b, 0x00, 0x00);
+		eid_cmd(client_data, GATECTL, prm, 4, 0x44, 0x3b, 0x00, 0x00);
+	hr_msleep(20);
 
-        if (panel->panel_id == PANEL_LIBERTY_EID_24pin) {
-			hr_msleep(10);
-                eid_pwrctl(client_data, panel->panel_id, 0x03, 0x00);
-	        hr_msleep(10);
+	eid_pwrctl(client_data, panel->panel_id, 0x03, 0x00);
+	hr_msleep(20);
 
-                eid_pwrctl(client_data, panel->panel_id, 0x07, 0x00);
-	        hr_msleep(10);
+	eid_pwrctl(client_data, panel->panel_id, 0x07, 0x00);
+	hr_msleep(20);
 
-	        eid_pwrctl(client_data, panel->panel_id, 0x0f, 0x02);
-	        hr_msleep(10);
+	eid_pwrctl(client_data, panel->panel_id, 0x0f, 0x02);
+	hr_msleep(20);
 
-	        eid_pwrctl(client_data, panel->panel_id, 0x1f, 0x02);
-	        hr_msleep(10);
+	eid_pwrctl(client_data, panel->panel_id, 0x1f, 0x02);
+	hr_msleep(20);
 
-	        eid_pwrctl(client_data, panel->panel_id, 0x3f, 0x08);
-	        hr_msleep(30);
+	if (panel->panel_id == PANEL_ESPRESSO_TPO)
+		eid_pwrctl(client_data, panel->panel_id, 0x3f, 0x09);
+	else
+	eid_pwrctl(client_data, panel->panel_id, 0x3f, 0x08);
+	hr_msleep(30);
 
-	        eid_pwrctl(client_data, panel->panel_id, 0x7f, 0x08);
-	        hr_msleep(30);
-        } else if (panel->panel_id != PANEL_ESPRESSO_TPO) {
-			hr_msleep(20);
-                eid_pwrctl(client_data, panel->panel_id, 0x03, 0x00);
-	        hr_msleep(20);
-
-                eid_pwrctl(client_data, panel->panel_id, 0x07, 0x00);
-	        hr_msleep(20);
-
-	        eid_pwrctl(client_data, panel->panel_id, 0x0f, 0x02);
-	        hr_msleep(20);
-
-	        eid_pwrctl(client_data, panel->panel_id, 0x1f, 0x02);
-	        hr_msleep(20);
-
-	        eid_pwrctl(client_data, panel->panel_id, 0x3f, 0x08);
-	        hr_msleep(30);
-
-	        eid_pwrctl(client_data, panel->panel_id, 0x7f, 0x08);
-	        hr_msleep(40);
-        }
+	if (panel->panel_id == PANEL_ESPRESSO_TPO)
+		eid_pwrctl(client_data, panel->panel_id, 0x7f, 0x09);
+	else
+	eid_pwrctl(client_data, panel->panel_id, 0x7f, 0x08);
+	hr_msleep(40);
 
 	eid_cmd(client_data, TEON, prm, 4, 0x00, 0x00, 0x00, 0x00);
 
@@ -546,13 +531,11 @@ eid_client_init(struct msm_mddi_bridge_platform_data *bridge,
 	else
 		hr_msleep(100);
 
-	if (panel->panel_id != PANEL_ESPRESSO_TPO)
-	        eid_cmd(client_data, DCON, prm, 4, 0x07, 0x00, 0x00, 0x00);
-        else {
-                eid_cmd(client_data, SLPOUT, prm, 4, 0x00, 0x00, 0x00, 0x00);
-                hr_msleep(120);
-                eid_cmd(client_data, 0x29, prm, 4, 0x00, 0x00, 0x00, 0x00);
-        }
+	if (panel->panel_id == PANEL_ESPRESSO_TPO) {
+		eid_cmd(client_data, CASET, prm, 4, 0x00, 0x00, 0x01, 0x3f);
+		eid_cmd(client_data, PASET, prm, 4, 0x00, 0x00, 0x01, 0xdf);
+	}
+	eid_cmd(client_data, DCON, prm, 4, 0x07, 0x00, 0x00, 0x00);
 
 	client_data->auto_hibernate(client_data, 1);
 	return 0;
@@ -640,11 +623,10 @@ static const struct mddi_cmd eidII_init_cmd_table[] = {
 	LCM_CMD(0xF3, 40, 0x0, 0x7F, 0x2A, 0x0, 0x8, 0x33, 0x3C, 0x3C, 0x0,
 						0x0, 0x0, 0x0),
 	LCM_CMD(0x35, 0, 0x0, 0x0, 0x0, 0x0),
+	LCM_CMD(0x36, 0, 0x48, 0x0, 0x0, 0x0),
 #ifdef CONFIG_MACH_HERO
-	LCM_CMD(0x36, 0, 0x98, 0x0, 0x0, 0x0),
 	LCM_CMD(0x3A, 0, 0x66, 0x0, 0x0, 0x0),
 #else
-	LCM_CMD(0x36, 0, 0x48, 0x0, 0x0, 0x0),
 	LCM_CMD(0x3A, 0, 0x55, 0x0, 0x0, 0x0),
 #endif
 	LCM_CMD(0xF7, 0, 0x0, 0x0, 0x0, 0x06, 0x27, 0x2C, 0x2A, 0x2A, 0x13,
@@ -690,9 +672,9 @@ static int
 eid2_client_uninit(struct msm_mddi_bridge_platform_data *bridge,
 		struct msm_mddi_client_data *client_data)
 {
+	B(KERN_DEBUG "%s\n", __func__);
 	uint8_t prm[20];
 	struct panel_data *panel = &bridge->panel_conf;
-	B(KERN_DEBUG "%s\n", __func__);
 
 	client_data->auto_hibernate(client_data, 0);
 	eid_cmd(client_data, DCON, prm, 4, 0x06, 0x00, 0x00, 0x00);
@@ -898,6 +880,10 @@ static irqreturn_t eid_vsync_interrupt(int irq, void *data)
 	if (!!(val & 0x04) == 0)
 		printk(KERN_ERR "BUG!! val: %x\n", val);
 #endif
+	if (atomic_read(&panel->depth) > 0) {
+		atomic_dec(&panel->depth);
+		disable_irq_nosync(gpio_to_irq(97));
+	}
 
 	if (panel->fb_callback) {
 		panel->fb_callback->func(panel->fb_callback);
@@ -909,6 +895,39 @@ static irqreturn_t eid_vsync_interrupt(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
+static int setup_vsync(struct panel_info *panel, int init)
+{
+	int ret;
+	int gpio = 97;
+	unsigned int irq;
+
+	if (!init) {
+		ret = 0;
+		goto uninit;
+	}
+
+	ret = irq = gpio_to_irq(gpio);
+	if (ret < 0)
+		goto err_get_irq_num_failed;
+
+	samsung_clear_vsync();
+	ret = request_irq(irq, eid_vsync_interrupt, IRQF_TRIGGER_HIGH,
+			"vsync", panel);
+	if (ret)
+		goto err_request_irq_failed;
+	disable_irq_nosync(irq);
+
+	printk(KERN_INFO "vsync on gpio %d now %d\n", gpio,
+			gpio_get_value(gpio));
+	return 0;
+
+uninit:
+	free_irq(gpio_to_irq(gpio), panel->client_data);
+err_request_irq_failed:
+err_get_irq_num_failed:
+	printk(KERN_ERR "%s fail (%d)\n", __func__, ret);
+	return ret;
+}
 
 static int mddi_samsung_probe(struct platform_device *pdev)
 {
@@ -963,19 +982,7 @@ static int mddi_samsung_probe(struct platform_device *pdev)
 		platform_device_register(&mddi_samsung_cabc);
 	}
 
-	// Get IRQ
-	ret = MSM_GPIO_TO_INT( 97);
-	// Should be the following line though, but not working :(
-	// ret = platform_get_irq_byname(pdev, "vsync");
-	if (ret <= 0)
-	{
-		dev_err(&pdev->dev, "could not get vsync irq\n");
-		goto err_panel;
-	}
-
-	panel->irq = ret;
-	ret = request_irq(panel->irq, eid_vsync_interrupt,
-			  IRQF_TRIGGER_RISING, "vsync", panel);
+	ret = setup_vsync(panel, 1);
 	if (ret) {
 		dev_err(&pdev->dev, "mddi_samsung_setup_vsync failed\n");
 		err = -EIO;
@@ -994,6 +1001,7 @@ static int mddi_samsung_probe(struct platform_device *pdev)
 	panel->panel_data.shutdown = samsung_shutdown;
 	panel->panel_data.fb_data = &bridge_data->fb_data;
 	panel->panel_data.caps = ~MSMFB_CAP_PARTIAL_UPDATES;
+	atomic_set(&panel->depth, 0);
 	panel->pdev.name = "msm_panel";
 	panel->pdev.id = pdev->id;
 	panel->pdev.resource = client_data->fb_resource;
@@ -1015,8 +1023,7 @@ static int mddi_samsung_remove(struct platform_device *pdev)
 {
 	struct panel_info *panel = platform_get_drvdata(pdev);
 
-	platform_set_drvdata(pdev, NULL);
-	free_irq(panel->irq, panel);
+	setup_vsync(panel, 0);
 	kfree(panel);
 	return 0;
 }

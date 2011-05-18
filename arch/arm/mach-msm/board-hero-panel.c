@@ -585,6 +585,23 @@ static void panel_eid_fixup(uint16_t *mfr_name, uint16_t *product_code)
 	*product_code= 0x0;
 }
 
+static int config_vsync(void)
+{
+	int ret;
+	uint32_t config;
+
+	ret = gpio_request(HERO_GPIO_VSYNC, "vsync");
+	if (ret)
+		return ret;
+
+	config = PCOM_GPIO_CFG(HERO_GPIO_VSYNC, 1, GPIO_INPUT,
+			GPIO_PULL_DOWN, GPIO_2MA);
+	ret = msm_proc_comm(PCOM_RPC_GPIO_TLMM_CONFIG_EX, &config, 0);
+	if (ret)
+		gpio_free(HERO_GPIO_VSYNC);
+	return ret;
+}
+
 static struct msm_mddi_bridge_platform_data toshiba_client_data = {
 	.init = mddi_toshiba_client_init,
 	.uninit = mddi_toshiba_client_uninit,
@@ -629,7 +646,7 @@ static struct msm_mddi_platform_data hero_pdata = {
 	.clk_rate = 122880000,
 	.power_client = hero_mddi_sharp_power,
 	.fixup = panel_eid_fixup,
-	.vsync_irq = MSM_GPIO_TO_INT(HERO_GPIO_VSYNC),
+	//.vsync_irq = MSM_GPIO_TO_INT(HERO_GPIO_VSYNC),
 	.fb_resource = resources_msm_fb,
 	.num_clients = 2,
 	.client_platform_data = {
@@ -709,6 +726,10 @@ int __init hero_init_panel(void)
 
 	msm_device_mdp.dev.platform_data = &mdp_pdata;
 	rc = platform_device_register(&msm_device_mdp);
+	if (rc)
+		return rc;
+
+	rc = config_vsync();
 	if (rc)
 		return rc;
 
