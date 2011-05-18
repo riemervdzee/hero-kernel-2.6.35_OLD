@@ -23,7 +23,6 @@
 #include <linux/leds.h>
 #include <linux/switch.h>
 #include <linux/synaptics_i2c_rmi.h>
-#include <linux/cy8c_tmg_ts.h>
 #include <linux/akm8973.h>
 #include <linux/sysdev.h>
 #include <linux/android_pmem.h>
@@ -118,19 +117,6 @@ static int hero_ts_power(int on)
 	}
 	return 0;
 }
-
-static struct cy8c_i2c_platform_data hero_cypress_ts_data = {
-	.version = 0x0001,
-	.abs_x_min = 0,
-	.abs_x_max = 319,
-	.abs_y_min = 0,
-	.abs_y_max = 479,
-	.abs_pressure_min = 0,
-	.abs_pressure_max = 255,
-	.abs_width_min = 0,
-	.abs_width_max = 15,
-	.power = hero_ts_power,
-};
 
 static struct synaptics_i2c_rmi_platform_data hero_ts_data[] = {
 	{
@@ -506,11 +492,6 @@ static struct i2c_board_info i2c_devices[] = {
 	{
 		I2C_BOARD_INFO(SYNAPTICS_I2C_RMI_NAME, 0x20),
 		.platform_data = &hero_ts_data,
-		.irq = MSM_GPIO_TO_INT(HERO_GPIO_TP_ATT_N)
-	},
-	{
-		I2C_BOARD_INFO(CYPRESS_TMG_NAME, 0x13),
-		.platform_data = &hero_cypress_ts_data,
 		.irq = MSM_GPIO_TO_INT(HERO_GPIO_TP_ATT_N)
 	},
 	{
@@ -970,11 +951,9 @@ static uint32_t uart3_on_gpio_table[] = {
 /* default TX,RX to GPI */
 static uint32_t uart3_off_gpio_table[] = {
 	/* RX, H2W DATA */
-	PCOM_GPIO_CFG(HERO_GPIO_H2W_DATA, 0,
-		      GPIO_INPUT, GPIO_NO_PULL, GPIO_2MA),
+	PCOM_GPIO_CFG(HERO_GPIO_H2W_DATA, 0, GPIO_INPUT, GPIO_NO_PULL, GPIO_2MA),
 	/* TX, H2W CLK */
-	PCOM_GPIO_CFG(HERO_GPIO_H2W_CLK, 0,
-		      GPIO_INPUT, GPIO_NO_PULL, GPIO_2MA),
+	PCOM_GPIO_CFG(HERO_GPIO_H2W_CLK, 0, GPIO_INPUT, GPIO_NO_PULL, GPIO_2MA),
 };
 
 static int hero_h2w_path = H2W_GPIO;
@@ -984,18 +963,14 @@ static void h2w_configure(int route)
 	printk(KERN_INFO "H2W route = %d \n", route);
 	switch (route) {
 	case H2W_UART3:
-		msm_proc_comm(PCOM_RPC_GPIO_TLMM_CONFIG_EX,
-			      uart3_on_gpio_table+0, 0);
-		msm_proc_comm(PCOM_RPC_GPIO_TLMM_CONFIG_EX,
-			      uart3_on_gpio_table+1, 0);
+		msm_proc_comm(PCOM_RPC_GPIO_TLMM_CONFIG_EX, uart3_on_gpio_table + 0, 0);
+		msm_proc_comm(PCOM_RPC_GPIO_TLMM_CONFIG_EX, uart3_on_gpio_table + 1, 0);
 		hero_h2w_path = H2W_UART3;
 		printk(KERN_INFO "H2W -> UART3\n");
 		break;
 	case H2W_GPIO:
-		msm_proc_comm(PCOM_RPC_GPIO_TLMM_CONFIG_EX,
-			      uart3_off_gpio_table+0, 0);
-		msm_proc_comm(PCOM_RPC_GPIO_TLMM_CONFIG_EX,
-			      uart3_off_gpio_table+1, 0);
+		msm_proc_comm(PCOM_RPC_GPIO_TLMM_CONFIG_EX, uart3_off_gpio_table + 0, 0);
+		msm_proc_comm(PCOM_RPC_GPIO_TLMM_CONFIG_EX, uart3_off_gpio_table + 1, 0);
 		hero_h2w_path = H2W_GPIO;
 		printk(KERN_INFO "H2W -> GPIO\n");
 		break;
@@ -1377,9 +1352,9 @@ static struct perflock_platform_data hero_perflock_data = {
 
 #ifdef CONFIG_SERIAL_MSM_HS
 static struct msm_serial_hs_platform_data msm_uart_dm1_pdata = {
-	.rx_wakeup_irq = MSM_GPIO_TO_INT(HERO_GPIO_UART1_RX),
+	.rx_wakeup_irq       = MSM_GPIO_TO_INT(HERO_GPIO_UART1_RX),
 	.inject_rx_on_wakeup = 1,
-	.rx_to_inject = 0x32,
+	.rx_to_inject        = 0x32,
 };
 #endif
 
