@@ -1479,6 +1479,11 @@ static void msm_hs_shutdown(struct uart_port *uport)
 	/* Disable the receiver */
 	msm_hs_write(uport, UARTDM_CR_ADDR, UARTDM_CR_RX_DISABLE_BMSK);
 
+	/* disable irq wakeup when shutdown **/
+	if (use_low_power_rx_wakeup(msm_uport))
+		if (unlikely(set_irq_wake(msm_uport->rx_wakeup.irq, 0)))
+			return;
+
 	/* Free the interrupt */
 	free_irq(uport->irq, msm_uport);
 	if (use_low_power_rx_wakeup(msm_uport))
@@ -1503,6 +1508,9 @@ static void msm_hs_shutdown(struct uart_port *uport)
 
 	if (cancel_work_sync(&msm_uport->rx.tty_work))
 		msm_hs_tty_flip_buffer_work(&msm_uport->rx.tty_work);
+
+	/* make sure wake_lock is released */
+	wake_lock_timeout(&msm_uport->rx.wake_lock, HZ / 10);
 }
 
 static void __exit msm_serial_hs_exit(void)
