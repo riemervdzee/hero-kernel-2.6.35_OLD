@@ -1260,6 +1260,9 @@ static int msm_hs_startup(struct uart_port *uport)
 	if (unlikely(ret))
 		return ret;
 	if (use_low_power_rx_wakeup(msm_uport)) {
+		/* move from startup  **/
+		if (unlikely(set_irq_wake(msm_uport->rx_wakeup.irq, 1)))
+			return -ENXIO;
 		ret = request_irq(msm_uport->rx_wakeup.irq,
 				  msm_hs_rx_wakeup_isr,
 				  IRQF_TRIGGER_FALLING,
@@ -1367,8 +1370,10 @@ static int msm_hs_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	uport->irq = platform_get_irq(pdev, 0);
+	/*
 	if (unlikely(uport->irq < 0))
 		return -ENXIO;
+	*/
 	if (unlikely(set_irq_wake(uport->irq, 1)))
 		return -ENXIO;
 
