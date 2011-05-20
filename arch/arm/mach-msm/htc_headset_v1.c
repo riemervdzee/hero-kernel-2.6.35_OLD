@@ -1279,8 +1279,6 @@ static void button_work(struct work_struct *work)
 			break;
 		} /* end switch */
 	}
-	// TODO: add if statement to check if it requires enabling at all (not sure)
-	enable_irq(hi->irq_btn);
 
 	return HRTIMER_NORESTART;
 }
@@ -1337,7 +1335,6 @@ static irqreturn_t button_irq_handler(int irq, void *dev_id)
 
 	H2W_DBG("value2 = %d (%d retries)", value2, (10-retry_limit));
 
-	disable_irq_nosync(hi->irq_btn);
 	queue_delayed_work(g_button_work_queue, &g_button_work,
 			   BUTTON_H2W_DELAY);
 
