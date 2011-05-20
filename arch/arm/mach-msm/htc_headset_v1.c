@@ -223,10 +223,10 @@ void enable_h2w_irq(void)
 		return;
 
 	local_irq_save(irq_flags);
-	enable_irq(hi->irq_btn);
+	//enable_irq(hi->irq_btn);
 	enable_irq(hi->irq);
 	ret = set_irq_wake(hi->irq, 1);
-	ret = set_irq_wake(hi->irq_btn, 1);
+	//ret = set_irq_wake(hi->irq_btn, 1);
 	local_irq_restore(irq_flags);
 }
 
@@ -239,10 +239,10 @@ void disable_h2w_irq(void)
 		return;
 
 	local_irq_save(irq_flags);
-	disable_irq(hi->irq_btn);
+	//disable_irq(hi->irq_btn);
 	disable_irq(hi->irq);
 	ret = set_irq_wake(hi->irq, 0);
-	ret = set_irq_wake(hi->irq_btn, 0);
+	//ret = set_irq_wake(hi->irq_btn, 0);
 	local_irq_restore(irq_flags);
 }
 
@@ -2101,14 +2101,14 @@ static int h2w_probe(struct platform_device *pdev)
 		if (ret < 0)
 			goto err_request_h2w_headset_button_irq;
 
-		disable_irq(hi->irq_btn);
+		disable_irq_nosync(hi->irq_btn);
 
 		ret = set_irq_wake(hi->irq, 1);
 		if (ret < 0)
 			goto err_request_input_dev;
-		ret = set_irq_wake(hi->irq_btn, 1);
-		if (ret < 0)
-			goto err_request_input_dev;
+		//ret = set_irq_wake(hi->irq_btn, 1);
+		//if (ret < 0)
+		//	goto err_request_input_dev;
 	}
 
 	if (hi->ext_mic_sel) {
