@@ -267,17 +267,18 @@ static void update_packet_state(struct smd_channel *ch)
 	int r;
 
 	/* can't do anything if we're in the middle of a packet */
-	if (ch->current_packet != 0)
-		return;
+	while (ch->current_packet == 0) {
+		/* discard 0 length packets if any */
 
-	/* don't bother unless we can get the full header */
-	if (smd_stream_read_avail(ch) < SMD_HEADER_SIZE)
-		return;
+		/* don't bother unless we can get the full header */
+		if (smd_stream_read_avail(ch) < SMD_HEADER_SIZE)
+			return;
 
-	r = ch_read(ch, hdr, SMD_HEADER_SIZE);
-	BUG_ON(r != SMD_HEADER_SIZE);
+		r = ch_read(ch, hdr, SMD_HEADER_SIZE);
+		BUG_ON(r != SMD_HEADER_SIZE);
 
-	ch->current_packet = hdr[0];
+		ch->current_packet = hdr[0];
+	}
 }
 
 /* provide a pointer and length to next free space in the fifo */
@@ -607,44 +608,24 @@ static int smd_packet_read(smd_channel_t *ch, void *data, int len)
 
 	return r;
 }
-//This will need testing on a lot of systems... drastic change
-#ifdef CONFIG_MSM_SMD_PKG3
-/*
- * This allocator assumes an SMD Package v3 which only exists on
- * MSM7x00 SoC's.
- */
-static inline int smd_alloc_channel_for_package_version(struct smd_channel *ch)
-{
-	struct smd_shared_v1 *shared1;
-	
-	shared1 = smem_alloc(ID_SMD_CHANNELS + ch->n, sizeof(*shared1));
-	if (!shared1) {
-		pr_err("smd_alloc_channel() cid %d does not exist\n", ch->n);
-		return -1;
-	}
-	ch->send = &shared1->ch0;
-	ch->recv = &shared1->ch1;
-	ch->send_data = shared1->data0;
-	ch->recv_data = shared1->data1;
-	ch->fifo_size = SMD_BUF_SIZE;
-	return 0;
-}
-#else
-/*
- * This allocator assumes an SMD Package v4, the most common
- * and the default.
- */
-static inline int smd_alloc_channel_for_package_version(struct smd_channel *ch)
+
+static int smd_alloc_v2(struct smd_channel *ch)
 {
 	struct smd_shared_v2 *shared2;
 	void *buffer;
 	unsigned buffer_sz;
-	
+
 	shared2 = smem_alloc(SMEM_SMD_BASE_ID + ch->n, sizeof(*shared2));
+	if (!shared2) {
+		pr_err("[SMD]smd_alloc_v2: cid %d does not exist\n", ch->n);
+		return -1;
+	}
 	buffer = smem_item(SMEM_SMD_FIFO_BASE_ID + ch->n, &buffer_sz);
 
-	if (!buffer)
+	if (!buffer) {
+		pr_err("[SMD]smd_alloc_v2: ch%d buffer allocate fail\n", ch->n);
 		return -1;
+	}
 
 	/* buffer must be a power-of-two size */
 	if (buffer_sz & (buffer_sz - 1))
@@ -658,9 +639,25 @@ static inline int smd_alloc_channel_for_package_version(struct smd_channel *ch)
 	ch->fifo_size = buffer_sz;
 	return 0;
 }
-#endif /* CONFIG_MSM_SMD_PKG3 */
- 
-static int smd_alloc_channel(const char *name, uint32_t cid, uint32_t type)
+
+static int smd_alloc_v1(struct smd_channel *ch)
+{
+	struct smd_shared_v1 *shared1;
+	shared1 = smem_alloc(ID_SMD_CHANNELS + ch->n, sizeof(*shared1));
+	if (!shared1) {
+		pr_err("[SMD]smd_alloc_v1: cid %d does not exist\n", ch->n);
+		return -1;
+	}
+	ch->send = &shared1->ch0;
+	ch->recv = &shared1->ch1;
+	ch->send_data = shared1->data0;
+	ch->recv_data = shared1->data1;
+	ch->fifo_size = SMD_BUF_SIZE;
+	return 0;
+}
+
+
+static unsigned smd_alloc_channel(const char *name, uint32_t cid, uint32_t type)
 {
 	struct smd_channel *ch;
 
@@ -671,7 +668,7 @@ static int smd_alloc_channel(const char *name, uint32_t cid, uint32_t type)
 	}
 	ch->n = cid;
 
-	if (smd_alloc_channel_for_package_version(ch)) {
+	if (smd_alloc_v2(ch) && smd_alloc_v1(ch)) {
 		kfree(ch);
 		return -EAGAIN;
 	}
