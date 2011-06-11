@@ -539,7 +539,8 @@ static int smd_stream_write(smd_channel_t *ch, const void *_data, int len)
 			break;
 	}
 
-	ch->notify_other_cpu();
+	if (orig_len - len)
+		ch->notify_other_cpu();
 
 	return orig_len - len;
 }
