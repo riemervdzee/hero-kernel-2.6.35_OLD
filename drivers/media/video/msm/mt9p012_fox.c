@@ -1408,6 +1408,47 @@ static struct i2c_driver mt9p012_i2c_driver = {
 		   },
 };
 
+
+static const char *mt9p012Vendor = "Micron";
+static const char *mt9p012NAME   = "mt9p012";
+static const char *mt9p012fxSize = "5M";
+
+static ssize_t sensor_vendor_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	ssize_t ret = 0;
+
+	sprintf(buf, "%s %s %s\n", mt9p012Vendor, mt9p012NAME, mt9p012fxSize);
+	ret = strlen(buf) + 1;
+
+	return ret;
+}
+
+static DEVICE_ATTR(sensor, 0444, sensor_vendor_show, NULL);
+
+static struct kobject *android_mt9p012;
+
+static int mt9p012_sysfs_init(void)
+{
+	int ret ;
+	pr_info("mt9p012:kobject creat and add\n");
+	android_mt9p012 = kobject_create_and_add("android_camera", NULL);
+	if (android_mt9p012 == NULL) {
+		pr_info("mt9p012_sysfs_init: subsystem_register " \
+		"failed\n");
+		ret = -ENOMEM;
+		return ret ;
+	}
+	pr_info("mt9p012:sysfs_create_file\n");
+	ret = sysfs_create_file(android_mt9p012, &dev_attr_sensor.attr);
+	if (ret) {
+		pr_info("mt9p012_sysfs_init: sysfs_create_file " \
+		"failed\n");
+		kobject_del(android_mt9p012);
+	}
+	return 0 ;
+}
+
 static int mt9p012_sensor_probe(const struct msm_camera_sensor_info *info,
 				struct msm_sensor_ctrl *s)
 {
@@ -1437,6 +1478,7 @@ static int mt9p012_sensor_probe(const struct msm_camera_sensor_info *info,
 	s->s_release = mt9p012_sensor_release;
 	s->s_config = mt9p012_sensor_config;
 	mt9p012_probe_init_done(info);
+	mt9p012_sysfs_init();
 
 probe_done:
 	CDBG("%s %s:%d\n", __FILE__, __func__, __LINE__);
