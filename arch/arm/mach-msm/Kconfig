@@ -106,7 +106,8 @@ config MSM_REMOTE_SPINLOCK
 	default y
 
 config MSM_LEGACY_7X00A_AMSS
-	bool
+	bool "Legacy 7x00A AMSS"
+	default n
 
 config TURBO_MODE
 	bool "Turbo mode"
