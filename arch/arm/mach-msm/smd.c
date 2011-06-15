@@ -602,8 +602,33 @@ static int smd_packet_read(smd_channel_t *ch, void *data, int len)
 
 	return r;
 }
+#ifdef CONFIG_MSM_SMD_PKG3
+/*
+ * This allocator assumes an SMD Package v3 which only exists on
+ * MSM7x00 SoC's.
+ */
+static inline int smd_alloc_channel_for_package_version(struct smd_channel *ch)
+{
+	struct smd_shared_v1 *shared1;
 
-static int smd_alloc_v2(struct smd_channel *ch)
+	shared1 = smem_alloc(ID_SMD_CHANNELS + ch->n, sizeof(*shared1));
+	if (!shared1) {
+		pr_err("[SMD]smd_alloc_channel(): cid %d does not exist\n", ch->n);
+		return -1;
+	}
+	ch->send = &shared1->ch0;
+	ch->recv = &shared1->ch1;
+	ch->send_data = shared1->data0;
+	ch->recv_data = shared1->data1;
+	ch->fifo_size = SMD_BUF_SIZE;
+	return 0;
+}
+#else
+/*
+ * This allocator assumes an SMD Package v4, the most common
+ * and the default.
+ */
+static inline int smd_alloc_channel_for_package_version(struct smd_channel *ch)
 {
 	struct smd_shared_v2 *shared2;
 	void *buffer;
@@ -611,13 +636,13 @@ static int smd_alloc_v2(struct smd_channel *ch)
 
 	shared2 = smem_alloc(SMEM_SMD_BASE_ID + ch->n, sizeof(*shared2));
 	if (!shared2) {
-		pr_err("[SMD]smd_alloc_v2: cid %d does not exist\n", ch->n);
+		pr_err("[SMD]smd_alloc_channel(): cid %d does not exist\n", ch->n);
 		return -1;
 	}
 	buffer = smem_item(SMEM_SMD_FIFO_BASE_ID + ch->n, &buffer_sz);
 
 	if (!buffer) {
-		pr_err("[SMD]smd_alloc_v2: ch%d buffer allocate fail\n", ch->n);
+		pr_err("[SMD]smd_alloc_channel(): ch%d buffer allocate fail\n", ch->n);
 		return -1;
 	}
 
@@ -633,23 +658,7 @@ static int smd_alloc_v2(struct smd_channel *ch)
 	ch->fifo_size = buffer_sz;
 	return 0;
 }
-
-static int smd_alloc_v1(struct smd_channel *ch)
-{
-	struct smd_shared_v1 *shared1;
-	shared1 = smem_alloc(ID_SMD_CHANNELS + ch->n, sizeof(*shared1));
-	if (!shared1) {
-		pr_err("[SMD]smd_alloc_v1: cid %d does not exist\n", ch->n);
-		return -1;
-	}
-	ch->send = &shared1->ch0;
-	ch->recv = &shared1->ch1;
-	ch->send_data = shared1->data0;
-	ch->recv_data = shared1->data1;
-	ch->fifo_size = SMD_BUF_SIZE;
-	return 0;
-}
-
+#endif /* CONFIG_MSM_SMD_PKG3 */
 
 static unsigned smd_alloc_channel(const char *name, uint32_t cid, uint32_t type)
 {
@@ -662,7 +671,7 @@ static unsigned smd_alloc_channel(const char *name, uint32_t cid, uint32_t type)
 	}
 	ch->n = cid;
 
-	if (smd_alloc_v2(ch) && smd_alloc_v1(ch)) {
+	if (smd_alloc_channel_for_package_version(ch)) {
 		kfree(ch);
 		return -EAGAIN;
 	}
