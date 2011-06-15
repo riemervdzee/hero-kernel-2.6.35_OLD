@@ -26,12 +26,16 @@
 #include <linux/slab.h>
 
 #include <mach/msm_rpcrouter.h>
+#include <mach/msm_rpc_version.h>
 
 #define RTC_DEBUG 0
 
 extern void msm_pm_set_max_sleep_time(int64_t sleep_time_ns);
 
 static const char *rpc_versions[] = {
+#ifdef APP_TIMEREMOTE_PDEV_NAME
+	APP_TIMEREMOTE_PDEV_NAME,
+#endif
 #if !defined(CONFIG_MSM_LEGACY_7X00A_AMSS)
 	"rs30000048:00040000",
 	"rs30000048:00010000",
