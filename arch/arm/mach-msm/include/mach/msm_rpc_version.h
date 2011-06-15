@@ -93,11 +93,19 @@
 
 #elif (CONFIG_MSM_AMSS_VERSION == 6355)
 #define INT_ADSP                               INT_ADSP_A9_A11
+#ifdef CONFIG_MSM_LEGACY_7X00A_AMSS
+#define MSM_ADSP_DRIVER_NAME                   "rs3000000a:00010001"
+#else
 #define MSM_ADSP_DRIVER_NAME                   "rs3000000a:00010000"
-#define RPC_ADSP_RTOS_ATOM_VERS                MSM_RPC_VERS(1,0)
+#endif
+#define RPC_ADSP_RTOS_ATOM_VERS                MSM_RPC_VERS(1,1)
 #define RPC_ADSP_RTOS_MTOA_VERS                MSM_RPC_VERS(2,1) /* actual ver*/
 #define AUDMGR_VERS                            0x10002 /* 65538 */
+#ifdef CONFIG_MSM_LEGACY_7X00A_AMSS
+#define AUDMGR_CB_VERS                         0x10002 /* 65538 */
+#else
 #define AUDMGR_CB_VERS                         0xf8e3e2d9
+#endif
 #define DOG_KEEPALIVE_VERS                     0x10001 /* 65537 */
 #define RPC_DOG_KEEPALIVE_BEACON               2
 #define TIME_REMOTE_MTOA_VERS                  0x10001 /* 65537 */
