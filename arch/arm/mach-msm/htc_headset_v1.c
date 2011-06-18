@@ -225,7 +225,7 @@ void enable_h2w_irq(void)
 		return;
 
 	local_irq_save(irq_flags);
-	//enable_irq(hi->irq_btn);
+	enable_irq(hi->irq_btn);
 	enable_irq(hi->irq);
 	ret = set_irq_wake(hi->irq, 1);
 	//ret = set_irq_wake(hi->irq_btn, 1);
@@ -241,7 +241,7 @@ void disable_h2w_irq(void)
 		return;
 
 	local_irq_save(irq_flags);
-	//disable_irq(hi->irq_btn);
+	disable_irq(hi->irq_btn);
 	disable_irq(hi->irq);
 	ret = set_irq_wake(hi->irq, 0);
 	//ret = set_irq_wake(hi->irq_btn, 0);
