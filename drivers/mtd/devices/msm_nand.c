@@ -30,8 +30,6 @@
 
 #include <mach/dma.h>
 
-unsigned crci_mask;
-
 #include "msm_nand.h"
 
 #define MSM_NAND_DMA_BUFFER_SIZE SZ_4K
@@ -217,11 +215,9 @@ uint32_t flash_read_id(struct msm_nand_chip *chip)
 	dma_buffer->cmdptr =
 		(msm_virt_to_dma(chip, dma_buffer->cmd) >> 3) | CMD_PTR_LP;
 
-	dsb();
 	msm_dmov_exec_cmd(
-		chip->dma_channel, crci_mask, DMOV_CMD_PTR_LIST |
+		chip->dma_channel, DMOV_CMD_PTR_LIST |
 		DMOV_CMD_ADDR(msm_virt_to_dma(chip, &dma_buffer->cmdptr)));
-	dsb();
 
 	rv = dma_buffer->data[4];
 	pr_info("msn_nand: nandid %x status %x\n", rv, dma_buffer->data[3]);
@@ -258,11 +254,9 @@ int flash_read_config(struct msm_nand_chip *chip)
 	dma_buffer->cmdptr =
 		(msm_virt_to_dma(chip, dma_buffer->cmd) >> 3) | CMD_PTR_LP;
 
-	dsb();
 	msm_dmov_exec_cmd(
-		chip->dma_channel, crci_mask, DMOV_CMD_PTR_LIST |
+		chip->dma_channel, DMOV_CMD_PTR_LIST |
 		DMOV_CMD_ADDR(msm_virt_to_dma(chip, &dma_buffer->cmdptr)));
-	dsb();
 
 	chip->CFG0 = dma_buffer->cfg0;
 	chip->CFG1 = dma_buffer->cfg1;
@@ -301,11 +295,9 @@ unsigned flash_rd_reg(struct msm_nand_chip *chip, unsigned addr)
 		(msm_virt_to_dma(chip, &dma_buffer->cmd) >> 3) | CMD_PTR_LP;
 	dma_buffer->data = 0xeeeeeeee;
 
-	dsb();
 	msm_dmov_exec_cmd(
-		chip->dma_channel, crci_mask, DMOV_CMD_PTR_LIST |
+		chip->dma_channel, DMOV_CMD_PTR_LIST |
 		DMOV_CMD_ADDR(msm_virt_to_dma(chip, &dma_buffer->cmdptr)));
-	dsb();
 	rv = dma_buffer->data;
 
 	msm_nand_release_dma_buffer(chip, dma_buffer, sizeof(*dma_buffer));
@@ -334,11 +326,9 @@ void flash_wr_reg(struct msm_nand_chip *chip, unsigned addr, unsigned val)
 		(msm_virt_to_dma(chip, &dma_buffer->cmd) >> 3) | CMD_PTR_LP;
 	dma_buffer->data = val;
 
-	dsb();
 	msm_dmov_exec_cmd(
-		chip->dma_channel, crci_mask, DMOV_CMD_PTR_LIST |
+		chip->dma_channel, DMOV_CMD_PTR_LIST |
 		DMOV_CMD_ADDR(msm_virt_to_dma(chip, &dma_buffer->cmdptr)));
-	dsb();
 
 	msm_nand_release_dma_buffer(chip, dma_buffer, sizeof(*dma_buffer));
 }
@@ -695,11 +685,9 @@ static int msm_nand_read_oob(struct mtd_info *mtd, loff_t from,
 			(msm_virt_to_dma(chip, dma_buffer->cmd) >> 3)
 			| CMD_PTR_LP;
 
-	dsb();
 		msm_dmov_exec_cmd(
-			chip->dma_channel, crci_mask, DMOV_CMD_PTR_LIST | DMOV_CMD_ADDR(
+			chip->dma_channel, DMOV_CMD_PTR_LIST | DMOV_CMD_ADDR(
 				msm_virt_to_dma(chip, &dma_buffer->cmdptr)));
-	dsb();
 
 		/* if any of the writes failed (0x10), or there
 		 * was a protection violation (0x100), we lose
@@ -1071,11 +1059,9 @@ msm_nand_write_oob(struct mtd_info *mtd, loff_t to, struct mtd_oob_ops *ops)
 			(msm_virt_to_dma(chip, dma_buffer->cmd) >> 3) |
 			CMD_PTR_LP;
 
-		dsb();
-		msm_dmov_exec_cmd(chip->dma_channel, crci_mask,
+		msm_dmov_exec_cmd(chip->dma_channel,
 			DMOV_CMD_PTR_LIST | DMOV_CMD_ADDR(
 				msm_virt_to_dma(chip, &dma_buffer->cmdptr)));
-		dsb();
 
 		/* if any of the writes failed (0x10), or there was a
 		 * protection violation (0x100), or the program success
@@ -1221,11 +1207,9 @@ msm_nand_erase(struct mtd_info *mtd, struct erase_info *instr)
 	dma_buffer->cmdptr =
 		(msm_virt_to_dma(chip, dma_buffer->cmd) >> 3) | CMD_PTR_LP;
 
-	dsb();
 	msm_dmov_exec_cmd(
-		chip->dma_channel, crci_mask, DMOV_CMD_PTR_LIST |
+		chip->dma_channel, DMOV_CMD_PTR_LIST |
 		DMOV_CMD_ADDR(msm_virt_to_dma(chip, &dma_buffer->cmdptr)));
-	dsb();
 
 	/* we fail if there was an operation error, a mpu error, or the
 	 * erase success bit was not set.
@@ -1357,10 +1341,8 @@ msm_nand_block_isbad(struct mtd_info *mtd, loff_t ofs)
 	dma_buffer->cmdptr = (msm_virt_to_dma(chip,
 				dma_buffer->cmd) >> 3) | CMD_PTR_LP;
 
-	dsb();
-	msm_dmov_exec_cmd(chip->dma_channel, crci_mask, DMOV_CMD_PTR_LIST |
+	msm_dmov_exec_cmd(chip->dma_channel, DMOV_CMD_PTR_LIST |
 		DMOV_CMD_ADDR(msm_virt_to_dma(chip, &dma_buffer->cmdptr)));
-	dsb();
 
 	ret = 0;
 	if (dma_buffer->data.result.flash_status & 0x110)
@@ -1711,9 +1693,6 @@ static int __devinit msm_nand_probe(struct platform_device *pdev)
 
 	pr_info("msm_nand: allocated dma buffer at %p, dma_addr %x\n",
 		info->msm_nand.dma_buffer, info->msm_nand.dma_addr);
-
-	crci_mask = msm_dmov_build_crci_mask(2,
-			DMOV_NAND_CRCI_DATA, DMOV_NAND_CRCI_CMD);
 
 	info->mtd.name = dev_name(&pdev->dev);
 	info->mtd.priv = &info->msm_nand;

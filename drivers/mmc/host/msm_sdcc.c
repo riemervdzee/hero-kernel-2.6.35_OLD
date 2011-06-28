@@ -291,7 +291,7 @@ msmsdcc_start_command_exec(struct msmsdcc_host *host, u32 arg, u32 c) {
 static void
 msmsdcc_dma_exec_func(struct msm_dmov_cmd *cmd)
 {
-	struct msmsdcc_host *host = (struct msmsdcc_host *)cmd->user;
+	struct msmsdcc_host *host = (struct msmsdcc_host *)cmd->data;
 
 	msmsdcc_writel(host, host->cmd_timeout, MMCIDATATIMER);
 	msmsdcc_writel(host, (unsigned int)host->curr.xfer_size,
@@ -616,8 +616,8 @@ msmsdcc_start_data(struct msmsdcc_host *host, struct mmc_data *data,
 		host->cmd_datactrl = datactrl;
 		host->cmd_cmd = cmd;
 
-		host->dma.hdr.exec_func = msmsdcc_dma_exec_func;
-		host->dma.hdr.user = (void *)host;
+		host->dma.hdr.execute_func = msmsdcc_dma_exec_func;
+		host->dma.hdr.data = (void *)host;
 		host->dma.busy = 1;
 
 		if (cmd) {
