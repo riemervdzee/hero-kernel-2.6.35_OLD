@@ -122,8 +122,6 @@ static DECLARE_DELAYED_WORK(g_button_work, button_work);
 static void headset35mm_detection_work(struct work_struct *work);
 static DECLARE_WORK(g_extend_detection_work, headset35mm_detection_work);
 
-int enable_mic_bias(int on);
-
 struct h2w_info {
 	struct class *htc_accessory_class;
 	struct device *tty_dev;
@@ -844,7 +842,7 @@ static void remove_headset(void)
 		if (hi->headset_35mm_flag == 2) {
 			ret = set_irq_wake(hi->irq_btn_35mm, 0);
 			disable_irq(hi->irq_btn_35mm);
-			enable_mic_bias(0);
+			turn_mic_bias_on(0);
 			if (atomic_read(&hi->btn_state))
 				button_released();
 		}
@@ -908,7 +906,7 @@ static void insert_headset(int type)
 			/* support 3.5mm earphone with mic */
 			printk(KERN_INFO "11pin_3.5mm_headset plug in\n");
 			/* Turn On Mic Bias */
-			enable_mic_bias(1);
+			turn_mic_bias_on(1);
 			/* Wait pin be stable */
 			msleep(300);
 			/* Detect headset with or without microphone */
@@ -1422,7 +1420,7 @@ static void headset35mm_detection_work(struct work_struct *work)
 			gpio_direction_output(hi->wfm_ant_sw, 0);
 
 		/* Turn On Mic Bias */
-		enable_mic_bias(1);
+		turn_mic_bias_on(1);
 
 		/* Wait for pin stable */
 		msleep(300);
@@ -1483,7 +1481,7 @@ static void headset35mm_detection_work(struct work_struct *work)
 		if (hi->headset_35mm_flag) {
 			ret = set_irq_wake(hi->irq_btn_35mm, 0);
 			disable_irq(hi->irq_btn_35mm);
-			enable_mic_bias(0);
+			turn_mic_bias_on(0);
 		}
 
 		check_btn_released();
