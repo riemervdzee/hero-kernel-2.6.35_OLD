@@ -246,8 +246,8 @@ eid_client_init(struct msm_mddi_bridge_platform_data *bridge,
 
 	if (panel->panel_id == PANEL_ESPRESSO_SHARP) {
 		eid_cmd(client_data, DCON, prm, 4, 0x00, 0x00, 0x00, 0x00);
-		eid_cmd(client_data, DISCTL, prm, 12, 0x14, 0x14, 0x0f, 0x13, 0x0f,
-			0x13, 0x0f, 0x12, 0x02, 0x18, 0x18, 0x00);
+		eid_cmd(client_data, DISCTL, prm, 12, 0x14, 0x14, 0x0f, 0x1b, 0x07,
+			0x1b, 0x07, 0x12, 0x02, 0x18, 0x18, 0x00);
 
 		eid_cmd(client_data, 0xf6, prm, 4, 0x80, 0x10, 0x09, 0x00);
 
@@ -285,7 +285,7 @@ eid_client_init(struct msm_mddi_bridge_platform_data *bridge,
 			0x1f, 0x00, 0x00);
 
 		eid_cmd(client_data, SLPOUT, prm, 4, 0x00, 0x00, 0x00, 0x00);
-		hr_msleep(160);
+		hr_msleep(150);
 
 		eid_cmd(client_data, 0x29, prm, 4, 0x00, 0x00, 0x00, 0x00);
 
@@ -293,26 +293,34 @@ eid_client_init(struct msm_mddi_bridge_platform_data *bridge,
 		return 0;
 	}
 
-	eid_pwrctl(client_data, panel->panel_id, 0x00, 0x00);
-	if (panel->panel_id == PANEL_ESPRESSO_TPO)
-		hr_msleep(15);	//more than 10ms
-	eid_cmd(client_data, SLPOUT, prm, 4, 0x00, 0x00, 0x00, 0x00);
-	hr_msleep(20);
-	if (panel->panel_id == PANEL_ESPRESSO_TPO)
-		eid_cmd(client_data, DISCTL, prm, 12, 0x16, 0x16, 0x0f, 0x11,
-			0x11, 0x11, 0x11, 0x10, 0x02, 0x16, 0x16, 0x00);
-	else if (panel->panel_id == PANEL_LIBERTY_EID_24pin)
+	if (panel->panel_id != PANEL_ESPRESSO_TPO)
+		eid_pwrctl(client_data, panel->panel_id, 0x00, 0x00);
+	else
+		eid_cmd(client_data, 0xF3, prm, 12, 0x01, 0x00, 0x2a, 0x00,
+			0x09, 0x33, 0x75, 0x75, 0x00, 0x00, 0x00, 0x00);
+
+	if (panel->panel_id != PANEL_ESPRESSO_TPO)
+		eid_cmd(client_data, SLPOUT, prm, 4, 0x00, 0x00, 0x00, 0x00);
+
+	if (panel->panel_id == PANEL_ESPRESSO_TPO) {
+		eid_cmd(client_data, DISCTL, prm, 12, 0x16, 0x16, 0x0f, 0x1b,
+			0x07, 0x1b, 0x07, 0x10, 0x02, 0x16, 0x16, 0x00);
+	} else if (panel->panel_id == PANEL_LIBERTY_EID_24pin) {
+		hr_msleep(10);
 		eid_cmd(client_data, DISCTL, prm, 12, 0x16, 0x16, 0x0f, 0x1b,
 			0x07, 0x1b, 0x07, 0x10, 0x00, 0x16, 0x16, 0x00);
-	else if (panel->panel_id == PANEL_LIBERTY_TPO)
+	} else if (panel->panel_id == PANEL_LIBERTY_TPO) {
+		hr_msleep(20);
 		eid_cmd(client_data, DISCTL, prm, 12, 0x16, 0x16, 0x0f, 0x1b,
 			0x07, 0x11, 0x11, 0x10, 0x00, 0x16, 0x16, 0x00);
-	else
+	} else {
+		hr_msleep(20);
 		eid_cmd(client_data, DISCTL, prm, 12, 0x16, 0x16, 0x0f, 0x11,
 			0x11, 0x11, 0x11, 0x10, 0x00, 0x16, 0x16, 0x00);
-	if (panel->panel_id == PANEL_ESPRESSO_TPO)
-		hr_msleep(15);	//more than 10ms
-	eid_pwrctl(client_data, panel->panel_id, 0x01, 0x00);
+	}
+
+	if (panel->panel_id != PANEL_ESPRESSO_TPO)
+		eid_pwrctl(client_data, panel->panel_id, 0x01, 0x00);
 
 	if (panel->panel_id == PANEL_EID_40pin)
 		eid_cmd(client_data, VCMCTL, prm, 8, 0x2a, 0x2a, 0x19, 0x19,
@@ -348,35 +356,50 @@ eid_client_init(struct msm_mddi_bridge_platform_data *bridge,
 	if ((panel->panel_id == PANEL_TPO) ||
 	    (panel->panel_id == PANEL_HEROC_TPO) ||
 	    (panel->panel_id == PANEL_LIBERTY_TPO) ||
-            (panel->panel_id == PANEL_ESPRESSO_TPO))
+		(panel->panel_id == PANEL_ESPRESSO_TPO))
 		eid_cmd(client_data, GATECTL, prm, 4, 0x11, 0x3b, 0x00, 0x00);
 	else
 		eid_cmd(client_data, GATECTL, prm, 4, 0x44, 0x3b, 0x00, 0x00);
-	hr_msleep(20);
 
-	eid_pwrctl(client_data, panel->panel_id, 0x03, 0x00);
-	hr_msleep(20);
+	if (panel->panel_id == PANEL_LIBERTY_EID_24pin) {
+		hr_msleep(10);
+		eid_pwrctl(client_data, panel->panel_id, 0x03, 0x00);
+		hr_msleep(10);
 
-	eid_pwrctl(client_data, panel->panel_id, 0x07, 0x00);
-	hr_msleep(20);
+		eid_pwrctl(client_data, panel->panel_id, 0x07, 0x00);
+		hr_msleep(10);
 
-	eid_pwrctl(client_data, panel->panel_id, 0x0f, 0x02);
-	hr_msleep(20);
+		eid_pwrctl(client_data, panel->panel_id, 0x0f, 0x02);
+		hr_msleep(10);
 
-	eid_pwrctl(client_data, panel->panel_id, 0x1f, 0x02);
-	hr_msleep(20);
+		eid_pwrctl(client_data, panel->panel_id, 0x1f, 0x02);
+		hr_msleep(10);
 
-	if (panel->panel_id == PANEL_ESPRESSO_TPO)
-		eid_pwrctl(client_data, panel->panel_id, 0x3f, 0x09);
-	else
-	eid_pwrctl(client_data, panel->panel_id, 0x3f, 0x08);
-	hr_msleep(30);
+		eid_pwrctl(client_data, panel->panel_id, 0x3f, 0x08);
+		hr_msleep(30);
 
-	if (panel->panel_id == PANEL_ESPRESSO_TPO)
-		eid_pwrctl(client_data, panel->panel_id, 0x7f, 0x09);
-	else
-	eid_pwrctl(client_data, panel->panel_id, 0x7f, 0x08);
-	hr_msleep(40);
+		eid_pwrctl(client_data, panel->panel_id, 0x7f, 0x08);
+		hr_msleep(30);
+	} else if (panel->panel_id != PANEL_ESPRESSO_TPO) {
+		hr_msleep(20);
+		eid_pwrctl(client_data, panel->panel_id, 0x03, 0x00);
+		hr_msleep(20);
+
+		eid_pwrctl(client_data, panel->panel_id, 0x07, 0x00);
+		hr_msleep(20);
+
+		eid_pwrctl(client_data, panel->panel_id, 0x0f, 0x02);
+		hr_msleep(20);
+
+		eid_pwrctl(client_data, panel->panel_id, 0x1f, 0x02);
+		hr_msleep(20);
+
+		eid_pwrctl(client_data, panel->panel_id, 0x3f, 0x08);
+		hr_msleep(30);
+
+		eid_pwrctl(client_data, panel->panel_id, 0x7f, 0x08);
+		hr_msleep(40);
+	}
 
 	eid_cmd(client_data, TEON, prm, 4, 0x00, 0x00, 0x00, 0x00);
 
@@ -525,17 +548,20 @@ eid_client_init(struct msm_mddi_bridge_platform_data *bridge,
 		eid_cmd(client_data, DCON, prm, 4, 0x06, 0x00, 0x00, 0x00);
 	eid_cmd(client_data, RAMWR, prm, 4, 0x00, 0x00, 0x00, 0x00);
 	if ((panel->panel_id == PANEL_ESPRESSO_TPO) ||
-	    (panel->panel_id == PANEL_LIBERTY_EID_24pin) ||
 	    (panel->panel_id == PANEL_LIBERTY_TPO))
 		hr_msleep(50);
+	else if (panel->panel_id == PANEL_LIBERTY_EID_24pin)
+		hr_msleep(40);
 	else
 		hr_msleep(100);
 
-	if (panel->panel_id == PANEL_ESPRESSO_TPO) {
-		eid_cmd(client_data, CASET, prm, 4, 0x00, 0x00, 0x01, 0x3f);
-		eid_cmd(client_data, PASET, prm, 4, 0x00, 0x00, 0x01, 0xdf);
+	if (panel->panel_id != PANEL_ESPRESSO_TPO)
+		eid_cmd(client_data, DCON, prm, 4, 0x07, 0x00, 0x00, 0x00);
+	else {
+		eid_cmd(client_data, SLPOUT, prm, 4, 0x00, 0x00, 0x00, 0x00);
+		hr_msleep(120);
+		eid_cmd(client_data, 0x29, prm, 4, 0x00, 0x00, 0x00, 0x00);
 	}
-	eid_cmd(client_data, DCON, prm, 4, 0x07, 0x00, 0x00, 0x00);
 
 	client_data->auto_hibernate(client_data, 1);
 	return 0;
@@ -672,9 +698,9 @@ static int
 eid2_client_uninit(struct msm_mddi_bridge_platform_data *bridge,
 		struct msm_mddi_client_data *client_data)
 {
-	B(KERN_DEBUG "%s\n", __func__);
 	uint8_t prm[20];
 	struct panel_data *panel = &bridge->panel_conf;
+	B(KERN_DEBUG "%s\n", __func__);
 
 	client_data->auto_hibernate(client_data, 0);
 	eid_cmd(client_data, DCON, prm, 4, 0x06, 0x00, 0x00, 0x00);
